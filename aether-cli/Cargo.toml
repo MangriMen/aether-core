@@ -11,7 +11,7 @@ clap = { version = "4.0", features = ["derive"] }
 reqwest = "0.12.5"
 tokio = { version = "1.39.2", features = ["full"] }
 
-daedalus = "0.2.2"
+daedalus = "0.2.3"
 chrono = "0.4.38"
 log = "0.4.22"
 env_logger = "0.11.5"
