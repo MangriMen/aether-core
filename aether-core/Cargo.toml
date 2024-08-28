@@ -29,3 +29,4 @@ regex = "1.10.5"
 sys-info = "0.9.1"
 
 daedalus = { version = "0.2.2" }
+tracing = "0.1.40"
