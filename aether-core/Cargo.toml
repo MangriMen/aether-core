@@ -30,3 +30,4 @@ sys-info = "0.9.1"
 
 daedalus = { version = "0.2.2" }
 tracing = "0.1.40"
+thiserror = "1.0.63"
