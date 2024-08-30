@@ -1,27 +1,39 @@
 use crate::{
     state::LauncherState,
-    utils::{self, fetch::fetch_advanced, io::write_async},
+    utils::{
+        self,
+        fetch::{fetch_advanced, fetch_json},
+        io::write_async,
+    },
 };
 use anyhow::Context;
 use bytes::Bytes;
-use daedalus::minecraft::{self, AssetsIndex};
+use daedalus::{
+    minecraft::{self, AssetsIndex},
+    modded,
+};
 use futures::{stream, StreamExt, TryStreamExt};
 use reqwest::Method;
 
-const MINECRAFT_RESOURCE_BASE_URL: &str = "https://resources.download.minecraft.net";
+use super::library::parse_rules;
+
+const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net";
+const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net";
 
 #[tracing::instrument]
 pub async fn download_minecraft(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
+    java_arch: &str,
     force: bool,
+    minecraft_updated: bool,
 ) -> anyhow::Result<()> {
     let assets_index = &download_assets_index(state, version_info, force).await?;
 
     tokio::try_join! {
         download_client(state, version_info, force),
-        download_assets(state, assets_index, version_info.assets == "legacy", force)
-        //  download libraries -> @download_libraries
+        download_assets(state, assets_index, version_info.assets == "legacy", force),
+        download_libraries(state, version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated)
     }?;
 
     Ok(())
@@ -54,6 +66,67 @@ pub async fn download_assets_index(
 }
 
 #[tracing::instrument]
+pub async fn download_version_info(
+    state: &LauncherState,
+    version: &minecraft::Version,
+    loader: Option<&modded::LoaderVersion>,
+    force: Option<bool>,
+) -> anyhow::Result<minecraft::VersionInfo> {
+    let version_id = loader.map_or(version.id.clone(), |it| format!("{}-{}", version.id, it.id));
+
+    let path = state
+        .locations
+        .version_dir(&version_id)
+        .join(format!("{version_id}.json"));
+
+    let res = if path.exists() && !force.unwrap_or(false) {
+        utils::io::read_json_async(path).await
+    } else {
+        let mut version_info = fetch_json(Method::GET, &version.url, None, None).await?;
+
+        if let Some(loader) = loader {
+            let modded_info = fetch_json(Method::GET, &loader.url, None, None).await?;
+            version_info = modded::merge_partial_version(modded_info, version_info);
+        }
+
+        version_info.id.clone_from(&version_id);
+
+        utils::io::write_async(&path, &serde_json::to_vec(&version_info)?).await?;
+
+        Ok(version_info)
+    }?;
+
+    Ok(res)
+}
+
+pub async fn download_client(
+    state: &LauncherState,
+    version_info: &minecraft::VersionInfo,
+    force: bool,
+) -> anyhow::Result<()> {
+    let version_id = &version_info.id;
+
+    let client_download = version_info
+        .downloads
+        .get(&minecraft::DownloadType::Client)
+        .context(format!(
+            "No client downloads exists for version {version_id}"
+        ))?;
+
+    let path = state
+        .locations
+        .version_dir(version_id)
+        .join(format!("{version_id}.jar"));
+
+    if !path.exists() || force {
+        let bytes = fetch_advanced(Method::GET, &client_download.url, None, None).await?;
+        write_async(&path, &bytes).await?;
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument]
 pub async fn download_asset(
     state: &LauncherState,
     name: &String,
@@ -63,7 +136,7 @@ pub async fn download_asset(
 ) -> anyhow::Result<()> {
     let hash = &asset.hash;
     let url = format!(
-        "{MINECRAFT_RESOURCE_BASE_URL}/{sub_hash}/{hash}",
+        "{MINECRAFT_RESOURCES_BASE_URL}/{sub_hash}/{hash}",
         sub_hash = &hash[..2]
     );
 
@@ -132,29 +205,165 @@ pub async fn download_assets(
     Ok(())
 }
 
-pub async fn download_client(
+#[tracing::instrument]
+pub async fn download_java_library(
     state: &LauncherState,
-    version_info: &minecraft::VersionInfo,
+    library: &minecraft::Library,
     force: bool,
 ) -> anyhow::Result<()> {
-    let version_id = &version_info.id;
+    let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
+    let library_path = state.locations.libraries_dir().join(&library_path_part);
 
-    let client_download = version_info
-        .downloads
-        .get(&minecraft::DownloadType::Client)
-        .context(format!(
-            "No client downloads exists for version {version_id}"
-        ))?;
+    if library_path.exists() && !force {
+        return Ok::<(), anyhow::Error>(());
+    }
 
-    let path = state
-        .locations
-        .version_dir(version_id)
-        .join(format!("{version_id}.jar"));
+    // Get library by artifact url
+    if let Some(minecraft::LibraryDownloads {
+        artifact: Some(ref artifact),
+        ..
+    }) = library.downloads
+    {
+        if !artifact.url.is_empty() {
+            let bytes = fetch_advanced(Method::GET, &artifact.url, None, None).await?;
+            write_async(&library_path, &bytes).await?;
+            return Ok::<(), anyhow::Error>(());
+        }
+    }
 
-    if !path.exists() || force {
-        let bytes = fetch_advanced(Method::GET, &client_download.url, None, None).await?;
-        write_async(&path, &bytes).await?;
+    // Else get library by library.url or default library url
+    let url = [
+        library
+            .url
+            .as_deref()
+            .unwrap_or(MINECRAFT_LIBRARIES_BASE_URL),
+        &library_path_part,
+    ]
+    .concat();
+
+    let bytes = fetch_advanced(Method::GET, &url, None, None).await?;
+    write_async(&library_path, &bytes).await?;
+
+    Ok(())
+}
+
+#[tracing::instrument]
+pub async fn download_native_library_files(
+    state: &LauncherState,
+    library: &minecraft::Library,
+    version_info: &minecraft::VersionInfo,
+    java_arch: &str,
+    force: bool,
+) -> anyhow::Result<()> {
+    use crate::utils::platform::OsExt;
+    use minecraft::Os;
+
+    if let Some((os_key, classifiers)) = None.or_else(|| {
+        Some((
+            library.natives.as_ref()?.get(&Os::native_arch(java_arch))?,
+            library.downloads.as_ref()?.classifiers.as_ref()?,
+        ))
+    }) {
+        let parsed_key = os_key.replace("${arch}", crate::utils::platform::ARCH_WIDTH);
+
+        if let Some(native) = classifiers.get(&parsed_key) {
+            let bytes = fetch_advanced(Method::GET, &native.url, None, None).await?;
+            let reader = std::io::Cursor::new(&bytes);
+
+            if let Ok(mut archive) = zip::ZipArchive::new(reader) {
+                match archive.extract(state.locations.version_natives_dir(&version_info.id)) {
+                    Ok(_) => tracing::debug!("Fetched native {}", &library.name),
+                    Err(err) => {
+                        tracing::error!("Failed extracting native {}. err: {}", &library.name, err)
+                    }
+                }
+            } else {
+                tracing::error!("Failed extracting native {}", &library.name)
+            }
+        }
     }
 
     Ok(())
+}
+
+#[tracing::instrument]
+pub async fn download_library(
+    state: &LauncherState,
+    library: &minecraft::Library,
+    version_info: &minecraft::VersionInfo,
+    java_arch: &str,
+    force: bool,
+    minecraft_updated: bool,
+) -> anyhow::Result<()> {
+    if let Some(rules) = &library.rules {
+        if !parse_rules(rules, java_arch, minecraft_updated) {
+            return Ok(());
+        }
+    }
+
+    if !library.downloadable {
+        return Ok(());
+    }
+
+    tokio::try_join! {
+        download_java_library(state, library, force),
+        download_native_library_files(state, library, version_info, java_arch, force)
+    }?;
+
+    Ok(())
+}
+
+#[tracing::instrument]
+pub async fn download_libraries(
+    state: &LauncherState,
+    libraries: &[minecraft::Library],
+    version_info: &minecraft::VersionInfo,
+    java_arch: &str,
+    force: bool,
+    minecraft_updated: bool,
+) -> anyhow::Result<()> {
+    tokio::try_join! {
+        tokio::fs::create_dir_all(state.locations.libraries_dir()),
+        tokio::fs::create_dir_all(state.locations.version_natives_dir(&version_info.id)),
+    }?;
+
+    let libraries = stream::iter(libraries.iter()).map(Ok::<&minecraft::Library, anyhow::Error>);
+
+    libraries
+        .try_for_each_concurrent(None, |library| async move {
+            download_library(
+                state,
+                library,
+                version_info,
+                java_arch,
+                force,
+                minecraft_updated,
+            )
+            .await
+        })
+        .await?;
+
+    Ok(())
+}
+
+#[tracing::instrument]
+pub async fn download_version_manifest(
+    state: &LauncherState,
+    force: bool,
+) -> anyhow::Result<minecraft::VersionManifest> {
+    let path = state.locations.versions_dir().join("manifest.json");
+
+    let res = if path.exists() && !force {
+        utils::io::read_json_async(path).await
+    } else {
+        let version_manifest =
+            utils::fetch::fetch_json(Method::GET, minecraft::VERSION_MANIFEST_URL, None, None)
+                .await?;
+
+        utils::io::write_async(&path, &serde_json::to_vec(&version_manifest)?).await?;
+
+        Ok(version_manifest)
+    }?;
+
+    Ok(res)
 }

@@ -1,24 +1,72 @@
 use anyhow::Ok;
+use daedalus::modded;
+
+use crate::state::{Instance, InstanceInstallStage, LauncherState};
+
+use super::{download_minecraft, download_version_info, download_version_manifest};
 
 #[tracing::instrument]
-pub async fn install_minecraft() -> anyhow::Result<()> {
-    // state
+pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::Result<()> {
+    let state = LauncherState::get().await?;
 
-    // instance path
+    // For mod loader processing
+    let instance_path = instance.get_full_path().await?;
 
-    // minecraft versions manifest
+    let version_manifest = download_version_manifest(&state, false).await?;
 
-    // minecraft version
+    let version_index = version_manifest
+        .versions
+        .iter()
+        .position(|version| version.id == instance.game_version)
+        .ok_or(anyhow::Error::msg(format!(
+            "Invalid game version: {}",
+            instance.game_version
+        )))?;
 
-    // mod loader version
+    let version = &version_manifest.versions[version_index];
 
-    // jar name
+    let minecraft_updated = version_index
+        <= version_manifest
+            .versions
+            .iter()
+            .position(|version| version.id == "22w16a")
+            .unwrap_or(0);
 
-    // version info
+    // TODO: add mod loader support
+    // let mut mod_loader_version =
 
-    // java version
+    let loader_version: Option<modded::LoaderVersion> = None;
 
-    // @ download minecraft -> download_minecraft
+    // For mod loader processing
+    let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
+        format!("{}-{}", version.id.clone(), it.id.clone())
+    });
+
+    let version_info =
+        download_version_info(&state, version, loader_version.as_ref(), None).await?;
+
+    let java_version = instance
+        .get_java_version_from_profile(&version_info)
+        .await?
+        .ok_or_else(|| anyhow::Error::msg("Missing correct java installation"))?;
+
+    let java_version = crate::api::jre::check_jre(java_version.path.clone().into())
+        .await?
+        .ok_or_else(|| {
+            anyhow::Error::msg(format!(
+                "Java path invalid or non-functional: {}",
+                java_version.path
+            ))
+        })?;
+
+    download_minecraft(
+        &state,
+        &version_info,
+        &java_version.architecture,
+        repairing,
+        minecraft_updated,
+    )
+    .await?;
 
     // @ process mod loader
 
@@ -26,7 +74,10 @@ pub async fn install_minecraft() -> anyhow::Result<()> {
 }
 
 #[tracing::instrument]
-pub async fn launch_minecraft() -> anyhow::Result<()> {
+pub async fn launch_minecraft(instance: &Instance) -> anyhow::Result<()> {
+    if instance.install_stage != InstanceInstallStage::Installed {
+        install_minecraft(instance, false).await?;
+    }
     // if not installed -> install_minecraft
 
     // state

@@ -56,3 +56,12 @@ where
         .await
         .and_then(|ref it| Ok(serde_json::from_slice(it)?))
 }
+
+// dunce canonicalize
+pub fn canonicalize(path: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, IOError> {
+    let path = path.as_ref();
+    dunce::canonicalize(path).map_err(|e| IOError::IOPathError {
+        source: e,
+        path: path.to_string_lossy().to_string(),
+    })
+}
