@@ -51,15 +51,19 @@ pub async fn check_java_at_filepath(path: &Path) -> Option<Java> {
         .output()
         .ok()?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = String::from_utf8_lossy(if output.stdout.is_empty() {
+        &output.stderr
+    } else {
+        &output.stdout
+    });
 
     let mut java_version = None;
     let mut java_arch = None;
 
     for line in stdout.lines() {
         let mut parts = line.split('=');
-        let key = parts.next().unwrap_or_default();
-        let value = parts.next().unwrap_or_default();
+        let key = parts.next().unwrap_or_default().trim();
+        let value = parts.next().unwrap_or_default().trim();
 
         if key == "os.arch" {
             java_arch = Some(value);

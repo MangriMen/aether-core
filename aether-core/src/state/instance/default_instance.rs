@@ -52,7 +52,7 @@ impl Instance {
 
     pub async fn get_java_version_from_profile(
         &self,
-        version_info: &minecraft::VersionInfo,
+        _version_info: &minecraft::VersionInfo,
     ) -> anyhow::Result<Option<Java>> {
         if let Some(java) = self.java_path.as_ref() {
             let java = crate::api::jre::check_jre(std::path::PathBuf::from(java))
@@ -65,19 +65,19 @@ impl Instance {
             }
         }
 
-        let key = version_info
-            .java_version
-            .as_ref()
-            .map(|it| it.major_version)
-            .unwrap_or(8);
+        // let key = version_info
+        //     .java_version
+        //     .as_ref()
+        //     .map(|it| it.major_version)
+        //     .unwrap_or(8);
 
-        let state = LauncherState::get().await?;
+        // let state = LauncherState::get().await?;
 
         // TODO: add get java from settings
         // let java_version = Java::get(key, &state.pool).await?;
 
         let java_version = Some(Java {
-            path: r"C:\Program Files\Java\jdk-17\javaw.exe".to_owned(),
+            path: r"C:\Program Files\Java\jdk-17\bin\javaw.exe".to_owned(),
             major_version: 17,
             version: "17.0.10".to_owned(),
             architecture: "amd64".to_owned(),

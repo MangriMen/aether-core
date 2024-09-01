@@ -10,7 +10,7 @@ pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::
     let state = LauncherState::get().await?;
 
     // For mod loader processing
-    let instance_path = instance.get_full_path().await?;
+    // let instance_path = instance.get_full_path().await?;
 
     let version_manifest = download_version_manifest(&state, false).await?;
 
@@ -38,9 +38,9 @@ pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::
     let loader_version: Option<modded::LoaderVersion> = None;
 
     // For mod loader processing
-    let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
-        format!("{}-{}", version.id.clone(), it.id.clone())
-    });
+    // let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
+    //     format!("{}-{}", version.id.clone(), it.id.clone())
+    // });
 
     let version_info =
         download_version_info(&state, version, loader_version.as_ref(), None).await?;

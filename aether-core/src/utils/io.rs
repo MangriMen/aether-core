@@ -1,5 +1,6 @@
 use futures::TryFutureExt;
 use serde::de::DeserializeOwned;
+use tokio::fs::create_dir_all;
 
 #[derive(Debug, thiserror::Error)]
 pub enum IOError {
@@ -41,6 +42,12 @@ pub async fn write_async(
 ) -> Result<(), IOError> {
     let path_ref = path.as_ref();
     let data_ref = data.as_ref();
+
+    if path_ref.is_dir() {
+        create_dir_all(path_ref).await?;
+    } else {
+        create_dir_all(path_ref.parent().unwrap()).await?;
+    }
 
     tokio::fs::write(path_ref, data_ref)
         .await
