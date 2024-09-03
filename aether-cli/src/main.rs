@@ -77,6 +77,10 @@ async fn process_args(args: &Args) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
+    env_logger::init();
+
+    log::info!("Starting Aether Launcher cli");
+
     init_launcher(&args).await?;
 
     process_args(&args).await?;

@@ -7,6 +7,13 @@ use super::{download_minecraft, download_version_info, download_version_manifest
 
 #[tracing::instrument]
 pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::Result<()> {
+    log::info!(
+        "Installing instance: \"{}\" (minecraft: \"{}\", modloader: \"{}\")",
+        instance.name,
+        instance.game_version,
+        instance.loader_version.clone().unwrap_or_default()
+    );
+
     let state = LauncherState::get().await?;
 
     // For mod loader processing

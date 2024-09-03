@@ -28,6 +28,11 @@ pub async fn download_minecraft(
     force: bool,
     minecraft_updated: bool,
 ) -> anyhow::Result<()> {
+    log::info!(
+        "---------------- Downloading minecraft {} ----------------------------",
+        version_info.id
+    );
+
     let assets_index = &download_assets_index(state, version_info, force).await?;
 
     tokio::try_join! {
@@ -35,6 +40,11 @@ pub async fn download_minecraft(
         download_assets(state, assets_index, version_info.assets == "legacy", force),
         download_libraries(state, version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated)
     }?;
+
+    log::info!(
+        "---------------- Downloaded minecraft {} successfully ----------------",
+        version_info.id
+    );
 
     Ok(())
 }
@@ -99,11 +109,14 @@ pub async fn download_version_info(
     Ok(res)
 }
 
+#[tracing::instrument]
 pub async fn download_client(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
     force: bool,
 ) -> anyhow::Result<()> {
+    log::info!("Downloading client {}", version_info.id);
+
     let version_id = &version_info.id;
 
     let client_download = version_info
@@ -123,6 +136,8 @@ pub async fn download_client(
         write_async(&path, &bytes).await?;
     }
 
+    log::info!("Downloaded client {} successfully", version_info.id);
+
     Ok(())
 }
 
@@ -134,6 +149,8 @@ pub async fn download_asset(
     with_legacy: bool,
     force: bool,
 ) -> anyhow::Result<()> {
+    log::debug!("Downloading asset \"{}\"", name);
+
     let hash = &asset.hash;
     let url = format!(
         "{MINECRAFT_RESOURCES_BASE_URL}/{sub_hash}/{hash}",
@@ -183,6 +200,8 @@ pub async fn download_asset(
         }
     }?;
 
+    log::debug!("Downloaded asset \"{}\" successfully", name);
+
     Ok(())
 }
 
@@ -193,6 +212,8 @@ pub async fn download_assets(
     with_legacy: bool,
     force: bool,
 ) -> anyhow::Result<()> {
+    log::info!("Downloading assets");
+
     let assets =
         stream::iter(index.objects.iter()).map(Ok::<(&String, &minecraft::Asset), anyhow::Error>);
 
@@ -201,6 +222,8 @@ pub async fn download_assets(
             download_asset(state, name, asset, with_legacy, force).await
         })
         .await?;
+
+    log::info!("Downloaded assets successfully");
 
     Ok(())
 }
@@ -211,6 +234,8 @@ pub async fn download_java_library(
     library: &minecraft::Library,
     force: bool,
 ) -> anyhow::Result<()> {
+    log::debug!("Downloading java library \"{}\"", &library.name);
+
     let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
     let library_path = state.locations.libraries_dir().join(&library_path_part);
 
@@ -244,6 +269,8 @@ pub async fn download_java_library(
     let bytes = fetch_advanced(Method::GET, &url, None, None).await?;
     write_async(&library_path, &bytes).await?;
 
+    log::debug!("Downloaded java library \"{}\" successfully", &library.name);
+
     Ok(())
 }
 
@@ -257,6 +284,8 @@ pub async fn download_native_library_files(
 ) -> anyhow::Result<()> {
     use crate::utils::platform::OsExt;
     use minecraft::Os;
+
+    log::debug!("Downloading native library \"{}\"", &library.name);
 
     if let Some((os_key, classifiers)) = None.or_else(|| {
         Some((
@@ -282,6 +311,11 @@ pub async fn download_native_library_files(
             }
         }
     }
+
+    log::debug!(
+        "Downloaded native library \"{}\" successfully",
+        &library.name
+    );
 
     Ok(())
 }
@@ -322,6 +356,8 @@ pub async fn download_libraries(
     force: bool,
     minecraft_updated: bool,
 ) -> anyhow::Result<()> {
+    log::info!("Downloading libraries for {}", version_info.id);
+
     tokio::try_join! {
         tokio::fs::create_dir_all(state.locations.libraries_dir()),
         tokio::fs::create_dir_all(state.locations.version_natives_dir(&version_info.id)),
@@ -342,6 +378,8 @@ pub async fn download_libraries(
             .await
         })
         .await?;
+
+    log::info!("Downloaded libraries for {} successfully", version_info.id);
 
     Ok(())
 }
