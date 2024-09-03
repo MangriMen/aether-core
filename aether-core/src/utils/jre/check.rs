@@ -44,7 +44,7 @@ pub async fn check_java_at_filepath(path: &Path) -> Option<Java> {
     let java_no_window =
         PathBuf::from(java.to_string_lossy().replace(JAVA_BIN, JAVA_NO_WINDOW_BIN));
 
-    let output = Command::new(&java_no_window)
+    let output = Command::new(java_no_window)
         .arg("-XshowSettings:properties")
         .arg("-version")
         .env_remove("_JAVA_OPTIONS")
