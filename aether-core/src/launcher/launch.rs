@@ -1,9 +1,12 @@
 use anyhow::Ok;
-use daedalus::modded;
+use daedalus::{minecraft, modded};
 
-use crate::state::{Instance, InstanceInstallStage, LauncherState};
+use crate::{
+    state::{self, Instance, InstanceInstallStage, LauncherState},
+    utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
+};
 
-use super::{download_minecraft, download_version_info, download_version_manifest};
+use super::{args, download_minecraft, download_version_info, download_version_manifest};
 
 #[tracing::instrument]
 pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::Result<()> {
@@ -16,41 +19,27 @@ pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::
 
     let state = LauncherState::get().await?;
 
+    // TODO: add mod loader support
     // For mod loader processing
     // let instance_path = instance.get_full_path().await?;
 
     let version_manifest = download_version_manifest(&state, false).await?;
 
-    let version_index = version_manifest
-        .versions
-        .iter()
-        .position(|version| version.id == instance.game_version)
-        .ok_or(anyhow::Error::msg(format!(
-            "Invalid game version: {}",
-            instance.game_version
-        )))?;
-
-    let version = &version_manifest.versions[version_index];
-
-    let minecraft_updated = version_index
-        <= version_manifest
-            .versions
-            .iter()
-            .position(|version| version.id == "22w16a")
-            .unwrap_or(0);
+    let (version, minecraft_updated) = get_minecraft_version(instance, version_manifest)?;
 
     // TODO: add mod loader support
     // let mut mod_loader_version =
 
     let loader_version: Option<modded::LoaderVersion> = None;
 
+    // TODO: add mod loader support
     // For mod loader processing
     // let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
     //     format!("{}-{}", version.id.clone(), it.id.clone())
     // });
 
     let version_info =
-        download_version_info(&state, version, loader_version.as_ref(), None).await?;
+        download_version_info(&state, &version, loader_version.as_ref(), None).await?;
 
     let java_version = instance
         .get_java_version_from_profile(&version_info)
@@ -81,45 +70,121 @@ pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::
 }
 
 #[tracing::instrument]
-pub async fn launch_minecraft(instance: &Instance) -> anyhow::Result<()> {
+pub async fn launch_minecraft(
+    instance: &Instance,
+    env_args: &[(String, String)],
+    java_args: &[String],
+    memory: &state::MemorySettings,
+    resolution: &state::WindowSize,
+    credentials: &state::Credentials,
+) -> anyhow::Result<()> {
     if instance.install_stage != InstanceInstallStage::Installed {
         install_minecraft(instance, false).await?;
     }
-    // if not installed -> install_minecraft
 
-    // state
+    let state = LauncherState::get().await?;
 
-    // instance path
+    let instance_path = instance.get_full_path().await?;
 
-    // minecraft versions manifest
+    let version_manifest = download_version_manifest(&state, false).await?;
 
-    // minecraft version
+    let (version, minecraft_updated) = get_minecraft_version(instance, version_manifest)?;
 
-    // mod loader version
+    let loader_version: Option<modded::LoaderVersion> = None;
 
-    // jar name
+    let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
+        format!("{}-{}", version.id.clone(), it.id.clone())
+    });
 
-    // version info
+    let version_info =
+        download_version_info(&state, &version, loader_version.as_ref(), None).await?;
 
-    // java version
+    let java_version = instance
+        .get_java_version_from_profile(&version_info)
+        .await?
+        .ok_or_else(|| anyhow::Error::msg("Missing correct java installation"))?;
 
-    // client path
+    let java_version = crate::api::jre::check_jre(java_version.path.clone().into())
+        .await?
+        .ok_or_else(|| {
+            anyhow::Error::msg(format!(
+                "Java path invalid or non-functional: {}",
+                java_version.path
+            ))
+        })?;
 
-    // env args
+    let client_path = state
+        .locations
+        .version_dir(&version_jar)
+        .join(format!("{version_jar}.jar"));
+
+    let args = version_info.arguments.clone().unwrap_or_default();
+
+    let env_args_vec = Vec::from(env_args);
+
+    // let mut command = match wrapper {
+    //     Some(hook) => {
+    //         wrap_ref_builder!(it = Command::new(hook) => {it.arg(&java_version.path)})
+    //     }
+    //     None => Command::new(&java_version.path),
+    // };
+
+    let mut command = tokio::process::Command::new(&java_version.path);
 
     // check existing
 
-    // natives dir?
+    let natives_dir = state.locations.version_natives_dir(&version_jar);
+    if !natives_dir.exists() {
+        tokio::fs::create_dir_all(&natives_dir).await?;
+    }
 
-    // create command
-    //  jvm args
-    //  version main class
-    //  minecraft arguments
-    //  current dir (instance path)
+    let jvm_arguments = get_minecraft_jvm_arguments(
+        &state,
+        &version_info,
+        &natives_dir,
+        &client_path,
+        version_jar,
+        &java_version,
+        *memory,
+        java_args,
+        &args,
+        minecraft_updated,
+    )?;
 
-    //  remove _JAVA_OPTIONS
+    let minecraft_arguments = args::get_minecraft_arguments(
+        args.get(&minecraft::ArgumentType::Game)
+            .map(|x| x.as_slice()),
+        version_info.minecraft_arguments.as_deref(),
+        credentials,
+        &version.id,
+        &version_info.asset_index.id,
+        &instance_path,
+        &state.locations.assets_dir(),
+        &version.type_,
+        *resolution,
+        &java_version.architecture,
+    )?
+    .into_iter()
+    .collect::<Vec<_>>();
 
-    //  env args
+    // log::error!(instance)
+
+    command
+        .args(jvm_arguments)
+        .arg(version_info.main_class.clone())
+        .args(minecraft_arguments)
+        .current_dir(instance_path.clone());
+
+    // CARGO-set DYLD_LIBRARY_PATH breaks Minecraft on macOS during testing on playground
+    #[cfg(target_os = "macos")]
+    if std::env::var("CARGO").is_ok() {
+        command.env_remove("DYLD_FALLBACK_LIBRARY_PATH");
+    }
+
+    // Java options should be set in instance options (the existence of _JAVA_OPTIONS overwrites them)
+    command.env_remove("_JAVA_OPTIONS");
+
+    command.envs(env_args_vec);
 
     // options.txt override
 
@@ -128,6 +193,8 @@ pub async fn launch_minecraft(instance: &Instance) -> anyhow::Result<()> {
     // minimize launcher
 
     // run process
+
+    let _ = command.spawn().unwrap().wait().await?;
 
     Ok(())
 }

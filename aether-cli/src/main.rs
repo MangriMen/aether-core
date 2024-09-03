@@ -1,9 +1,10 @@
 use aether_core::{
-    launcher::install_minecraft,
-    state::{Instance, LauncherState, Settings},
+    launcher::launch_minecraft,
+    state::{Credentials, Instance, LauncherState, MemorySettings, Settings, WindowSize},
 };
-use chrono::Utc;
+use chrono::{Datelike, Utc};
 use clap::{Parser, Subcommand};
+use uuid::Uuid;
 
 #[derive(Parser, Debug)]
 struct InstallCommand {
@@ -40,14 +41,12 @@ async fn init_launcher(args: &Args) -> anyhow::Result<()> {
 }
 
 async fn process_args(args: &Args) -> anyhow::Result<()> {
-    let state = LauncherState::get().await?;
-
     match &args.command {
         SubCommands::Install(command) => {
-            install_minecraft(
+            launch_minecraft(
                 &Instance {
                     install_stage: aether_core::state::InstanceInstallStage::NotInstalled,
-                    path: state.locations.metadata_dir().to_str().unwrap().to_owned(),
+                    path: "Test".to_owned(),
                     name: "Test".to_owned(),
                     icon_path: None,
                     game_version: command.version.to_owned(),
@@ -64,7 +63,18 @@ async fn process_args(args: &Args) -> anyhow::Result<()> {
                     modified: Utc::now(),
                     last_played: None,
                 },
-                false,
+                &[],
+                &[],
+                &MemorySettings { maximum: 1024 },
+                &WindowSize(800, 600),
+                &Credentials {
+                    id: Uuid::new_v4(),
+                    username: "MangriMen".to_owned(),
+                    access_token: "".to_owned(),
+                    refresh_token: "".to_owned(),
+                    expires: Utc::now().with_year(2025).unwrap(),
+                    active: true,
+                },
             )
             .await?
         }

@@ -301,13 +301,13 @@ pub async fn download_native_library_files(
 
             if let Ok(mut archive) = zip::ZipArchive::new(reader) {
                 match archive.extract(state.locations.version_natives_dir(&version_info.id)) {
-                    Ok(_) => tracing::debug!("Fetched native {}", &library.name),
+                    Ok(_) => log::debug!("Fetched native {}", &library.name),
                     Err(err) => {
-                        tracing::error!("Failed extracting native {}. err: {}", &library.name, err)
+                        log::error!("Failed extracting native {}. err: {}", &library.name, err)
                     }
                 }
             } else {
-                tracing::error!("Failed extracting native {}", &library.name)
+                log::error!("Failed extracting native {}", &library.name)
             }
         }
     }
