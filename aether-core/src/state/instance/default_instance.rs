@@ -1,13 +1,19 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use daedalus::minecraft;
+use daedalus::{minecraft, modded};
+use tokio::fs::remove_dir_all;
 
-use crate::state::{Java, LauncherState, MemorySettings, WindowSize};
+use crate::{
+    api,
+    state::{Java, LauncherState, MemorySettings, WindowSize},
+    utils::io,
+};
 
 use super::{InstanceInstallStage, ModLoader};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Instance {
     pub install_stage: InstanceInstallStage,
 
@@ -50,7 +56,7 @@ impl Instance {
         Ok(full_path)
     }
 
-    pub async fn get_java_version_from_profile(
+    pub async fn get_java_version_from_instance(
         &self,
         _version_info: &minecraft::VersionInfo,
     ) -> anyhow::Result<Option<Java>> {
@@ -84,5 +90,58 @@ impl Instance {
         });
 
         Ok(java_version)
+    }
+
+    pub async fn get_loader_version_from_instance(
+        game_version: &str,
+        loader: ModLoader,
+        loader_version: Option<&str>,
+    ) -> anyhow::Result<Option<modded::LoaderVersion>> {
+        if loader == ModLoader::Vanilla {
+            return Ok(None);
+        }
+
+        let version = loader_version.unwrap_or("latest");
+
+        let filter = |it: &modded::LoaderVersion| match version {
+            "latest" => true,
+            "stable" => it.stable,
+            id => it.id == *id,
+        };
+
+        let versions = api::metadata::get_loader_versions(loader.as_meta_str()).await?;
+
+        let loaders = versions.game_versions.into_iter().find(|x| {
+            x.id.replace(daedalus::modded::DUMMY_REPLACE_STRING, game_version) == game_version
+        });
+
+        if let Some(loaders) = loaders {
+            let loader_version =
+                loaders
+                    .loaders
+                    .iter()
+                    .find(|x| filter(x))
+                    .or(if version == "stable" {
+                        loaders.loaders.first()
+                    } else {
+                        None
+                    });
+
+            Ok(loader_version.cloned())
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn remove(&self, path: &str) -> anyhow::Result<()> {
+        remove_dir_all(path).await?;
+
+        Ok(())
+    }
+
+    pub async fn save(&self, path: &str) -> anyhow::Result<()> {
+        let data = serde_json::to_vec(self)?;
+        io::write_async(path, &data).await?;
+        Ok(())
     }
 }

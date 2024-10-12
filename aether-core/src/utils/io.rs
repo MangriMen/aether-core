@@ -1,5 +1,5 @@
 use futures::TryFutureExt;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::fs::create_dir_all;
 
 #[derive(Debug, thiserror::Error)]
@@ -62,6 +62,14 @@ where
         .err_into::<anyhow::Error>()
         .await
         .and_then(|ref it| Ok(serde_json::from_slice(it)?))
+}
+
+pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> anyhow::Result<()>
+where
+    T: Serialize,
+{
+    todo!("write_json_async")
+    // write_async(path, serde_json::to_string(&data)?).await
 }
 
 // dunce canonicalize

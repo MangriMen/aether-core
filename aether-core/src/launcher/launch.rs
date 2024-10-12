@@ -42,7 +42,7 @@ pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::
         download_version_info(&state, &version, loader_version.as_ref(), None).await?;
 
     let java_version = instance
-        .get_java_version_from_profile(&version_info)
+        .get_java_version_from_instance(&version_info)
         .await?
         .ok_or_else(|| anyhow::Error::msg("Missing correct java installation"))?;
 
@@ -100,7 +100,7 @@ pub async fn launch_minecraft(
         download_version_info(&state, &version, loader_version.as_ref(), None).await?;
 
     let java_version = instance
-        .get_java_version_from_profile(&version_info)
+        .get_java_version_from_instance(&version_info)
         .await?
         .ok_or_else(|| anyhow::Error::msg("Missing correct java installation"))?;
 
