@@ -1,6 +1,6 @@
 [package]
 name = "aether-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
@@ -28,10 +28,10 @@ futures = "0.3.30"
 regex = "1.10.5"
 sys-info = "0.9.1"
 
-daedalus = { version = "0.2.2" }
+daedalus = { version = "0.2.3" }
 tracing = "0.1.40"
 thiserror = "1.0.63"
 zip = "2.2.0"
 chrono = "0.4.38"
 dunce = "1.0.5"
-uuid = { version = "1.10.0", features = ["serde"] }
+uuid = { version = "1.10.0", features = ["serde", "v4"] }
