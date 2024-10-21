@@ -1,4 +1,5 @@
 use crate::{
+    event::{emit_loading, loading_try_for_each_concurrent, LoadingBarId},
     state::LauncherState,
     utils::{
         self,
@@ -12,7 +13,7 @@ use daedalus::{
     minecraft::{self, AssetsIndex},
     modded,
 };
-use futures::{stream, StreamExt, TryStreamExt};
+use futures::{stream, StreamExt};
 use reqwest::Method;
 
 use super::library::parse_rules;
@@ -27,18 +28,30 @@ pub async fn download_minecraft(
     java_arch: &str,
     force: bool,
     minecraft_updated: bool,
+    loading_bar: Option<&LoadingBarId>,
 ) -> anyhow::Result<()> {
     log::info!(
         "---------------- Downloading minecraft {} ----------------------------",
         version_info.id
     );
 
-    let assets_index = &download_assets_index(state, version_info, force).await?;
+    let assets_index = &download_assets_index(state, version_info, force, loading_bar).await?;
+
+    let amount = if version_info
+        .processors
+        .as_ref()
+        .map(|x| !x.is_empty())
+        .unwrap_or(false)
+    {
+        25.0
+    } else {
+        40.0
+    };
 
     tokio::try_join! {
-        download_client(state, version_info, force),
-        download_assets(state, assets_index, version_info.assets == "legacy", force),
-        download_libraries(state, version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated)
+        download_client(state, version_info, force, loading_bar),
+        download_assets(state, assets_index, version_info.assets == "legacy", force, amount, loading_bar),
+        download_libraries(state, version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated, amount, loading_bar)
     }?;
 
     log::info!(
@@ -54,6 +67,7 @@ pub async fn download_assets_index(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
     force: bool,
+    loading_bar: Option<&LoadingBarId>,
 ) -> anyhow::Result<AssetsIndex> {
     let path = state
         .locations
@@ -63,14 +77,23 @@ pub async fn download_assets_index(
     let res = if path.exists() && !force {
         utils::io::read_json_async(path).await
     } else {
-        let assets_index =
-            utils::fetch::fetch_json(Method::GET, &version_info.asset_index.url, None, None)
-                .await?;
+        let assets_index = utils::fetch::fetch_json(
+            Method::GET,
+            &version_info.asset_index.url,
+            None,
+            None,
+            &state.fetch_semaphore,
+        )
+        .await?;
 
         utils::io::write_async(&path, &serde_json::to_vec(&assets_index)?).await?;
 
         Ok(assets_index)
     }?;
+
+    if let Some(loading_bar) = loading_bar {
+        emit_loading(loading_bar, 5.0, None).await?;
+    }
 
     Ok(res)
 }
@@ -81,6 +104,7 @@ pub async fn download_version_info(
     version: &minecraft::Version,
     loader: Option<&modded::LoaderVersion>,
     force: Option<bool>,
+    loading_bar: Option<&LoadingBarId>,
 ) -> anyhow::Result<minecraft::VersionInfo> {
     let version_id = loader.map_or(version.id.clone(), |it| format!("{}-{}", version.id, it.id));
 
@@ -92,10 +116,18 @@ pub async fn download_version_info(
     let res = if path.exists() && !force.unwrap_or(false) {
         utils::io::read_json_async(path).await
     } else {
-        let mut version_info = fetch_json(Method::GET, &version.url, None, None).await?;
+        let mut version_info = fetch_json(
+            Method::GET,
+            &version.url,
+            None,
+            None,
+            &state.fetch_semaphore,
+        )
+        .await?;
 
         if let Some(loader) = loader {
-            let modded_info = fetch_json(Method::GET, &loader.url, None, None).await?;
+            let modded_info =
+                fetch_json(Method::GET, &loader.url, None, None, &state.fetch_semaphore).await?;
             version_info = modded::merge_partial_version(modded_info, version_info);
         }
 
@@ -106,6 +138,10 @@ pub async fn download_version_info(
         Ok(version_info)
     }?;
 
+    if let Some(loading_bar) = loading_bar {
+        emit_loading(loading_bar, 5.0, None).await?;
+    }
+
     Ok(res)
 }
 
@@ -114,6 +150,7 @@ pub async fn download_client(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
     force: bool,
+    loading_bar: Option<&LoadingBarId>,
 ) -> anyhow::Result<()> {
     log::info!("Downloading client {}", version_info.id);
 
@@ -132,8 +169,19 @@ pub async fn download_client(
         .join(format!("{version_id}.jar"));
 
     if !path.exists() || force {
-        let bytes = fetch_advanced(Method::GET, &client_download.url, None, None).await?;
+        let bytes = fetch_advanced(
+            Method::GET,
+            &client_download.url,
+            None,
+            None,
+            &state.fetch_semaphore,
+        )
+        .await?;
         write_async(&path, &bytes).await?;
+    }
+
+    if let Some(loading_bar) = loading_bar {
+        emit_loading(loading_bar, 9.0, None).await?;
     }
 
     log::info!("Downloaded client {} successfully", version_info.id);
@@ -170,7 +218,8 @@ pub async fn download_asset(
                         Method::GET,
                         &url,
                         None,
-                        None
+                        None,
+                        &state.fetch_semaphore
                     )
                 }).await?;
 
@@ -189,7 +238,8 @@ pub async fn download_asset(
                         Method::GET,
                         &url,
                         None,
-                        None
+                        None,
+                        &state.fetch_semaphore
                     )
                 }).await?;
 
@@ -211,17 +261,26 @@ pub async fn download_assets(
     index: &minecraft::AssetsIndex,
     with_legacy: bool,
     force: bool,
+    loading_amount: f64,
+    loading_bar: Option<&LoadingBarId>,
 ) -> anyhow::Result<()> {
     log::info!("Downloading assets");
 
-    let assets =
+    let assets_stream =
         stream::iter(index.objects.iter()).map(Ok::<(&String, &minecraft::Asset), anyhow::Error>);
 
-    assets
-        .try_for_each_concurrent(None, |(name, asset)| async move {
-            download_asset(state, name, asset, with_legacy, force).await
-        })
-        .await?;
+    let futures_count = index.objects.len();
+
+    loading_try_for_each_concurrent(
+        assets_stream,
+        None,
+        loading_bar,
+        loading_amount,
+        futures_count,
+        None,
+        |(name, asset)| async move { download_asset(state, name, asset, with_legacy, force).await },
+    )
+    .await?;
 
     log::info!("Downloaded assets successfully");
 
@@ -250,7 +309,14 @@ pub async fn download_java_library(
     }) = library.downloads
     {
         if !artifact.url.is_empty() {
-            let bytes = fetch_advanced(Method::GET, &artifact.url, None, None).await?;
+            let bytes = fetch_advanced(
+                Method::GET,
+                &artifact.url,
+                None,
+                None,
+                &state.fetch_semaphore,
+            )
+            .await?;
             write_async(&library_path, &bytes).await?;
             return Ok::<(), anyhow::Error>(());
         }
@@ -266,7 +332,7 @@ pub async fn download_java_library(
     ]
     .concat();
 
-    let bytes = fetch_advanced(Method::GET, &url, None, None).await?;
+    let bytes = fetch_advanced(Method::GET, &url, None, None, &state.fetch_semaphore).await?;
     write_async(&library_path, &bytes).await?;
 
     log::debug!("Downloaded java library \"{}\" successfully", &library.name);
@@ -296,7 +362,9 @@ pub async fn download_native_library_files(
         let parsed_key = os_key.replace("${arch}", crate::utils::platform::ARCH_WIDTH);
 
         if let Some(native) = classifiers.get(&parsed_key) {
-            let bytes = fetch_advanced(Method::GET, &native.url, None, None).await?;
+            let bytes =
+                fetch_advanced(Method::GET, &native.url, None, None, &state.fetch_semaphore)
+                    .await?;
             let reader = std::io::Cursor::new(&bytes);
 
             if let Ok(mut archive) = zip::ZipArchive::new(reader) {
@@ -355,6 +423,8 @@ pub async fn download_libraries(
     java_arch: &str,
     force: bool,
     minecraft_updated: bool,
+    loading_amount: f64,
+    loading_bar: Option<&LoadingBarId>,
 ) -> anyhow::Result<()> {
     log::info!("Downloading libraries for {}", version_info.id);
 
@@ -363,10 +433,19 @@ pub async fn download_libraries(
         tokio::fs::create_dir_all(state.locations.version_natives_dir(&version_info.id)),
     }?;
 
-    let libraries = stream::iter(libraries.iter()).map(Ok::<&minecraft::Library, anyhow::Error>);
+    let libraries_stream =
+        stream::iter(libraries.iter()).map(Ok::<&minecraft::Library, anyhow::Error>);
 
-    libraries
-        .try_for_each_concurrent(None, |library| async move {
+    let futures_count = libraries.len();
+
+    loading_try_for_each_concurrent(
+        libraries_stream,
+        None,
+        loading_bar,
+        loading_amount,
+        futures_count,
+        None,
+        |library| async move {
             download_library(
                 state,
                 library,
@@ -376,8 +455,9 @@ pub async fn download_libraries(
                 minecraft_updated,
             )
             .await
-        })
-        .await?;
+        },
+    )
+    .await?;
 
     log::info!("Downloaded libraries for {} successfully", version_info.id);
 
@@ -394,9 +474,14 @@ pub async fn download_version_manifest(
     let res = if path.exists() && !force {
         utils::io::read_json_async(path).await
     } else {
-        let version_manifest =
-            utils::fetch::fetch_json(Method::GET, minecraft::VERSION_MANIFEST_URL, None, None)
-                .await?;
+        let version_manifest = utils::fetch::fetch_json(
+            Method::GET,
+            minecraft::VERSION_MANIFEST_URL,
+            None,
+            None,
+            &state.fetch_semaphore,
+        )
+        .await?;
 
         utils::io::write_async(&path, &serde_json::to_vec(&version_manifest)?).await?;
 

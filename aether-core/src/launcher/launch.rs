@@ -2,20 +2,42 @@ use anyhow::Ok;
 use daedalus::{minecraft, modded};
 
 use crate::{
-    state::{self, Instance, InstanceInstallStage, LauncherState},
+    event::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
+    state::{self, Instance, InstanceInstallStage, LauncherState, MinecraftProcessMetadata},
     utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
 };
 
 use super::{args, download_minecraft, download_version_info, download_version_manifest};
 
 #[tracing::instrument]
-pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::Result<()> {
+pub async fn install_minecraft(
+    instance: &Instance,
+    loading_bar: Option<LoadingBarId>,
+    repairing: bool,
+) -> anyhow::Result<()> {
     log::info!(
         "Installing instance: \"{}\" (minecraft: \"{}\", modloader: \"{}\")",
         instance.name,
         instance.game_version,
         instance.loader_version.clone().unwrap_or_default()
     );
+
+    let loading_bar = init_or_edit_loading(
+        loading_bar,
+        LoadingBarType::MinecraftDownload {
+            instance_path: instance.name_id.clone(),
+            instance_name: instance.name.clone(),
+        },
+        100.0,
+        "Downloading Minecraft",
+    )
+    .await?;
+
+    Instance::edit(&instance.name_id, |instance| {
+        instance.install_stage = InstanceInstallStage::Installing;
+        async { Ok(()) }
+    })
+    .await?;
 
     let state = LauncherState::get().await?;
 
@@ -38,8 +60,14 @@ pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::
     //     format!("{}-{}", version.id.clone(), it.id.clone())
     // });
 
-    let version_info =
-        download_version_info(&state, &version, loader_version.as_ref(), None).await?;
+    let version_info = download_version_info(
+        &state,
+        &version,
+        loader_version.as_ref(),
+        Some(repairing),
+        Some(&loading_bar),
+    )
+    .await?;
 
     let java_version = instance
         .get_java_version_from_instance(&version_info)
@@ -61,10 +89,19 @@ pub async fn install_minecraft(instance: &Instance, repairing: bool) -> anyhow::
         &java_version.architecture,
         repairing,
         minecraft_updated,
+        Some(&loading_bar),
     )
     .await?;
 
     // @ process mod loader
+
+    Instance::edit(&instance.name_id, |prof| {
+        prof.install_stage = InstanceInstallStage::Installed;
+        async { Ok(()) }
+    })
+    .await?;
+
+    emit_loading(&loading_bar, 1.0, Some("Finished installing")).await?;
 
     Ok(())
 }
@@ -77,14 +114,15 @@ pub async fn launch_minecraft(
     memory: &state::MemorySettings,
     resolution: &state::WindowSize,
     credentials: &state::Credentials,
-) -> anyhow::Result<()> {
+    post_exit_command: Option<String>,
+) -> anyhow::Result<MinecraftProcessMetadata> {
     if instance.install_stage != InstanceInstallStage::Installed {
-        install_minecraft(instance, false).await?;
+        install_minecraft(instance, None, false).await?;
     }
 
     let state = LauncherState::get().await?;
 
-    let instance_path = instance.get_full_path().await?;
+    let instance_path = Instance::get_full_path(&instance.name_id).await?;
 
     let version_manifest = download_version_manifest(&state, false).await?;
 
@@ -97,7 +135,7 @@ pub async fn launch_minecraft(
     });
 
     let version_info =
-        download_version_info(&state, &version, loader_version.as_ref(), None).await?;
+        download_version_info(&state, &version, loader_version.as_ref(), None, None).await?;
 
     let java_version = instance
         .get_java_version_from_instance(&version_info)
@@ -194,7 +232,8 @@ pub async fn launch_minecraft(
 
     // run process
 
-    let _ = command.spawn().unwrap().wait().await?;
-
-    Ok(())
+    state
+        .process_manager
+        .insert_new_process(&instance.name_id, command, post_exit_command)
+        .await
 }
