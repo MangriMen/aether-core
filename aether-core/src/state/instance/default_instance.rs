@@ -1,11 +1,14 @@
-use std::path::PathBuf;
+use std::{any, future::Future, path::PathBuf};
 
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
 use tokio::fs::remove_dir_all;
 
 use crate::{
-    api,
+    api::{
+        self,
+        instance::{get_instance, get_instance_by_path},
+    },
     state::{Java, LauncherState, MemorySettings, WindowSize},
     utils::io,
 };
@@ -17,7 +20,9 @@ use super::{InstanceInstallStage, ModLoader};
 pub struct Instance {
     pub install_stage: InstanceInstallStage,
 
-    pub path: String,
+    pub name_id: String,
+
+    pub path: PathBuf,
 
     pub name: String,
     pub icon_path: Option<String>,
@@ -46,12 +51,12 @@ pub struct Instance {
 impl Instance {
     /// Get instance full path in the filesystem
     #[tracing::instrument]
-    pub async fn get_full_path(&self) -> anyhow::Result<PathBuf> {
+    pub async fn get_full_path(path: &str) -> anyhow::Result<PathBuf> {
         let state = LauncherState::get().await?;
 
         let profiles_dir = state.locations.instances_dir();
 
-        let full_path = crate::utils::io::canonicalize(profiles_dir.join(self.path.clone()))?;
+        let full_path = crate::utils::io::canonicalize(profiles_dir.join(path))?;
 
         Ok(full_path)
     }
@@ -133,15 +138,48 @@ impl Instance {
         }
     }
 
-    pub async fn remove(&self, path: &str) -> anyhow::Result<()> {
+    pub async fn remove_path(path: &PathBuf) -> anyhow::Result<()> {
         remove_dir_all(path).await?;
 
         Ok(())
     }
 
-    pub async fn save(&self, path: &str) -> anyhow::Result<()> {
-        let data = serde_json::to_vec(self)?;
+    pub async fn remove(&self) -> anyhow::Result<()> {
+        Instance::remove_path(&self.path.join("instance.json")).await?;
+        Ok(())
+    }
+
+    pub async fn save_path(instance: &Instance, path: &PathBuf) -> anyhow::Result<()> {
+        let data = serde_json::to_vec(instance)?;
         io::write_async(path, &data).await?;
         Ok(())
+    }
+
+    pub async fn save(&self) -> anyhow::Result<()> {
+        Instance::save_path(self, &self.path.join("instance.json")).await?;
+        Ok(())
+    }
+
+    pub async fn edit<Fut>(
+        name_id: &str,
+        action: impl Fn(&mut Instance) -> Fut,
+    ) -> anyhow::Result<()>
+    where
+        Fut: Future<Output = anyhow::Result<()>>,
+    {
+        match get_instance(name_id).await {
+            Ok(profile) => {
+                let mut profile = profile;
+
+                action(&mut profile).await?;
+
+                profile.save().await?;
+
+                // emit_profile(path, ProfilePayloadType::Edited).await?;
+
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 }

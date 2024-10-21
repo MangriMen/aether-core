@@ -16,13 +16,13 @@ pub async fn get_instance_by_path(path: &Path) -> anyhow::Result<Instance> {
     Ok(instance)
 }
 
-pub async fn get_instance(name: &str) -> anyhow::Result<Instance> {
+pub async fn get_instance(name_id: &str) -> anyhow::Result<Instance> {
     let state = LauncherState::get().await?;
 
     let instance_file = state
         .locations
         .instances_dir()
-        .join(name)
+        .join(name_id)
         .join("instance.json");
 
     let instance = get_instance_by_path(&instance_file).await?;
@@ -68,6 +68,16 @@ pub async fn get_instances() -> anyhow::Result<Vec<Instance>> {
         .collect::<Vec<_>>();
 
     Ok(final_instances)
+}
+
+pub async fn remove(name_id: &str) -> anyhow::Result<()> {
+    let state = LauncherState::get().await?;
+
+    let path = state.locations.instances_dir().join(name_id);
+
+    Instance::remove_path(&path).await?;
+
+    Ok(())
 }
 
 // Get a copy of the instances

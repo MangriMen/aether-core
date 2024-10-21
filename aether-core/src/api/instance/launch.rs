@@ -1,12 +1,12 @@
 use chrono::{Datelike, Utc};
 use uuid::Uuid;
 
-use crate::state::{self, Credentials, LauncherState};
+use crate::state::{self, Credentials, LauncherState, MinecraftProcessMetadata};
 
 use super::get_instance_by_path;
 
 #[tracing::instrument]
-pub async fn run(name: &str) -> anyhow::Result<()> {
+pub async fn run(name: &str) -> anyhow::Result<MinecraftProcessMetadata> {
     run_credentials(
         name,
         &Credentials {
@@ -17,10 +17,14 @@ pub async fn run(name: &str) -> anyhow::Result<()> {
             expires: Utc::now().with_year(2025).unwrap(),
             active: true,
         },
-    ).await
+    )
+    .await
 }
 
-pub async fn run_credentials(name: &str, credentials: &state::Credentials) -> anyhow::Result<()> {
+pub async fn run_credentials(
+    name: &str,
+    credentials: &state::Credentials,
+) -> anyhow::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
 
     let instance_file = state
@@ -38,6 +42,7 @@ pub async fn run_credentials(name: &str, credentials: &state::Credentials) -> an
         &state::MemorySettings { maximum: 2048 },
         &state::WindowSize(1280, 720),
         credentials,
+        None,
     )
     .await
 }

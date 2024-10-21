@@ -4,10 +4,7 @@ use chrono::Utc;
 use log::info;
 use tokio::fs;
 
-use crate::{
-    state::{Instance, InstanceInstallStage, LauncherState, ModLoader},
-    utils::io::write_async,
-};
+use crate::state::{Instance, InstanceInstallStage, LauncherState, ModLoader};
 
 use super::sanitize_instance_name;
 
@@ -45,8 +42,10 @@ pub async fn instance_create(
     };
 
     let instance = Instance {
-        path: sanitized_name.clone(),
+        name_id: sanitized_name.clone(),
         install_stage: InstanceInstallStage::NotInstalled,
+
+        path: full_path.clone(),
 
         name: name.clone(),
         icon_path: None,
@@ -67,24 +66,20 @@ pub async fn instance_create(
     };
 
     let result = async {
+        instance.save().await?;
+
         if !skip_install_profile.unwrap_or(false) {
-            crate::launcher::install_minecraft(&instance, false).await?;
+            crate::launcher::install_minecraft(&instance, None, false).await?;
         }
 
-        write_async(
-            &full_path.join("instance.json"),
-            &serde_json::to_string(&instance)?,
-        )
-        .await?;
-
-        Ok(instance.path.clone())
+        Ok(instance.name_id.clone())
     }
     .await;
 
     match result {
         Ok(path) => Ok(path),
         Err(err) => {
-            let _ = instance.remove(&sanitized_name).await;
+            let _ = instance.remove().await;
 
             Err(err)
         }
