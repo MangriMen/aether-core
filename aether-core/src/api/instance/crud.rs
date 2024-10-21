@@ -35,6 +35,10 @@ pub async fn get_instances() -> anyhow::Result<Vec<Instance>> {
 
     let instances_dir = state.locations.instances_dir();
 
+    if !instances_dir.exists() {
+        return Ok(Vec::new());
+    }
+
     let mut instances = Vec::new();
 
     for entry in instances_dir.read_dir()? {

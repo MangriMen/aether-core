@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::{EventError, EventState};
 
 #[derive(serde::Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct LoadingBar {
     // loading_bar_uuid not be used directly by external functions as it may not reflect the current state of the loading bar/hashmap
     pub loading_bar_uuid: Uuid,
@@ -53,7 +54,7 @@ impl Drop for LoadingBarId {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 #[serde(tag = "type")]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum LoadingBarType {
     LegacyDataMigration,
     DirectoryMove {
