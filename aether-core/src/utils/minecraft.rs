@@ -22,15 +22,14 @@ pub fn is_minecraft_updated(
 pub fn get_minecraft_version(
     instance: &Instance,
     version_manifest: minecraft::VersionManifest,
-) -> anyhow::Result<(Version, bool)> {
+) -> crate::Result<(Version, bool)> {
     let version_index = version_manifest
         .versions
         .iter()
         .position(|version| version.id == instance.game_version)
-        .ok_or(anyhow::Error::msg(format!(
-            "Invalid game version: {}",
-            instance.game_version
-        )))?;
+        .ok_or(crate::ErrorKind::NoValueFor(
+            "minecraft versions".to_string(),
+        ))?;
 
     let version = &version_manifest.versions[version_index];
 

@@ -116,7 +116,7 @@ pub async fn init_loading_unsafe(
     bar_type: LoadingBarType,
     total: f64,
     title: &str,
-) -> anyhow::Result<LoadingBarId> {
+) -> crate::Result<LoadingBarId> {
     let event_state = EventState::get()?;
     let key = LoadingBarId(Uuid::new_v4());
 
@@ -141,7 +141,7 @@ pub async fn init_loading(
     bar_type: LoadingBarType,
     total: f64,
     title: &str,
-) -> anyhow::Result<LoadingBarId> {
+) -> crate::Result<LoadingBarId> {
     let key = init_loading_unsafe(bar_type, total, title).await?;
     Ok(key)
 }
@@ -151,7 +151,7 @@ pub async fn init_or_edit_loading(
     bar_type: LoadingBarType,
     total: f64,
     title: &str,
-) -> anyhow::Result<LoadingBarId> {
+) -> crate::Result<LoadingBarId> {
     if let Some(id) = id {
         edit_loading(&id, bar_type, total, title).await?;
 
@@ -168,7 +168,7 @@ pub async fn edit_loading(
     bar_type: LoadingBarType,
     total: f64,
     title: &str,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     let event_state = EventState::get()?;
 
     if let Some(mut bar) = event_state.loading_bars.get_mut(&id.0) {
@@ -188,7 +188,7 @@ pub async fn emit_loading(
     key: &LoadingBarId,
     increment_frac: f64,
     message: Option<&str>,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     let event_state = EventState::get()?;
 
     let mut loading_bar = match event_state.loading_bars.get_mut(&key.0) {

@@ -19,11 +19,11 @@ pub async fn loading_try_for_each_concurrent<I, F, Fut, T>(
     futures_count: usize, // num is in here as we allow Iterator to be passed in, which doesn't have a size
     message: Option<&str>,
     f: F,
-) -> anyhow::Result<()>
+) -> crate::Result<()>
 where
-    I: futures::TryStreamExt<Error = anyhow::Error> + TryStream<Ok = T>,
+    I: futures::TryStreamExt<Error = crate::Error> + TryStream<Ok = T>,
     F: FnMut(T) -> Fut + Send,
-    Fut: Future<Output = anyhow::Result<()>> + Send,
+    Fut: Future<Output = crate::Result<()>> + Send,
     T: Send,
 {
     let mut f = f;

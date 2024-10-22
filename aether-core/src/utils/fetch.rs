@@ -1,4 +1,4 @@
-use std::time;
+use std::{f32::consts::E, time};
 
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -6,6 +6,10 @@ use reqwest::Method;
 use reqwest_retry::policies::ExponentialBackoff;
 use serde::de::DeserializeOwned;
 use tokio::sync::Semaphore;
+
+use crate::event::{emit_loading, LoadingBarId};
+
+use super::file::sha1_async;
 
 const FETCH_ATTEMPTS: usize = 3;
 
@@ -27,51 +31,98 @@ lazy_static! {
     };
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(body, semaphore))]
 pub async fn fetch_advanced(
     method: Method,
     url: &str,
     headers: Option<reqwest::header::HeaderMap>,
+    sha1: Option<&str>,
     body: Option<Vec<u8>>,
     semaphore: &FetchSemaphore,
-) -> anyhow::Result<Bytes> {
+    loading_bar: Option<(&LoadingBarId, f64)>,
+) -> crate::Result<Bytes> {
     let _permit = semaphore.0.acquire().await?;
 
-    for attempt in 1..=(FETCH_ATTEMPTS + 1) {
-        let mut req = REQWEST_CLIENT.request(method.clone(), url);
+    let mut req = REQWEST_CLIENT.request(method.clone(), url);
 
-        if let Some(body) = body.clone() {
-            req = req.body(body);
-        }
-
-        if let Some(header) = headers.clone() {
-            req = req.headers(header);
-        }
-
-        let result = req.send().await;
-
-        match result {
-            Ok(res) => return Ok(res.bytes().await?),
-            Err(_) if attempt <= FETCH_ATTEMPTS => continue,
-            Err(err) => return Err(err.into()),
-        }
+    if let Some(body) = body.clone() {
+        req = req.body(body);
     }
 
-    unreachable!()
+    if let Some(header) = headers.clone() {
+        req = req.headers(header);
+    }
+
+    let result = req.send().await;
+
+    match result {
+        Ok(res) => {
+            let bytes = if let Some((bar, total)) = &loading_bar {
+                let length = res.content_length();
+
+                if let Some(total_size) = length {
+                    use futures::StreamExt;
+
+                    let mut stream = res.bytes_stream();
+                    let mut bytes = Vec::new();
+                    while let Some(item) = stream.next().await {
+                        let chunk = item.or(Err(crate::error::ErrorKind::NoValueFor(
+                            "fetch bytes".to_string(),
+                        )))?;
+
+                        bytes.append(&mut chunk.to_vec());
+
+                        emit_loading(bar, (chunk.len() as f64 / total_size as f64) * total, None)
+                            .await?;
+                    }
+
+                    Ok(bytes::Bytes::from(bytes))
+                } else {
+                    res.bytes().await
+                }
+            } else {
+                res.bytes().await
+            };
+
+            match bytes {
+                Ok(bytes) => {
+                    if let Some(sha1) = sha1 {
+                        let hash = sha1_async(bytes.clone()).await?;
+                        if hash != sha1.to_string() {
+                            return Err(crate::ErrorKind::HashError(sha1.to_string(), hash).into());
+                        }
+                    }
+
+                    Ok(bytes)
+                }
+                Err(err) => Err(err.into()),
+            }
+        }
+        Err(err) => match err {
+            reqwest_middleware::Error::Reqwest(err) => Err(err.into()),
+            reqwest_middleware::Error::Middleware(err) => {
+                Err(crate::ErrorKind::OtherError(url.to_string()).into())
+            }
+        },
+    }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(body, semaphore))]
 pub async fn fetch_json<T>(
     method: Method,
     url: &str,
     headers: Option<reqwest::header::HeaderMap>,
+    sha1: Option<&str>,
     body: Option<Vec<u8>>,
     semaphore: &FetchSemaphore,
-) -> anyhow::Result<T>
+) -> crate::Result<T>
 where
     T: DeserializeOwned,
 {
-    let result = fetch_advanced(method, url, headers, body, semaphore).await?;
+    let result = fetch_advanced(method, url, headers, sha1, body, semaphore, None).await?;
 
     Ok(serde_json::from_slice(&result)?)
 }
+
+// #[tracing::instrument]
+// pub async fn fetch_chunks

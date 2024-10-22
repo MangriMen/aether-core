@@ -40,7 +40,7 @@ impl LauncherState {
         Ok(())
     }
 
-    pub async fn get() -> anyhow::Result<Arc<Self>> {
+    pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAUNCHER_STATE.initialized() {
             while !LAUNCHER_STATE.initialized() {}
         }
