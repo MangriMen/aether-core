@@ -1,10 +1,5 @@
-use aether_core::{
-    launcher::launch_minecraft,
-    state::{Credentials, Instance, LauncherState, MemorySettings, Settings, WindowSize},
-};
-use chrono::{Datelike, Utc};
+use aether_core::state::{LauncherState, Settings};
 use clap::{Parser, Subcommand};
-use uuid::Uuid;
 
 #[derive(Parser, Debug)]
 struct InstallCommand {

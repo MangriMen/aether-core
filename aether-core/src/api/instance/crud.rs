@@ -10,13 +10,13 @@ pub enum InstanceRead {
     Error(String),
 }
 
-pub async fn get_instance_by_path(path: &Path) -> anyhow::Result<Instance> {
+pub async fn get_instance_by_path(path: &Path) -> crate::Result<Instance> {
     let instance = read_json_async(&path).await?;
 
     Ok(instance)
 }
 
-pub async fn get_instance(name_id: &str) -> anyhow::Result<Instance> {
+pub async fn get_instance(name_id: &str) -> crate::Result<Instance> {
     let state = LauncherState::get().await?;
 
     let instance_file = state

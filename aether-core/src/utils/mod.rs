@@ -1,4 +1,5 @@
 pub mod fetch;
+pub mod file;
 pub mod io;
 pub mod jre;
 pub mod minecraft;
