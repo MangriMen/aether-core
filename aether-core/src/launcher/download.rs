@@ -7,7 +7,6 @@ use crate::{
         io::write_async,
     },
 };
-use anyhow::Context;
 use bytes::Bytes;
 use daedalus::{
     minecraft::{self, AssetsIndex},
@@ -29,7 +28,7 @@ pub async fn download_minecraft(
     force: bool,
     minecraft_updated: bool,
     loading_bar: Option<&LoadingBarId>,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     log::info!(
         "---------------- Downloading minecraft {} ----------------------------",
         version_info.id
@@ -68,7 +67,7 @@ pub async fn download_assets_index(
     version_info: &minecraft::VersionInfo,
     force: bool,
     loading_bar: Option<&LoadingBarId>,
-) -> anyhow::Result<AssetsIndex> {
+) -> crate::Result<AssetsIndex> {
     let path = state
         .locations
         .assets_index_dir()
@@ -80,6 +79,7 @@ pub async fn download_assets_index(
         let assets_index = utils::fetch::fetch_json(
             Method::GET,
             &version_info.asset_index.url,
+            None,
             None,
             None,
             &state.fetch_semaphore,
@@ -105,7 +105,7 @@ pub async fn download_version_info(
     loader: Option<&modded::LoaderVersion>,
     force: Option<bool>,
     loading_bar: Option<&LoadingBarId>,
-) -> anyhow::Result<minecraft::VersionInfo> {
+) -> crate::Result<minecraft::VersionInfo> {
     let version_id = loader.map_or(version.id.clone(), |it| format!("{}-{}", version.id, it.id));
 
     let path = state
@@ -121,13 +121,21 @@ pub async fn download_version_info(
             &version.url,
             None,
             None,
+            None,
             &state.fetch_semaphore,
         )
         .await?;
 
         if let Some(loader) = loader {
-            let modded_info =
-                fetch_json(Method::GET, &loader.url, None, None, &state.fetch_semaphore).await?;
+            let modded_info = fetch_json(
+                Method::GET,
+                &loader.url,
+                None,
+                None,
+                None,
+                &state.fetch_semaphore,
+            )
+            .await?;
             version_info = modded::merge_partial_version(modded_info, version_info);
         }
 
@@ -151,7 +159,7 @@ pub async fn download_client(
     version_info: &minecraft::VersionInfo,
     force: bool,
     loading_bar: Option<&LoadingBarId>,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     log::info!("Downloading client {}", version_info.id);
 
     let version_id = &version_info.id;
@@ -159,9 +167,12 @@ pub async fn download_client(
     let client_download = version_info
         .downloads
         .get(&minecraft::DownloadType::Client)
-        .context(format!(
-            "No client downloads exists for version {version_id}"
-        ))?;
+        .ok_or(
+            crate::ErrorKind::LauncherError(format!(
+                "No client downloads exist for version {version_id}"
+            ))
+            .as_error(),
+        )?;
 
     let path = state
         .locations
@@ -174,7 +185,9 @@ pub async fn download_client(
             &client_download.url,
             None,
             None,
+            None,
             &state.fetch_semaphore,
+            None,
         )
         .await?;
         write_async(&path, &bytes).await?;
@@ -196,7 +209,7 @@ pub async fn download_asset(
     asset: &minecraft::Asset,
     with_legacy: bool,
     force: bool,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     log::debug!("Downloading asset \"{}\"", name);
 
     let hash = &asset.hash;
@@ -219,14 +232,16 @@ pub async fn download_asset(
                         &url,
                         None,
                         None,
-                        &state.fetch_semaphore
+                        None,
+                        &state.fetch_semaphore,
+                        None
                     )
                 }).await?;
 
                 utils::io::write_async(&asset_path, &asset_resource).await?;
             }
 
-            Ok::<(), anyhow::Error>(())
+            Ok::<(), crate::Error>(())
         },
         // Download legacy asset
         async {
@@ -239,14 +254,16 @@ pub async fn download_asset(
                         &url,
                         None,
                         None,
-                        &state.fetch_semaphore
+                        None,
+                        &state.fetch_semaphore,
+                        None
                     )
                 }).await?;
 
                 utils::io::write_async(&legacy_path, &asset_resource).await?;
             }
 
-            Ok::<(), anyhow::Error>(())
+            Ok::<(), crate::Error>(())
         }
     }?;
 
@@ -263,11 +280,11 @@ pub async fn download_assets(
     force: bool,
     loading_amount: f64,
     loading_bar: Option<&LoadingBarId>,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     log::info!("Downloading assets");
 
     let assets_stream =
-        stream::iter(index.objects.iter()).map(Ok::<(&String, &minecraft::Asset), anyhow::Error>);
+        stream::iter(index.objects.iter()).map(Ok::<(&String, &minecraft::Asset), crate::Error>);
 
     let futures_count = index.objects.len();
 
@@ -292,14 +309,14 @@ pub async fn download_java_library(
     state: &LauncherState,
     library: &minecraft::Library,
     force: bool,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     log::debug!("Downloading java library \"{}\"", &library.name);
 
     let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
     let library_path = state.locations.libraries_dir().join(&library_path_part);
 
     if library_path.exists() && !force {
-        return Ok::<(), anyhow::Error>(());
+        return Ok::<(), crate::Error>(());
     }
 
     // Get library by artifact url
@@ -314,11 +331,13 @@ pub async fn download_java_library(
                 &artifact.url,
                 None,
                 None,
+                None,
                 &state.fetch_semaphore,
+                None,
             )
             .await?;
             write_async(&library_path, &bytes).await?;
-            return Ok::<(), anyhow::Error>(());
+            return Ok::<(), crate::Error>(());
         }
     }
 
@@ -332,7 +351,16 @@ pub async fn download_java_library(
     ]
     .concat();
 
-    let bytes = fetch_advanced(Method::GET, &url, None, None, &state.fetch_semaphore).await?;
+    let bytes = fetch_advanced(
+        Method::GET,
+        &url,
+        None,
+        None,
+        None,
+        &state.fetch_semaphore,
+        None,
+    )
+    .await?;
     write_async(&library_path, &bytes).await?;
 
     log::debug!("Downloaded java library \"{}\" successfully", &library.name);
@@ -347,7 +375,7 @@ pub async fn download_native_library_files(
     version_info: &minecraft::VersionInfo,
     java_arch: &str,
     force: bool,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     use crate::utils::platform::OsExt;
     use minecraft::Os;
 
@@ -362,9 +390,16 @@ pub async fn download_native_library_files(
         let parsed_key = os_key.replace("${arch}", crate::utils::platform::ARCH_WIDTH);
 
         if let Some(native) = classifiers.get(&parsed_key) {
-            let bytes =
-                fetch_advanced(Method::GET, &native.url, None, None, &state.fetch_semaphore)
-                    .await?;
+            let bytes = fetch_advanced(
+                Method::GET,
+                &native.url,
+                None,
+                None,
+                None,
+                &state.fetch_semaphore,
+                None,
+            )
+            .await?;
             let reader = std::io::Cursor::new(&bytes);
 
             if let Ok(mut archive) = zip::ZipArchive::new(reader) {
@@ -396,7 +431,7 @@ pub async fn download_library(
     java_arch: &str,
     force: bool,
     minecraft_updated: bool,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     if let Some(rules) = &library.rules {
         if !parse_rules(rules, java_arch, minecraft_updated) {
             return Ok(());
@@ -425,7 +460,7 @@ pub async fn download_libraries(
     minecraft_updated: bool,
     loading_amount: f64,
     loading_bar: Option<&LoadingBarId>,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     log::info!("Downloading libraries for {}", version_info.id);
 
     tokio::try_join! {
@@ -434,7 +469,7 @@ pub async fn download_libraries(
     }?;
 
     let libraries_stream =
-        stream::iter(libraries.iter()).map(Ok::<&minecraft::Library, anyhow::Error>);
+        stream::iter(libraries.iter()).map(Ok::<&minecraft::Library, crate::Error>);
 
     let futures_count = libraries.len();
 
@@ -468,7 +503,7 @@ pub async fn download_libraries(
 pub async fn download_version_manifest(
     state: &LauncherState,
     force: bool,
-) -> anyhow::Result<minecraft::VersionManifest> {
+) -> crate::Result<minecraft::VersionManifest> {
     let path = state.locations.versions_dir().join("manifest.json");
 
     let res = if path.exists() && !force {
@@ -477,6 +512,7 @@ pub async fn download_version_manifest(
         let version_manifest = utils::fetch::fetch_json(
             Method::GET,
             minecraft::VERSION_MANIFEST_URL,
+            None,
             None,
             None,
             &state.fetch_semaphore,

@@ -1,14 +1,11 @@
-use std::{any, future::Future, path::PathBuf};
+use std::{future::Future, path::PathBuf};
 
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
 use tokio::fs::remove_dir_all;
 
 use crate::{
-    api::{
-        self,
-        instance::{get_instance, get_instance_by_path},
-    },
+    api::{self, instance::get_instance},
     state::{Java, LauncherState, MemorySettings, WindowSize},
     utils::io,
 };
@@ -51,20 +48,20 @@ pub struct Instance {
 impl Instance {
     /// Get instance full path in the filesystem
     #[tracing::instrument]
-    pub async fn get_full_path(path: &str) -> anyhow::Result<PathBuf> {
+    pub async fn get_full_path(name_id: &str) -> crate::Result<PathBuf> {
         let state = LauncherState::get().await?;
 
         let profiles_dir = state.locations.instances_dir();
 
-        let full_path = crate::utils::io::canonicalize(profiles_dir.join(path))?;
+        let full_path = crate::utils::io::canonicalize(profiles_dir.join(name_id))?;
 
         Ok(full_path)
     }
 
     pub async fn get_java_version_from_instance(
         &self,
-        _version_info: &minecraft::VersionInfo,
-    ) -> anyhow::Result<Option<Java>> {
+        version_info: &minecraft::VersionInfo,
+    ) -> crate::Result<Option<Java>> {
         if let Some(java) = self.java_path.as_ref() {
             let java = crate::api::jre::check_jre(std::path::PathBuf::from(java))
                 .await
@@ -76,23 +73,15 @@ impl Instance {
             }
         }
 
-        // let key = version_info
-        //     .java_version
-        //     .as_ref()
-        //     .map(|it| it.major_version)
-        //     .unwrap_or(8);
+        let compatible_version = version_info
+            .java_version
+            .as_ref()
+            .map(|it| it.major_version)
+            .unwrap_or(8);
 
-        // let state = LauncherState::get().await?;
+        let state = LauncherState::get().await?;
 
-        // TODO: add get java from settings
-        // let java_version = Java::get(key, &state.pool).await?;
-
-        let java_version = Some(Java {
-            path: r"C:\Program Files\Java\jdk-17\bin\javaw.exe".to_owned(),
-            major_version: 17,
-            version: "17.0.10".to_owned(),
-            architecture: "amd64".to_owned(),
-        });
+        let java_version = Java::get(&state, compatible_version).await?;
 
         Ok(java_version)
     }
@@ -149,13 +138,13 @@ impl Instance {
         Ok(())
     }
 
-    pub async fn save_path(instance: &Instance, path: &PathBuf) -> anyhow::Result<()> {
+    pub async fn save_path(instance: &Instance, path: &PathBuf) -> crate::Result<()> {
         let data = serde_json::to_vec(instance)?;
         io::write_async(path, &data).await?;
         Ok(())
     }
 
-    pub async fn save(&self) -> anyhow::Result<()> {
+    pub async fn save(&self) -> crate::Result<()> {
         Instance::save_path(self, &self.path.join("instance.json")).await?;
         Ok(())
     }
@@ -163,9 +152,9 @@ impl Instance {
     pub async fn edit<Fut>(
         name_id: &str,
         action: impl Fn(&mut Instance) -> Fut,
-    ) -> anyhow::Result<()>
+    ) -> crate::Result<()>
     where
-        Fut: Future<Output = anyhow::Result<()>>,
+        Fut: Future<Output = crate::Result<()>>,
     {
         match get_instance(name_id).await {
             Ok(profile) => {

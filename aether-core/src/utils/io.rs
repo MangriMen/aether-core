@@ -54,22 +54,21 @@ pub async fn write_async(
         .map_err(|err| IOError::with_path(err, path_ref.to_string_lossy().to_string()))
 }
 
-pub async fn read_json_async<T>(path: impl AsRef<std::path::Path>) -> anyhow::Result<T>
+pub async fn read_json_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
 where
     T: DeserializeOwned,
 {
     read_async(path)
-        .err_into::<anyhow::Error>()
+        .err_into::<crate::Error>()
         .await
         .and_then(|ref it| Ok(serde_json::from_slice(it)?))
 }
 
-pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> anyhow::Result<()>
+pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>
 where
     T: Serialize,
 {
-    todo!("write_json_async")
-    // write_async(path, serde_json::to_string(&data)?).await
+    Ok(write_async(path, serde_json::to_string(&data)?).await?)
 }
 
 // dunce canonicalize

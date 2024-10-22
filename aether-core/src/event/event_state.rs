@@ -64,7 +64,7 @@ impl EventState {
             .cloned()
     }
 
-    pub fn get() -> anyhow::Result<Arc<Self>> {
+    pub fn get() -> crate::Result<Arc<Self>> {
         Ok(EVENT_STATE.get().ok_or(EventError::NotInitialized)?.clone())
     }
 
