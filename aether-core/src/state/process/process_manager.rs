@@ -35,14 +35,14 @@ impl ProcessManager {
         profile_path: &str,
         mut mc_command: Command,
         post_exit_command: Option<String>,
-    ) -> anyhow::Result<MinecraftProcessMetadata> {
+    ) -> crate::Result<MinecraftProcessMetadata> {
         let mc_proc = mc_command.spawn().map_err(IOError::from)?;
 
         let process = MinecraftProcess {
             metadata: MinecraftProcessMetadata {
                 uuid: Uuid::new_v4(),
                 start_time: Utc::now(),
-                instance_path: profile_path.to_string(),
+                name_id: profile_path.to_string(),
             },
             child: mc_proc,
         };
@@ -87,14 +87,14 @@ impl ProcessManager {
         }
     }
 
-    pub async fn wait_for(&self, id: Uuid) -> anyhow::Result<()> {
+    pub async fn wait_for(&self, id: Uuid) -> crate::Result<()> {
         if let Some(mut process) = self.processes.get_mut(&id) {
             process.child.wait().await?;
         }
         Ok(())
     }
 
-    pub async fn kill(&self, id: Uuid) -> anyhow::Result<()> {
+    pub async fn kill(&self, id: Uuid) -> crate::Result<()> {
         if let Some(mut process) = self.processes.get_mut(&id) {
             process.child.kill().await?;
         }

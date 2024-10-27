@@ -100,7 +100,7 @@ pub async fn fetch_advanced(
         }
         Err(err) => match err {
             reqwest_middleware::Error::Reqwest(err) => Err(err.into()),
-            reqwest_middleware::Error::Middleware(err) => {
+            reqwest_middleware::Error::Middleware(_) => {
                 Err(crate::ErrorKind::OtherError(url.to_string()).into())
             }
         },

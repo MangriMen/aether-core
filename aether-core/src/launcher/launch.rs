@@ -3,10 +3,14 @@ use std::path::PathBuf;
 use daedalus::{minecraft, modded};
 
 use crate::{
+    api,
     event::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
     launcher::process_forge_processors,
-    state::{self, Instance, InstanceInstallStage, LauncherState, MinecraftProcessMetadata},
+    state::{
+        self, Instance, InstanceInstallStage, LauncherState, MinecraftProcessMetadata, ModLoader,
+    },
     utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
+    wrap_ref_builder,
 };
 
 use super::{args, download_minecraft, download_version_info, download_version_manifest};
@@ -49,10 +53,30 @@ pub async fn install_minecraft(
 
     let (version, minecraft_updated) = get_minecraft_version(instance, version_manifest)?;
 
-    // TODO: add mod loader support
-    // let mut mod_loader_version =
+    let mut loader_version = Instance::get_loader_version_from_instance(
+        &instance.game_version,
+        instance.loader,
+        instance.loader_version.as_deref(),
+    )
+    .await?;
 
-    let loader_version: Option<modded::LoaderVersion> = None;
+    // If no loader version is selected, try to select the stable version!
+    if instance.loader != ModLoader::Vanilla && loader_version.is_none() {
+        loader_version = Instance::get_loader_version_from_instance(
+            &instance.game_version,
+            instance.loader,
+            Some("stable"),
+        )
+        .await?;
+
+        let loader_version_id = loader_version.clone();
+
+        Instance::edit(&instance.name_id, |instance| {
+            instance.loader_version = loader_version_id.clone().map(|x| x.id.clone());
+            async { Ok(()) }
+        })
+        .await?;
+    }
 
     let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
         format!("{}-{}", version.id.clone(), it.id.clone())
@@ -110,6 +134,7 @@ pub async fn install_minecraft(
         version_jar,
         &instance_path,
         &mut version_info,
+        &java_version,
         Some(&loading_bar),
     )
     .await?;
@@ -120,8 +145,8 @@ pub async fn install_minecraft(
     })
     .await?;
 
-    // TODO: must be 1.0, but now it is 9.99997 at the end, need fix
-    emit_loading(&loading_bar, 1.3, Some("Finished installing")).await?;
+    // TODO: must be 1.0, but now it is 0.99997 at the end, need fix
+    emit_loading(&loading_bar, 1.0, Some("Finished installing")).await?;
 
     Ok(())
 }
@@ -135,7 +160,16 @@ pub async fn launch_minecraft(
     resolution: &state::WindowSize,
     credentials: &state::Credentials,
     post_exit_command: Option<String>,
-) -> anyhow::Result<MinecraftProcessMetadata> {
+    wrapper: &Option<String>,
+) -> crate::Result<MinecraftProcessMetadata> {
+    if instance.install_stage == InstanceInstallStage::PackInstalling
+        || instance.install_stage == InstanceInstallStage::Installing
+    {
+        return Err(
+            crate::ErrorKind::LauncherError("Instance is still installing".to_string()).into(),
+        );
+    }
+
     if instance.install_stage != InstanceInstallStage::Installed {
         install_minecraft(instance, None, false).await?;
     }
@@ -148,7 +182,20 @@ pub async fn launch_minecraft(
 
     let (version, minecraft_updated) = get_minecraft_version(instance, version_manifest)?;
 
-    let loader_version: Option<modded::LoaderVersion> = None;
+    let loader_version: Option<modded::LoaderVersion> = Instance::get_loader_version_from_instance(
+        &instance.game_version,
+        instance.loader,
+        instance.loader_version.as_deref(),
+    )
+    .await?;
+
+    if instance.loader != ModLoader::Vanilla && loader_version.is_none() {
+        return Err(crate::ErrorKind::LauncherError(format!(
+            "No loader version selected for {}",
+            instance.loader.as_str()
+        ))
+        .into());
+    }
 
     let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
         format!("{}-{}", version.id.clone(), it.id.clone())
@@ -160,12 +207,14 @@ pub async fn launch_minecraft(
     let java_version = instance
         .get_java_version_from_instance(&version_info)
         .await?
-        .ok_or_else(|| anyhow::Error::msg("Missing correct java installation"))?;
+        .ok_or_else(|| {
+            crate::ErrorKind::LauncherError("Missing correct java installation".to_string())
+        })?;
 
     let java_version = crate::api::jre::check_jre(java_version.path.clone().into())
         .await?
         .ok_or_else(|| {
-            anyhow::Error::msg(format!(
+            crate::ErrorKind::LauncherError(format!(
                 "Java path invalid or non-functional: {}",
                 java_version.path
             ))
@@ -180,16 +229,23 @@ pub async fn launch_minecraft(
 
     let env_args_vec = Vec::from(env_args);
 
-    // let mut command = match wrapper {
-    //     Some(hook) => {
-    //         wrap_ref_builder!(it = Command::new(hook) => {it.arg(&java_version.path)})
-    //     }
-    //     None => Command::new(&java_version.path),
-    // };
+    let mut command = match wrapper {
+        Some(hook) => {
+            wrap_ref_builder!(it = tokio::process::Command::new(hook) => {it.arg(&java_version.path)})
+        }
+        None => tokio::process::Command::new(&java_version.path),
+    };
 
-    let mut command = tokio::process::Command::new(&java_version.path);
-
-    // check existing
+    // Check if profile has a running profile, and reject running the command if it does
+    // Done late so a quick double call doesn't launch two instances
+    let existing_processes = api::process::get_by_instance_name_id(&instance.name_id).await?;
+    if let Some(process) = existing_processes.first() {
+        return Err(crate::ErrorKind::LauncherError(format!(
+            "Profile {} is already running at path: {}",
+            instance.name_id, process.uuid
+        ))
+        .as_error());
+    }
 
     let natives_dir = state.locations.version_natives_dir(&version_jar);
     if !natives_dir.exists() {

@@ -6,7 +6,7 @@ use crate::state::{self, Credentials, LauncherState, MinecraftProcessMetadata};
 use super::get_instance_by_path;
 
 #[tracing::instrument]
-pub async fn run(name: &str) -> anyhow::Result<MinecraftProcessMetadata> {
+pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
     run_credentials(
         name,
         &Credentials {
@@ -17,6 +17,7 @@ pub async fn run(name: &str) -> anyhow::Result<MinecraftProcessMetadata> {
             expires: Utc::now().with_year(2025).unwrap(),
             active: true,
         },
+        &None,
     )
     .await
 }
@@ -24,7 +25,8 @@ pub async fn run(name: &str) -> anyhow::Result<MinecraftProcessMetadata> {
 pub async fn run_credentials(
     name: &str,
     credentials: &state::Credentials,
-) -> anyhow::Result<MinecraftProcessMetadata> {
+    wrapper: &Option<String>,
+) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
 
     let instance_file = state
@@ -43,6 +45,7 @@ pub async fn run_credentials(
         &state::WindowSize(1280, 720),
         credentials,
         None,
+        wrapper,
     )
     .await
 }

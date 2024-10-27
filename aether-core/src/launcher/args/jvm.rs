@@ -21,7 +21,7 @@ pub fn get_jvm_arguments(
     memory: MemorySettings,
     custom_args: Vec<String>,
     java_arch: &str,
-) -> anyhow::Result<Vec<String>> {
+) -> crate::Result<Vec<String>> {
     let mut parsed_arguments = Vec::new();
 
     if let Some(args) = arguments {
@@ -44,10 +44,11 @@ pub fn get_jvm_arguments(
         parsed_arguments.push(format!(
             "-Djava.library.path={}",
             canonicalize(natives_path)
-                .map_err(|_| anyhow::Error::msg(format!(
+                .map_err(|_| crate::ErrorKind::LauncherError(format!(
                     "Specified natives path {} does not exist",
                     natives_path.to_string_lossy()
-                )))?
+                ))
+                .as_error())?
                 .to_string_lossy()
         ));
         parsed_arguments.push("-cp".to_string());
@@ -70,17 +71,18 @@ fn parse_jvm_argument(
     class_paths: &str,
     version_name: &str,
     java_arch: &str,
-) -> anyhow::Result<String> {
+) -> crate::Result<String> {
     argument.retain(|c| !c.is_whitespace());
     Ok(argument
         .replace(
             "${natives_directory}",
             &canonicalize(natives_path)
                 .map_err(|_| {
-                    anyhow::Error::msg(format!(
+                    crate::ErrorKind::LauncherError(format!(
                         "Specified natives path {} does not exist",
                         natives_path.to_string_lossy()
                     ))
+                    .as_error()
                 })?
                 .to_string_lossy(),
         )
@@ -88,10 +90,11 @@ fn parse_jvm_argument(
             "${library_directory}",
             &canonicalize(libraries_path)
                 .map_err(|_| {
-                    anyhow::Error::msg(format!(
+                    crate::ErrorKind::LauncherError(format!(
                         "Specified libraries path {} does not exist",
                         libraries_path.to_string_lossy()
                     ))
+                    .as_error()
                 })?
                 .to_string_lossy(),
         )
@@ -108,7 +111,7 @@ pub fn get_class_paths(
     client_path: &Path,
     java_arch: &str,
     minecraft_updated: bool,
-) -> anyhow::Result<String> {
+) -> crate::Result<String> {
     let mut cps = libraries
         .iter()
         .filter_map(|library| {
@@ -129,10 +132,11 @@ pub fn get_class_paths(
     cps.insert(
         canonicalize(client_path)
             .map_err(|_| {
-                anyhow::Error::msg(format!(
+                crate::ErrorKind::LauncherError(format!(
                     "Specified class path {} does not exist",
                     client_path.to_string_lossy()
                 ))
+                .as_error()
             })?
             .to_string_lossy()
             .to_string(),
@@ -144,11 +148,24 @@ pub fn get_class_paths(
         .join(classpath_separator(java_arch)))
 }
 
+pub fn get_class_paths_jar<T: AsRef<str>>(
+    libraries_path: &Path,
+    libraries: &[T],
+    java_arch: &str,
+) -> crate::Result<String> {
+    let cps = libraries
+        .iter()
+        .map(|library| get_lib_path(libraries_path, library.as_ref(), false))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(cps.join(classpath_separator(java_arch)))
+}
+
 pub fn get_lib_path(
     libraries_path: &Path,
     lib: &str,
     allow_not_exist: bool,
-) -> anyhow::Result<String> {
+) -> crate::Result<String> {
     let mut path = libraries_path.to_path_buf();
 
     path.push(daedalus::get_path_from_artifact(lib)?);
@@ -158,10 +175,11 @@ pub fn get_lib_path(
     }
 
     let path = &canonicalize(&path).map_err(|_| {
-        anyhow::Error::msg(format!(
+        crate::ErrorKind::LauncherError(format!(
             "Library file at path {} does not exist",
             path.to_string_lossy()
         ))
+        .as_error()
     })?;
 
     Ok(path.to_string_lossy().to_string())
