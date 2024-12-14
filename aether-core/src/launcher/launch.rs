@@ -151,6 +151,7 @@ pub async fn install_minecraft(
     Ok(())
 }
 
+// TODO: reduce arguments count
 #[tracing::instrument]
 pub async fn launch_minecraft(
     instance: &Instance,

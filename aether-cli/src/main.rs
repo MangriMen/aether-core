@@ -36,7 +36,7 @@ async fn init_launcher(args: &Args) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn process_args(args: &Args) -> anyhow::Result<()> {
+async fn process_args(_args: &Args) -> anyhow::Result<()> {
     // match &args.command {
     //     SubCommands::Install(command) => {
     //         launch_minecraft(
@@ -66,7 +66,7 @@ async fn process_args(args: &Args) -> anyhow::Result<()> {
     //             &WindowSize(800, 600),
     //             &Credentials {
     //                 id: Uuid::new_v4(),
-    //                 username: "MangriMen".to_owned(),
+    //                 username: "Test".to_owned(),
     //                 access_token: "".to_owned(),
     //                 refresh_token: "".to_owned(),
     //                 expires: Utc::now().with_year(2025).unwrap(),

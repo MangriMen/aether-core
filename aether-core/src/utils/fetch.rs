@@ -88,7 +88,7 @@ pub async fn fetch_advanced(
                 Ok(bytes) => {
                     if let Some(sha1) = sha1 {
                         let hash = sha1_async(bytes.clone()).await?;
-                        if hash != sha1.to_string() {
+                        if hash != *sha1 {
                             return Err(crate::ErrorKind::HashError(sha1.to_string(), hash).into());
                         }
                     }
