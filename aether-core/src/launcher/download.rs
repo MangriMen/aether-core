@@ -1,6 +1,6 @@
 use crate::{
     event::{emit_loading, loading_try_for_each_concurrent, LoadingBarId},
-    state::{LauncherState, ModLoader, ModLoaderManifest},
+    state::LauncherState,
     utils::{
         self,
         fetch::{fetch_advanced, fetch_json},
@@ -10,7 +10,7 @@ use crate::{
 use bytes::Bytes;
 use daedalus::{
     minecraft::{self, AssetsIndex},
-    modded::{self, LoaderVersion},
+    modded::{self},
 };
 use futures::{stream, StreamExt};
 use reqwest::Method;

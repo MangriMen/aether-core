@@ -40,21 +40,18 @@ impl MinecraftProcess {
             let diff = Utc::now()
                 .signed_duration_since(*last_updated_playtime)
                 .num_seconds();
-            // if diff >= 60 || force_update {
-            //     if let Err(e) = Instance::edit(profile_path, |mut prof| {
-            //         prof.time_played += diff as u64;
-            //         async { Ok(()) }
-            //     })
-            //     .await
-            //     {
-            //         tracing::warn!(
-            //             "Failed to update playtime for profile {}: {}",
-            //             &profile_path,
-            //             e
-            //         );
-            //     }
-            //     *last_updated_playtime = Utc::now();
-            // }
+
+            if diff >= 60 || force_update {
+                if let Err(e) = Instance::edit(name_id, |prof| {
+                    prof.time_played += diff as u64;
+                    async { Ok(()) }
+                })
+                .await
+                {
+                    tracing::warn!("Failed to update playtime for profile {}: {}", &name_id, e);
+                }
+                *last_updated_playtime = Utc::now();
+            }
         }
 
         // Wait on current Minecraft Child
@@ -95,7 +92,7 @@ impl MinecraftProcess {
         // Publish play time update
         // Allow failure, it will be stored locally and sent next time
         // Sent in another thread as first call may take a couple seconds and hold up process ending
-        let profile = name_id.clone();
+        // let profile = name_id.clone();
         // tokio::spawn(async move {
         //     if let Err(e) = Instance::try_update_playtime(&profile).await {
         //         tracing::warn!("Failed to update playtime for profile {}: {}", profile, e);
@@ -105,14 +102,15 @@ impl MinecraftProcess {
         // let _ = state.discord_rpc.clear_to_default(true).await;
 
         // If in tauri, window should show itself again after process exists if it was hidden
-        #[cfg(feature = "tauri")]
-        {
-            let window = crate::EventState::get_main_window().await?;
-            if let Some(window) = window {
-                window.unminimize()?;
-                window.set_focus()?;
-            }
-        }
+        // TODO: Make this work with tauri
+        // #[cfg(feature = "tauri")]
+        // {
+        //     let window = crate::EventState::get_main_window().await?;
+        //     if let Some(window) = window {
+        //         window.unminimize()?;
+        //         window.set_focus()?;
+        //     }
+        // }
 
         if mc_exit_status.success() {
             // We do not wait on the post exist command to finish running! We let it spawn + run on its own.

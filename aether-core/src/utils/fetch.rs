@@ -1,4 +1,4 @@
-use std::{f32::consts::E, time};
+use std::time;
 
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -11,7 +11,7 @@ use crate::event::{emit_loading, LoadingBarId};
 
 use super::file::sha1_async;
 
-const FETCH_ATTEMPTS: usize = 3;
+const FETCH_ATTEMPTS: u32 = 5;
 
 #[derive(Debug)]
 pub struct FetchSemaphore(pub Semaphore);
@@ -25,7 +25,7 @@ lazy_static! {
                 .expect("Reqwest Client Building Failed"),
         )
         .with(reqwest_retry::RetryTransientMiddleware::new_with_policy(
-            ExponentialBackoff::builder().build_with_max_retries(5),
+            ExponentialBackoff::builder().build_with_max_retries(FETCH_ATTEMPTS),
         ))
         .build()
     };
@@ -125,4 +125,5 @@ where
 }
 
 // #[tracing::instrument]
+// TODO: add fetch chunks
 // pub async fn fetch_chunks

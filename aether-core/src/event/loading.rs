@@ -25,6 +25,7 @@ pub struct LoadingBarId(Uuid);
 impl Drop for LoadingBarId {
     fn drop(&mut self) {
         let loader_uuid = self.0;
+
         tokio::spawn(async move {
             if let Ok(event_state) = EventState::get() {
                 if let Some(app_handle) = &event_state.app {
@@ -40,9 +41,13 @@ impl Drop for LoadingBarId {
                             loader_uuid,
                         };
 
-                        app_handle
+                        let res = app_handle
                             .emit("loading", payload)
                             .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)));
+
+                        if let Err(err) = res {
+                            log::error!("Loading bar drop emit: {:?}", err);
+                        }
                     }
                 } else {
                     event_state.loading_bars.remove(&loader_uuid);
