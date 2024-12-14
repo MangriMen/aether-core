@@ -1,10 +1,14 @@
 use std::path::PathBuf;
 
 use daedalus::minecraft::VersionInfo;
+use tokio::process::Command;
 
 use crate::{
     event::{emit_loading, LoadingBarId},
-    state::{Instance, LauncherState},
+    launcher::args,
+    state::{Instance, Java, LauncherState},
+    utils::io::IOError,
+    wrap_ref_builder,
 };
 
 #[tracing::instrument]
@@ -13,6 +17,7 @@ pub async fn process_forge_processors(
     version_jar: String,
     instance_path: &PathBuf,
     version_info: &mut VersionInfo,
+    java_version: &Java,
     loading_bar: Option<&LoadingBarId>,
 ) -> crate::Result<()> {
     let state = LauncherState::get().await?;
@@ -59,50 +64,50 @@ pub async fn process_forge_processors(
                     }
                 }
 
-                // let cp = wrap_ref_builder!(cp = processor.classpath.clone() => {
-                //     cp.push(processor.jar.clone())
-                // });
+                let cp = wrap_ref_builder!(cp = processor.classpath.clone() => {
+                    cp.push(processor.jar.clone())
+                });
 
-                // let child = Command::new(&java_version.path)
-                //     .arg("-cp")
-                //     .arg(args::get_class_paths_jar(
-                //         &libraries_dir,
-                //         &cp,
-                //         &java_version.architecture,
-                //     )?)
-                //     .arg(
-                //         args::get_processor_main_class(args::get_lib_path(
-                //             &libraries_dir,
-                //             &processor.jar,
-                //             false,
-                //         )?)
-                //         .await?
-                //         .ok_or_else(|| {
-                //             crate::ErrorKind::LauncherError(format!(
-                //                 "Could not find processor main class for {}",
-                //                 processor.jar
-                //             ))
-                //         })?,
-                //     )
-                //     .args(args::get_processor_arguments(
-                //         &libraries_dir,
-                //         &processor.args,
-                //         data,
-                //     )?)
-                //     .output()
-                //     .await
-                //     .map_err(|e| IOError::with_path(e, &java_version.path))
-                //     .map_err(|err| {
-                //         crate::ErrorKind::LauncherError(format!("Error running processor: {err}",))
-                //     })?;
+                let child = Command::new(&java_version.path)
+                    .arg("-cp")
+                    .arg(args::get_class_paths_jar(
+                        &libraries_dir,
+                        &cp,
+                        &java_version.architecture,
+                    )?)
+                    .arg(
+                        args::get_processor_main_class(args::get_lib_path(
+                            &libraries_dir,
+                            &processor.jar,
+                            false,
+                        )?)
+                        .await?
+                        .ok_or_else(|| {
+                            crate::ErrorKind::LauncherError(format!(
+                                "Could not find processor main class for {}",
+                                processor.jar
+                            ))
+                        })?,
+                    )
+                    .args(args::get_processor_arguments(
+                        &libraries_dir,
+                        &processor.args,
+                        data,
+                    )?)
+                    .output()
+                    .await
+                    .map_err(|e| IOError::with_path(e, &java_version.path))
+                    .map_err(|err| {
+                        crate::ErrorKind::LauncherError(format!("Error running processor: {err}",))
+                    })?;
 
-                // if !child.status.success() {
-                //     return Err(crate::ErrorKind::LauncherError(format!(
-                //         "Processor error: {}",
-                //         String::from_utf8_lossy(&child.stderr)
-                //     ))
-                //     .as_error());
-                // }
+                if !child.status.success() {
+                    return Err(crate::ErrorKind::LauncherError(format!(
+                        "Processor error: {}",
+                        String::from_utf8_lossy(&child.stderr)
+                    ))
+                    .as_error());
+                }
 
                 if let Some(loading_bar) = loading_bar {
                     emit_loading(

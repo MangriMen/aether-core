@@ -1,4 +1,4 @@
-use std::{f32::consts::E, time};
+use std::time;
 
 use bytes::Bytes;
 use lazy_static::lazy_static;
@@ -11,7 +11,7 @@ use crate::event::{emit_loading, LoadingBarId};
 
 use super::file::sha1_async;
 
-const FETCH_ATTEMPTS: usize = 3;
+const FETCH_ATTEMPTS: u32 = 5;
 
 #[derive(Debug)]
 pub struct FetchSemaphore(pub Semaphore);
@@ -25,7 +25,7 @@ lazy_static! {
                 .expect("Reqwest Client Building Failed"),
         )
         .with(reqwest_retry::RetryTransientMiddleware::new_with_policy(
-            ExponentialBackoff::builder().build_with_max_retries(5),
+            ExponentialBackoff::builder().build_with_max_retries(FETCH_ATTEMPTS),
         ))
         .build()
     };
@@ -88,7 +88,7 @@ pub async fn fetch_advanced(
                 Ok(bytes) => {
                     if let Some(sha1) = sha1 {
                         let hash = sha1_async(bytes.clone()).await?;
-                        if hash != sha1.to_string() {
+                        if hash != *sha1 {
                             return Err(crate::ErrorKind::HashError(sha1.to_string(), hash).into());
                         }
                     }
@@ -100,7 +100,7 @@ pub async fn fetch_advanced(
         }
         Err(err) => match err {
             reqwest_middleware::Error::Reqwest(err) => Err(err.into()),
-            reqwest_middleware::Error::Middleware(err) => {
+            reqwest_middleware::Error::Middleware(_) => {
                 Err(crate::ErrorKind::OtherError(url.to_string()).into())
             }
         },
@@ -125,4 +125,5 @@ where
 }
 
 // #[tracing::instrument]
+// TODO: add fetch chunks
 // pub async fn fetch_chunks

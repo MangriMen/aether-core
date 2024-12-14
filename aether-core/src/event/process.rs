@@ -4,8 +4,9 @@ use uuid::Uuid;
 use super::{EventError, EventState};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ProcessPayload {
-    pub profile_path_id: String,
+    pub instance_name_id: String,
     pub uuid: Uuid,
     pub event: ProcessPayloadType,
     pub message: String,
@@ -21,11 +22,11 @@ pub enum ProcessPayloadType {
 // emit_process(uuid, pid, event, message)
 #[allow(unused_variables)]
 pub async fn emit_process(
-    profile_path: &str,
+    name_id: &str,
     uuid: Uuid,
     event: ProcessPayloadType,
     message: &str,
-) -> anyhow::Result<()> {
+) -> crate::Result<()> {
     let event_state = EventState::get()?;
 
     if let Some(app_handle) = &event_state.app {
@@ -33,7 +34,7 @@ pub async fn emit_process(
             .emit(
                 "process",
                 ProcessPayload {
-                    profile_path_id: profile_path.to_string(),
+                    instance_name_id: name_id.to_string(),
                     uuid,
                     event,
                     message: message.to_string(),

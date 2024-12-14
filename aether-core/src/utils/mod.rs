@@ -1,3 +1,4 @@
+pub mod builder;
 pub mod fetch;
 pub mod file;
 pub mod io;

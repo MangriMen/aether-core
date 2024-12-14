@@ -10,10 +10,12 @@ use crate::{
 use bytes::Bytes;
 use daedalus::{
     minecraft::{self, AssetsIndex},
-    modded,
+    modded::{self},
 };
 use futures::{stream, StreamExt};
 use reqwest::Method;
+
+use crate::config::META_URL;
 
 use super::library::parse_rules;
 
@@ -450,6 +452,7 @@ pub async fn download_library(
     Ok(())
 }
 
+// TODO: reduce arguments count
 #[tracing::instrument]
 pub async fn download_libraries(
     state: &LauncherState,
@@ -525,4 +528,70 @@ pub async fn download_version_manifest(
     }?;
 
     Ok(res)
+}
+
+pub async fn download_loaders_manifests(
+    state: &LauncherState,
+    loader: &str,
+    _force: bool,
+) -> crate::Result<modded::Manifest> {
+    // let path = state.locations.versions_dir().join("manifest.json");
+
+    let res = fetch_json::<modded::Manifest>(
+        Method::GET,
+        &format!("{META_URL}{}/v0/manifest.json", loader),
+        None,
+        None,
+        None,
+        &state.fetch_semaphore,
+    )
+    .await?;
+
+    Ok(res)
+
+    // let keys = [
+    //     ModLoader::Forge,
+    //     ModLoader::Fabric,
+    //     ModLoader::Quilt,
+    //     ModLoader::NeoForge,
+    // ];
+
+    // let fetch_urls = keys
+    //     .iter()
+    //     .map(|x| (x, format!("{META_URL}{}/v0/manifest.json", x.as_meta_str())))
+    //     .collect::<Vec<_>>();
+
+    // let res = futures::future::try_join_all(fetch_urls.iter().map(|(_, url)| {
+    //     fetch_json::<modded::Manifest>(Method::GET, url, None, None, None, &state.fetch_semaphore)
+    // }))
+    // .await?
+    // .into_iter()
+    // .enumerate()
+    // .map(|(index, metadata)| ModLoaderManifest {
+    //     loader: *fetch_urls[index].0,
+    //     manifest: metadata,
+    // })
+    // .collect();
+
+    // Ok(res)
+
+    // let res = if path.exists() && !force {
+    //     utils::io::read_json_async(path).await
+    // } else {
+    //     let version_manifest = utils::fetch::fetch_json(
+    //         Method::GET,
+    //         minecraft::VERSION_MANIFEST_URL,
+    //         None,
+    //         None,
+    //         None,
+    //         &state.fetch_semaphore,
+    //     )
+    //     .await?;
+
+    //     utils::io::write_async(&path, &serde_json::to_vec(&version_manifest)?).await?;
+
+    //     Ok(version_manifest)
+    // }?;
+
+    // Ok(res)
 }

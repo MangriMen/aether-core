@@ -90,7 +90,7 @@ impl Instance {
         game_version: &str,
         loader: ModLoader,
         loader_version: Option<&str>,
-    ) -> anyhow::Result<Option<modded::LoaderVersion>> {
+    ) -> crate::Result<Option<modded::LoaderVersion>> {
         if loader == ModLoader::Vanilla {
             return Ok(None);
         }
