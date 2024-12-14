@@ -25,7 +25,7 @@ pub fn get_minecraft_arguments(
     version_type: &minecraft::VersionType,
     resolution: state::WindowSize,
     java_arch: &str,
-) -> anyhow::Result<Vec<String>> {
+) -> crate::Result<Vec<String>> {
     if let Some(arguments) = arguments {
         let mut parsed_arguments = Vec::new();
 
@@ -84,7 +84,7 @@ fn parse_minecraft_argument(
     assets_directory: &Path,
     version_type: &minecraft::VersionType,
     resolution: state::WindowSize,
-) -> anyhow::Result<String> {
+) -> crate::Result<String> {
     Ok(argument
         .replace("${accessToken}", access_token)
         .replace("${auth_access_token}", access_token)
@@ -103,10 +103,11 @@ fn parse_minecraft_argument(
             "${game_directory}",
             &canonicalize(game_directory)
                 .map_err(|_| {
-                    anyhow::Error::msg(format!(
+                    crate::ErrorKind::LauncherError(format!(
                         "Specified game directory {} does not exist",
                         game_directory.to_string_lossy()
                     ))
+                    .as_error()
                 })?
                 .to_string_lossy(),
         )
@@ -114,10 +115,11 @@ fn parse_minecraft_argument(
             "${assets_root}",
             &canonicalize(assets_directory)
                 .map_err(|_| {
-                    anyhow::Error::msg(format!(
+                    crate::ErrorKind::LauncherError(format!(
                         "Specified assets directory {} does not exist",
                         assets_directory.to_string_lossy()
                     ))
+                    .as_error()
                 })?
                 .to_string_lossy(),
         )
@@ -125,10 +127,11 @@ fn parse_minecraft_argument(
             "${game_assets}",
             &canonicalize(assets_directory)
                 .map_err(|_| {
-                    anyhow::Error::msg(format!(
+                    crate::ErrorKind::LauncherError(format!(
                         "Specified assets directory {} does not exist",
                         assets_directory.to_string_lossy()
                     ))
+                    .as_error()
                 })?
                 .to_string_lossy(),
         )

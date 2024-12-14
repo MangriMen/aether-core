@@ -51,7 +51,7 @@ pub fn get_minecraft_jvm_arguments(
     java_args: &[String],
     args: &HashMap<minecraft::ArgumentType, Vec<minecraft::Argument>>,
     minecraft_updated: bool,
-) -> anyhow::Result<Vec<String>> {
+) -> crate::Result<Vec<String>> {
     Ok(args::get_jvm_arguments(
         args.get(&minecraft::ArgumentType::Jvm)
             .map(|x| x.as_slice()),

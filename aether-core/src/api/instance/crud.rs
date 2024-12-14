@@ -5,11 +5,6 @@ use crate::{
     utils::io::read_json_async,
 };
 
-pub enum InstanceRead {
-    Instance(Instance),
-    Error(String),
-}
-
 pub async fn get_instance_by_path(path: &Path) -> crate::Result<Instance> {
     let instance = read_json_async(&path).await?;
 
@@ -30,16 +25,17 @@ pub async fn get_instance(name_id: &str) -> crate::Result<Instance> {
     Ok(instance)
 }
 
-pub async fn get_instances() -> anyhow::Result<Vec<Instance>> {
+pub async fn get_instances() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>)> {
     let state = LauncherState::get().await?;
 
     let instances_dir = state.locations.instances_dir();
 
     if !instances_dir.exists() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), Vec::new()));
     }
 
     let mut instances = Vec::new();
+    let mut instances_errors: Vec<crate::Error> = Vec::new();
 
     for entry in instances_dir.read_dir()? {
         match entry {
@@ -50,28 +46,16 @@ pub async fn get_instances() -> anyhow::Result<Vec<Instance>> {
 
                 match instance {
                     Ok(instance) => {
-                        instances.push(InstanceRead::Instance(instance));
+                        instances.push(instance);
                     }
-                    Err(err) => instances.push(InstanceRead::Error(err.to_string())),
+                    Err(err) => instances_errors.push(err),
                 }
             }
-            Err(err) => instances.push(InstanceRead::Error(err.to_string())),
+            Err(err) => instances_errors.push(err.into()),
         }
     }
 
-    let final_instances = instances
-        .iter()
-        .filter(|instance| match instance {
-            InstanceRead::Instance(_) => true,
-            InstanceRead::Error(_) => false,
-        })
-        .map(|instance| match instance {
-            InstanceRead::Instance(instance) => instance.clone(),
-            InstanceRead::Error(_) => unreachable!(),
-        })
-        .collect::<Vec<_>>();
-
-    Ok(final_instances)
+    Ok((instances, instances_errors))
 }
 
 pub async fn remove(name_id: &str) -> anyhow::Result<()> {
@@ -83,42 +67,3 @@ pub async fn remove(name_id: &str) -> anyhow::Result<()> {
 
     Ok(())
 }
-
-// Get a copy of the instances
-// #[tracing::instrument]
-// pub async fn get_instances() -> anyhow::Result<Vec<InstanceRead>> {
-//     let state = LauncherState::get().await?;
-
-//     let instance_dirs = state.locations.instances_dir().read_dir()?;
-
-//     let instances = stream::iter(instance_dirs)
-//         .then(|dir| async move {
-//             match dir {
-//                 Ok(dir) => {
-//                     let instance_file = dir.path().join("instance.json");
-
-//                     let data = tokio::fs::read(&instance_file).await;
-
-//                     match data {
-//                         Ok(data) => {
-//                             let res = serde_json::from_slice::<Instance>(&data);
-
-//                             match res {
-//                                 Ok(res) => InstanceRead::Instance(res),
-//                                 Err(err) => InstanceRead::Error(err.to_string()),
-//                             }
-//                         }
-//                         Err(err) => InstanceRead::Error(err.to_string()),
-//                     }
-//                 }
-//                 Err(err) => InstanceRead::Error(err.to_string()),
-//             }
-//         })
-//         .boxed()
-//         .try_collect::<Vec<_>>()
-//         .await?;
-
-//     // let exists_instances = instances.into_iter().filter_map(|it| it.ok()).collect();
-
-//     Ok(instances)
-// }

@@ -13,7 +13,7 @@ use crate::{
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MinecraftProcessMetadata {
     pub uuid: Uuid,
-    pub instance_path: String,
+    pub name_id: String,
     pub start_time: DateTime<Utc>,
 }
 
@@ -28,33 +28,30 @@ impl MinecraftProcess {
     // Also, as the process ends, it spawns the follow-up process if it exists
     // By convention, ExitStatus is last command's exit status, and we exit on the first non-zero exit status
     pub async fn sequential_process_manager(
-        profile_path: String,
+        name_id: String,
         post_exit_command: Option<String>,
         uuid: Uuid,
     ) -> anyhow::Result<()> {
         async fn update_playtime(
             last_updated_playtime: &mut DateTime<Utc>,
-            instance_path: &str,
+            name_id: &str,
             force_update: bool,
         ) {
             let diff = Utc::now()
                 .signed_duration_since(*last_updated_playtime)
                 .num_seconds();
-            // if diff >= 60 || force_update {
-            //     if let Err(e) = Instance::edit(profile_path, |mut prof| {
-            //         prof.time_played += diff as u64;
-            //         async { Ok(()) }
-            //     })
-            //     .await
-            //     {
-            //         tracing::warn!(
-            //             "Failed to update playtime for profile {}: {}",
-            //             &profile_path,
-            //             e
-            //         );
-            //     }
-            //     *last_updated_playtime = Utc::now();
-            // }
+
+            if diff >= 60 || force_update {
+                if let Err(e) = Instance::edit(name_id, |prof| {
+                    prof.time_played += diff as u64;
+                    async { Ok(()) }
+                })
+                .await
+                {
+                    tracing::warn!("Failed to update playtime for profile {}: {}", &name_id, e);
+                }
+                *last_updated_playtime = Utc::now();
+            }
         }
 
         // Wait on current Minecraft Child
@@ -77,12 +74,12 @@ impl MinecraftProcess {
             tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
             // Auto-update playtime every minute
-            update_playtime(&mut last_updated_playtime, &profile_path, false).await;
+            update_playtime(&mut last_updated_playtime, &name_id, false).await;
         }
 
         state.process_manager.remove(uuid);
         emit_process(
-            &profile_path,
+            &name_id,
             uuid,
             ProcessPayloadType::Finished,
             "Exited process",
@@ -90,12 +87,12 @@ impl MinecraftProcess {
         .await?;
 
         // Now fully complete- update playtime one last time
-        update_playtime(&mut last_updated_playtime, &profile_path, true).await;
+        update_playtime(&mut last_updated_playtime, &name_id, true).await;
 
         // Publish play time update
         // Allow failure, it will be stored locally and sent next time
         // Sent in another thread as first call may take a couple seconds and hold up process ending
-        let profile = profile_path.clone();
+        // let profile = name_id.clone();
         // tokio::spawn(async move {
         //     if let Err(e) = Instance::try_update_playtime(&profile).await {
         //         tracing::warn!("Failed to update playtime for profile {}: {}", profile, e);
@@ -105,14 +102,15 @@ impl MinecraftProcess {
         // let _ = state.discord_rpc.clear_to_default(true).await;
 
         // If in tauri, window should show itself again after process exists if it was hidden
-        #[cfg(feature = "tauri")]
-        {
-            let window = crate::EventState::get_main_window().await?;
-            if let Some(window) = window {
-                window.unminimize()?;
-                window.set_focus()?;
-            }
-        }
+        // TODO: Make this work with tauri
+        // #[cfg(feature = "tauri")]
+        // {
+        //     let window = crate::EventState::get_main_window().await?;
+        //     if let Some(window) = window {
+        //         window.unminimize()?;
+        //         window.set_focus()?;
+        //     }
+        // }
 
         if mc_exit_status.success() {
             // We do not wait on the post exist command to finish running! We let it spawn + run on its own.
@@ -123,7 +121,7 @@ impl MinecraftProcess {
                     let mut command = Command::new(command);
                     command
                         .args(cmd.collect::<Vec<&str>>())
-                        .current_dir(Instance::get_full_path(&profile_path).await?);
+                        .current_dir(Instance::get_full_path(&name_id).await?);
                     command.spawn().map_err(IOError::from)?;
                 }
             }

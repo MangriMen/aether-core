@@ -9,9 +9,9 @@ pub fn parse_arguments<F>(
     parsed_arguments: &mut Vec<String>,
     parse_function: F,
     java_arch: &str,
-) -> anyhow::Result<()>
+) -> crate::Result<()>
 where
-    F: Fn(&str) -> anyhow::Result<String>,
+    F: Fn(&str) -> crate::Result<String>,
 {
     for argument in arguments {
         match argument {
