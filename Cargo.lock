@@ -50,6 +50,7 @@ version = "0.1.4"
 dependencies = [
  "anyhow",
  "async-event-emitter",
+ "async-trait",
  "async_zip",
  "bytes",
  "chrono",

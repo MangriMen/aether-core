@@ -1,10 +1,10 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::sync::{OnceCell, Semaphore};
 
 use crate::utils::fetch::FetchSemaphore;
 
-use super::{LocationInfo, ProcessManager, Settings};
+use super::{InstancePlugin, LocationInfo, PackwizPlugin, ProcessManager, Settings};
 
 // Global state
 // RwLock on state only has concurrent reads, except for config dir change which takes control of the State
@@ -28,6 +28,7 @@ pub struct LauncherState {
     // pub(crate) pool: SqlitePool,
 
     // pub(crate) file_watcher: FileWatcher,
+    pub plugins: HashMap<String, Box<dyn InstancePlugin>>,
 }
 
 impl LauncherState {
@@ -59,10 +60,22 @@ impl LauncherState {
 
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
 
+        let loaded_plugins: Vec<Box<dyn InstancePlugin>> = vec![Box::new(PackwizPlugin {
+            id: "packwiz".to_string(),
+            name: "Packwiz".to_string(),
+            description: "A plugin for managing packs".to_string(),
+        })];
+
+        let plugins: HashMap<String, Box<dyn InstancePlugin>> = loaded_plugins
+            .into_iter()
+            .map(|plugin| (plugin.get_id().to_string(), plugin))
+            .collect();
+
         Ok(Arc::new(Self {
             locations,
             process_manager: ProcessManager::new(),
             fetch_semaphore,
+            plugins,
         }))
     }
 }

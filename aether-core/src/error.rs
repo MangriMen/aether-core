@@ -91,6 +91,9 @@ pub enum ErrorKind {
 
     #[error("Move directory error: {0}")]
     DirectoryMoveError(String),
+
+    #[error("Plugin not found error: {0}")]
+    PluginNotFoundError(String),
 }
 
 #[derive(Debug)]
