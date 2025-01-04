@@ -12,19 +12,17 @@ pub async fn get_all() -> crate::Result<Vec<MinecraftProcessMetadata>> {
 
 // Gets the UUID of each stored process in the state by profile path
 #[tracing::instrument]
-pub async fn get_by_instance_name_id(
-    name_id: &str,
-) -> crate::Result<Vec<MinecraftProcessMetadata>> {
+pub async fn get_by_instance_id(id: &str) -> crate::Result<Vec<MinecraftProcessMetadata>> {
     let state = LauncherState::get().await?;
 
-    let processes = state
+    let process = state
         .process_manager
         .get_all()
         .into_iter()
-        .filter(|x| x.name_id == name_id)
+        .filter(|x| x.id == id)
         .collect();
 
-    Ok(processes)
+    Ok(process)
 }
 
 // Kill a child process stored in the state by UUID, as a string

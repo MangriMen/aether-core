@@ -4,7 +4,7 @@ use chrono::Utc;
 use log::info;
 use tokio::fs;
 
-use crate::state::{Instance, InstanceInstallStage, LauncherState, ModLoader};
+use crate::state::{Hooks, Instance, InstanceInstallStage, LauncherState, ModLoader};
 
 use super::sanitize_instance_name;
 
@@ -15,9 +15,8 @@ pub async fn instance_create(
     mod_loader: ModLoader,
     loader_version: Option<String>,
     icon_path: Option<String>,
-    linked_data: Option<String>,
-    skip_install_profile: Option<bool>,
-) -> anyhow::Result<String> {
+    skip_install_instance: Option<bool>,
+) -> crate::Result<String> {
     let state = LauncherState::get().await?;
 
     let (full_path, sanitized_name) = get_instance_path_without_duplicate(&state, &name);
@@ -42,37 +41,44 @@ pub async fn instance_create(
     };
 
     let instance = Instance {
-        name_id: sanitized_name.clone(),
-        install_stage: InstanceInstallStage::NotInstalled,
-
+        id: sanitized_name.clone(),
         path: full_path.clone(),
 
         name: name.clone(),
         icon_path: None,
 
+        install_stage: InstanceInstallStage::NotInstalled,
+
         game_version,
         loader: mod_loader,
         loader_version: loader.map(|it| it.id),
-        created: Utc::now(),
-        modified: Utc::now(),
-        last_played: None,
+
         java_path: None,
         extra_launch_args: None,
         custom_env_vars: None,
+
         memory: None,
         force_fullscreen: None,
         game_resolution: None,
+
+        created: Utc::now(),
+        modified: Utc::now(),
+        last_played: None,
+
         time_played: 0,
+        recent_time_played: 0,
+
+        hooks: Hooks::default(),
     };
 
     let result = async {
         instance.save().await?;
 
-        if !skip_install_profile.unwrap_or(false) {
+        if !skip_install_instance.unwrap_or(false) {
             crate::launcher::install_minecraft(&instance, None, false).await?;
         }
 
-        Ok(instance.name_id.clone())
+        Ok(instance.id.clone())
     }
     .await;
 

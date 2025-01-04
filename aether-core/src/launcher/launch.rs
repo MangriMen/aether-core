@@ -5,7 +5,7 @@ use daedalus::{minecraft, modded};
 use crate::{
     api,
     event::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
-    launcher::process_forge_processors,
+    launcher::mod_loader_post_install,
     state::{
         self, Instance, InstanceInstallStage, LauncherState, MinecraftProcessMetadata, ModLoader,
     },
@@ -31,7 +31,7 @@ pub async fn install_minecraft(
     let loading_bar = init_or_edit_loading(
         loading_bar,
         LoadingBarType::MinecraftDownload {
-            instance_path: instance.name_id.clone(),
+            instance_path: instance.id.clone(),
             instance_name: instance.name.clone(),
         },
         100.0,
@@ -39,7 +39,7 @@ pub async fn install_minecraft(
     )
     .await?;
 
-    Instance::edit(&instance.name_id, |instance| {
+    Instance::edit(&instance.id, |instance| {
         instance.install_stage = InstanceInstallStage::Installing;
         async { Ok(()) }
     })
@@ -47,7 +47,7 @@ pub async fn install_minecraft(
 
     let state = LauncherState::get().await?;
 
-    let instance_path = Instance::get_full_path(&instance.name_id).await?;
+    let instance_path = Instance::get_full_path(&instance.id).await?;
 
     let version_manifest = download_version_manifest(&state, false).await?;
 
@@ -71,7 +71,7 @@ pub async fn install_minecraft(
 
         let loader_version_id = loader_version.clone();
 
-        Instance::edit(&instance.name_id, |instance| {
+        Instance::edit(&instance.id, |instance| {
             instance.loader_version = loader_version_id.clone().map(|x| x.id.clone());
             async { Ok(()) }
         })
@@ -129,7 +129,7 @@ pub async fn install_minecraft(
     )
     .await?;
 
-    process_forge_processors(
+    mod_loader_post_install(
         instance,
         version_jar,
         &instance_path,
@@ -139,29 +139,43 @@ pub async fn install_minecraft(
     )
     .await?;
 
-    Instance::edit(&instance.name_id, |prof| {
+    Instance::edit(&instance.id, |prof| {
         prof.install_stage = InstanceInstallStage::Installed;
         async { Ok(()) }
     })
     .await?;
 
-    // TODO: must be 1.0, but now it is 0.99997 at the end, need fix
-    emit_loading(&loading_bar, 1.0, Some("Finished installing")).await?;
+    emit_loading(&loading_bar, 1.0_0000000001, Some("Finished installing")).await?;
 
     Ok(())
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct InstanceLaunchArgs {
+    pub env_args: Vec<(String, String)>,
+    pub java_args: Vec<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct InstanceLaunchSettings {
+    pub memory: state::MemorySettings,
+    pub resolution: state::WindowSize,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct InstanceLaunchMetadata {
+    pub post_exit_command: Option<String>,
+    pub wrapper: Option<String>,
 }
 
 // TODO: reduce arguments count
 #[tracing::instrument]
 pub async fn launch_minecraft(
     instance: &Instance,
-    env_args: &[(String, String)],
-    java_args: &[String],
-    memory: &state::MemorySettings,
-    resolution: &state::WindowSize,
+    launch_args: &InstanceLaunchArgs,
+    launch_settings: &InstanceLaunchSettings,
+    launch_metadata: &InstanceLaunchMetadata,
     credentials: &state::Credentials,
-    post_exit_command: Option<String>,
-    wrapper: &Option<String>,
 ) -> crate::Result<MinecraftProcessMetadata> {
     if instance.install_stage == InstanceInstallStage::PackInstalling
         || instance.install_stage == InstanceInstallStage::Installing
@@ -177,7 +191,7 @@ pub async fn launch_minecraft(
 
     let state = LauncherState::get().await?;
 
-    let instance_path = Instance::get_full_path(&instance.name_id).await?;
+    let instance_path = Instance::get_full_path(&instance.id).await?;
 
     let version_manifest = download_version_manifest(&state, false).await?;
 
@@ -228,9 +242,9 @@ pub async fn launch_minecraft(
 
     let args = version_info.arguments.clone().unwrap_or_default();
 
-    let env_args_vec = Vec::from(env_args);
+    let env_args_vec = launch_args.env_args.clone();
 
-    let mut command = match wrapper {
+    let mut command = match &launch_metadata.wrapper {
         Some(hook) => {
             wrap_ref_builder!(it = tokio::process::Command::new(hook) => {it.arg(&java_version.path)})
         }
@@ -239,11 +253,11 @@ pub async fn launch_minecraft(
 
     // Check if profile has a running profile, and reject running the command if it does
     // Done late so a quick double call doesn't launch two instances
-    let existing_processes = api::process::get_by_instance_name_id(&instance.name_id).await?;
+    let existing_processes = api::process::get_by_instance_id(&instance.id).await?;
     if let Some(process) = existing_processes.first() {
         return Err(crate::ErrorKind::LauncherError(format!(
             "Profile {} is already running at path: {}",
-            instance.name_id, process.uuid
+            instance.id, process.uuid
         ))
         .as_error());
     }
@@ -260,8 +274,8 @@ pub async fn launch_minecraft(
         &client_path,
         version_jar,
         &java_version,
-        *memory,
-        java_args,
+        launch_settings.memory,
+        &launch_args.java_args,
         &args,
         minecraft_updated,
     )?;
@@ -270,19 +284,17 @@ pub async fn launch_minecraft(
         args.get(&minecraft::ArgumentType::Game)
             .map(|x| x.as_slice()),
         version_info.minecraft_arguments.as_deref(),
-        credentials,
+        &credentials,
         &version.id,
         &version_info.asset_index.id,
         &instance_path,
         &state.locations.assets_dir(),
         &version.type_,
-        *resolution,
+        launch_settings.resolution,
         &java_version.architecture,
     )?
     .into_iter()
     .collect::<Vec<_>>();
-
-    // log::error!(instance)
 
     command
         .args(jvm_arguments)
@@ -311,6 +323,10 @@ pub async fn launch_minecraft(
 
     state
         .process_manager
-        .insert_new_process(&instance.name_id, command, post_exit_command)
+        .insert_new_process(
+            &instance.id,
+            command,
+            launch_metadata.post_exit_command.clone(),
+        )
         .await
 }

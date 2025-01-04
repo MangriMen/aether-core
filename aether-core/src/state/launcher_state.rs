@@ -4,11 +4,19 @@ use tokio::sync::{OnceCell, Semaphore};
 
 use crate::utils::fetch::FetchSemaphore;
 
-use super::{InstancePlugin, LocationInfo, PackwizPlugin, ProcessManager, Settings};
+use super::{
+    InstancePlugin, InstancePluginMetadata, LocationInfo, PackwizPlugin, ProcessManager, Settings,
+};
 
 // Global state
 // RwLock on state only has concurrent reads, except for config dir change which takes control of the State
 static LAUNCHER_STATE: OnceCell<Arc<LauncherState>> = OnceCell::const_new();
+
+#[derive(Debug)]
+pub struct PluginState {
+    pub metadata: InstancePluginMetadata,
+    pub plugin: Box<dyn InstancePlugin>,
+}
 
 #[derive(Debug)]
 pub struct LauncherState {
@@ -28,7 +36,7 @@ pub struct LauncherState {
     // pub(crate) pool: SqlitePool,
 
     // pub(crate) file_watcher: FileWatcher,
-    pub plugins: HashMap<String, Box<dyn InstancePlugin>>,
+    pub plugins: HashMap<String, PluginState>,
 }
 
 impl LauncherState {
@@ -53,23 +61,36 @@ impl LauncherState {
 
     #[tracing::instrument]
     async fn initialize_state(settings: &Settings) -> anyhow::Result<Arc<Self>> {
+        log::info!("Initializing state");
+
         let locations = LocationInfo {
             settings_dir: PathBuf::from(settings.launcher_dir.clone().unwrap()),
             config_dir: PathBuf::from(settings.metadata_dir.clone().unwrap()),
+            plugins_dir: PathBuf::from(settings.plugins_dir.clone().unwrap()),
         };
 
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
 
-        let loaded_plugins: Vec<Box<dyn InstancePlugin>> = vec![Box::new(PackwizPlugin {
+        let found_plugins: Vec<Box<dyn InstancePlugin>> = vec![Box::new(PackwizPlugin {
             id: "packwiz".to_string(),
             name: "Packwiz".to_string(),
             description: "A plugin for managing packs".to_string(),
         })];
 
-        let plugins: HashMap<String, Box<dyn InstancePlugin>> = loaded_plugins
+        let plugins: HashMap<String, PluginState> = found_plugins
             .into_iter()
-            .map(|plugin| (plugin.get_id().to_string(), plugin))
+            .map(|plugin| {
+                (
+                    plugin.get_id().to_string(),
+                    PluginState {
+                        metadata: InstancePluginMetadata { is_loaded: false },
+                        plugin,
+                    },
+                )
+            })
             .collect();
+
+        log::info!("State initialized");
 
         Ok(Arc::new(Self {
             locations,
@@ -77,5 +98,16 @@ impl LauncherState {
             fetch_semaphore,
             plugins,
         }))
+    }
+
+    pub async fn load_plugin(&self, plugin: String) -> crate::Result<()> {
+        let plugin = self
+            .plugins
+            .get(&plugin)
+            .ok_or(crate::ErrorKind::PluginNotFoundError(format!(
+                "Plugin {plugin} not found"
+            )))?;
+
+        plugin.plugin.init().await
     }
 }

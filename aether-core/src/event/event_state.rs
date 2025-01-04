@@ -38,6 +38,7 @@ impl EventState {
             .cloned()
     }
 
+    // TODO: migrate to event emitter
     // pub async fn init_with_emitter<S: serde::Serialize + Clone>(
     //     emit_fn: &dyn Fn(&str, S) -> anyhow::Result<()>,
     // ) -> anyhow::Result<Arc<Self>> {

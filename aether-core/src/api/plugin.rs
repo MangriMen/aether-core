@@ -6,7 +6,7 @@ pub async fn call(id: &str, data: &str) -> crate::Result<()> {
     let state = LauncherState::get().await?;
 
     match state.plugins.get(id) {
-        Some(plugin) => plugin.call(data).await?,
+        Some(plugin) => plugin.plugin.call(data).await?,
         None => {
             return Err(
                 crate::ErrorKind::PluginNotFoundError("Plugin not found".to_string()).as_error(),
