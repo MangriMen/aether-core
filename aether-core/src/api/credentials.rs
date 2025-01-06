@@ -1,20 +1,13 @@
 use uuid::Uuid;
 
-use crate::state::{Account, AccountState, Credentials};
+use crate::state::{Account, Credentials};
 
-pub async fn get_accounts() -> crate::Result<AccountState> {
+pub async fn get_accounts() -> crate::Result<Vec<Account>> {
     let state = crate::state::LauncherState::get().await?;
 
-    let credentials = Credentials::get_state(&state).await?;
+    let credentials = Credentials::get(&state).await?;
 
-    Ok(AccountState {
-        default: credentials.default,
-        accounts: credentials
-            .credentials
-            .iter()
-            .map(|cred| Account::from(cred.clone()))
-            .collect(),
-    })
+    Ok(credentials.into_iter().map(Account::from).collect())
 }
 
 pub async fn create_offline_account(username: &str) -> crate::Result<()> {
@@ -26,7 +19,7 @@ pub async fn create_offline_account(username: &str) -> crate::Result<()> {
 pub async fn change_account(id: &Uuid) -> crate::Result<()> {
     let state = crate::state::LauncherState::get().await?;
 
-    Credentials::change_default(&state, &id).await?;
+    Credentials::set_active(&state, &id).await?;
 
     Ok(())
 }

@@ -7,7 +7,7 @@ use crate::{
 pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
 
-    let default_account = Credentials::get_default(&state)
+    let default_account = Credentials::get_active(&state)
         .await?
         .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
 

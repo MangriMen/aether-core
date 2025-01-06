@@ -18,114 +18,127 @@ pub struct Credentials {
     pub active: bool,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct CredentialsState {
-    pub default: Option<Uuid>,
-    pub credentials: Vec<Credentials>,
-}
+pub type CredentialsData = Vec<Credentials>;
 
 impl Credentials {
-    async fn get_credentials_state_file(state: &LauncherState) -> crate::Result<PathBuf> {
+    async fn get_credentials_file(state: &LauncherState) -> crate::Result<PathBuf> {
         let credentials_file = state.locations.settings_dir.join("credentials.json");
 
         if !credentials_file.exists() {
-            write_json_async(
-                &credentials_file,
-                &CredentialsState {
-                    default: None,
-                    credentials: Vec::new(),
-                },
-            )
-            .await?
+            write_json_async(&credentials_file, CredentialsData::new()).await?
         }
 
         Ok(credentials_file)
     }
 
-    pub async fn get_state(state: &LauncherState) -> crate::Result<CredentialsState> {
-        let state_file = &Credentials::get_credentials_state_file(&state).await?;
-        read_json_async::<CredentialsState>(&state_file).await
+    pub async fn get(state: &LauncherState) -> crate::Result<CredentialsData> {
+        let state_file = &Credentials::get_credentials_file(&state).await?;
+        read_json_async::<CredentialsData>(&state_file).await
     }
 
-    pub async fn save_state(
+    pub async fn save(
         state: &LauncherState,
-        credentials_state: &CredentialsState,
+        credentials_state: &CredentialsData,
     ) -> crate::Result<()> {
-        let state_file = &Credentials::get_credentials_state_file(&state).await?;
+        let state_file = &Credentials::get_credentials_file(&state).await?;
         write_json_async(&state_file, credentials_state).await
     }
 
-    pub async fn get_default(state: &LauncherState) -> crate::Result<Option<Credentials>> {
-        let credentials_state = Credentials::get_state(&state).await?;
+    pub async fn get_active(state: &LauncherState) -> crate::Result<Option<Credentials>> {
+        let credentials = Credentials::get(&state).await?;
 
-        if credentials_state.credentials.is_empty() {
+        if credentials.is_empty() {
             return Ok(None);
         }
 
-        if let Some(default) = credentials_state.default {
-            return Ok(credentials_state
-                .credentials
-                .iter()
-                .find(|x| x.id == default)
-                .cloned());
+        Ok(credentials.iter().find(|x| x.active).cloned())
+    }
+
+    #[inline]
+    async fn set_active_internal(
+        credentials: &CredentialsData,
+        id: &Uuid,
+    ) -> crate::Result<CredentialsData> {
+        let mut cloned_credentials = credentials.clone();
+
+        if cloned_credentials.is_empty() {
+            return Ok(cloned_credentials);
+        }
+
+        let mut prev_active = None;
+        let mut new_active = None;
+
+        for credential in &mut cloned_credentials {
+            if credential.active {
+                prev_active = Some(credential);
+            } else if credential.id == *id {
+                new_active = Some(credential);
+            }
+        }
+
+        if let Some(new_active) = new_active {
+            if let Some(prev_active) = prev_active {
+                prev_active.active = false;
+            }
+            new_active.active = true;
         } else {
-            return Ok(None);
+            return Err(crate::ErrorKind::NoCredentialsError.as_error());
         }
+
+        Ok(cloned_credentials)
+    }
+
+    pub async fn set_active(state: &LauncherState, id: &Uuid) -> crate::Result<()> {
+        let credentials = Credentials::get(&state).await?;
+        let updated_credentials = Self::set_active_internal(&credentials, id).await?;
+        Self::save(state, &updated_credentials).await
+    }
+
+    pub async fn remove(state: &LauncherState, id: &Uuid) -> crate::Result<()> {
+        let mut credentials = Credentials::get(&state).await?;
+
+        let mut need_to_set_active = false;
+        credentials.retain(|x| {
+            let need_retain = x.id != *id;
+
+            if !need_retain && x.active {
+                need_to_set_active = true
+            }
+
+            return need_retain;
+        });
+
+        if need_to_set_active {
+            if let Some(first) = credentials.first_mut() {
+                first.active = true;
+            };
+        }
+
+        Self::save(state, &credentials).await?;
+
+        Ok(())
     }
 
     pub async fn create_offline_account(
         state: &LauncherState,
         username: &str,
     ) -> crate::Result<()> {
-        let mut credentials_state = Credentials::get_state(&state).await?;
+        let mut credentials = Credentials::get(&state).await?;
 
         let new_credentials_id = Uuid::new_v4();
 
-        credentials_state.credentials.push(Credentials {
+        credentials.push(Credentials {
             id: new_credentials_id,
             username: username.to_string(),
             access_token: String::new(),
             refresh_token: String::new(),
             expires: Utc::now(),
-            active: true,
+            active: false,
         });
 
-        if credentials_state.default.is_none() {
-            credentials_state.default = Some(new_credentials_id);
-        }
-
-        Credentials::save_state(state, &credentials_state).await?;
-
-        Ok(())
-    }
-
-    pub async fn change_default(state: &LauncherState, id: &Uuid) -> crate::Result<()> {
-        let mut credentials_state = Credentials::get_state(&state).await?;
-
-        let credentials = credentials_state.credentials.iter().find(|x| x.id == *id);
-
-        if let Some(credentials) = credentials {
-            credentials_state.default = Some(credentials.id);
-            Credentials::save_state(state, &credentials_state).await?
-        } else {
-            return Err(crate::ErrorKind::NoCredentialsError.as_error());
-        }
-
-        Ok(())
-    }
-
-    pub async fn remove(state: &LauncherState, id: &Uuid) -> crate::Result<()> {
-        let mut credentials_state = Credentials::get_state(&state).await?;
-
-        credentials_state.credentials.retain(|x| x.id != *id);
-
-        credentials_state.default = credentials_state
-            .credentials
-            .last()
-            .map_or(None, |x| Some(x.id));
-
-        Credentials::save_state(state, &credentials_state).await?;
+        let updated_credentials =
+            Self::set_active_internal(&credentials, &new_credentials_id).await?;
+        Self::save(state, &updated_credentials).await?;
 
         Ok(())
     }

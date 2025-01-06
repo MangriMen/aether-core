@@ -6,14 +6,9 @@ use super::Credentials;
 #[serde(rename_all = "camelCase")]
 pub struct Account {
     pub id: Uuid,
+    pub active: bool,
     pub username: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct AccountState {
-    pub default: Option<Uuid>,
-    pub accounts: Vec<Account>,
+    pub account_type: String,
 }
 
 impl From<Credentials> for Account {
@@ -21,6 +16,9 @@ impl From<Credentials> for Account {
         Self {
             id: credentials.id,
             username: credentials.username,
+            active: credentials.active,
+            // TODO: change when divide online and offline
+            account_type: "offline".to_string(),
         }
     }
 }
