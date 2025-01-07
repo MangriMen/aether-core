@@ -35,7 +35,7 @@ impl Drop for LoadingBarId {
                         let fraction = bar.current / bar.total;
 
                         let payload = LoadingPayload {
-                            fraction: Some(fraction),
+                            fraction: None,
                             message: "Completed".to_string(),
                             event,
                             loader_uuid,
@@ -45,8 +45,8 @@ impl Drop for LoadingBarId {
                             .emit(&MinecraftEvent::Loading.as_str(), payload)
                             .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)));
 
-                        if let Err(err) = res {
-                            log::error!("Loading bar drop emit: {:?}", err);
+                        if let Err(_) = res {
+                            log::error!("Exited at {fraction} for loading bar: {:?}", loader_uuid);
                         }
                     }
                 } else {

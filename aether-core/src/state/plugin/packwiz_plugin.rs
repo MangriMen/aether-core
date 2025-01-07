@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use phf::phf_map;
 use reqwest::Method;
 use tokio::{
     fs::{create_dir_all, hard_link, remove_dir_all},
@@ -108,6 +109,16 @@ pub struct PackwizSettings {
 impl PackwizPlugin {
     const PACKWIZ_INSTALLER_NAME: &str = "packwiz-installer.jar";
     const PACKWIZ_INSTALLER_BOOTSTRAP_NAME: &str = "packwiz-installer-bootstrap.jar";
+
+    pub const REDISTRIBUTABLE_FILES: phf::Map<&'static str, &str> = phf_map! {
+        "packwiz-installer" => "packwiz-installer.jar",
+        "packwiz-installer-bootstrap" => "packwiz-installer-bootstrap.jar"
+    };
+
+    pub const REDISTRIBUTABLE_LINKS: phf::Map<&'static str, &str> = phf_map! {
+        "packwiz-installer" => "https://github.com/packwiz/packwiz-installer/releases/latest/download/packwiz-installer.jar",
+        "packwiz-installer-bootstrap" => "https://github.com/packwiz/packwiz-installer-bootstrap/releases/latest/download/packwiz-installer-bootstrap.jar"
+    };
 
     fn get_instance_settings(&self, folder: &PathBuf) -> PathBuf {
         folder.join("packwiz.toml")
@@ -241,40 +252,57 @@ impl PackwizPlugin {
     }
 
     async fn download_redistributable(&self, state: &LauncherState) -> crate::Result<()> {
-        log::debug!("Downloading redistributable");
-
         let plugin_dir = <dyn InstancePlugin>::get_plugin_dir(self).await?;
 
-        const PACKWIZ_INSTALLER_URL: &str = "https://github.com/packwiz/packwiz-installer/releases/latest/download/packwiz-installer.jar";
-        const PACKWIZ_INSTALLER_BOOTSTRAP_URL: &str = "https://github.com/packwiz/packwiz-installer-bootstrap/releases/latest/download/packwiz-installer-bootstrap.jar";
+        let redistributable_paths: std::collections::HashMap<&str, PathBuf> =
+            Self::REDISTRIBUTABLE_FILES
+                .into_iter()
+                .map(|(key, file_name)| (*key, plugin_dir.join(file_name)))
+                .collect();
+
+        if redistributable_paths.iter().all(|path| path.1.exists()) {
+            return Ok(());
+        }
+
+        let loading_bar_type = crate::event::LoadingBarType::PluginDownload {
+            plugin_name: self.get_name().clone(),
+        };
+        let loading_bar_total = 100.0;
 
         let loading_bar = crate::event::init_or_edit_loading(
             None,
-            crate::event::LoadingBarType::PluginDownload {
-                plugin_name: self.get_name().clone(),
-            },
-            100.0,
-            "Downloading packwiz installer",
+            loading_bar_type,
+            loading_bar_total,
+            "Downloading packwiz redistributable",
         )
         .await?;
 
-        log::debug!("Downloading packwiz installer");
-        self.download_file(
-            state,
-            PACKWIZ_INSTALLER_URL,
-            &plugin_dir.join(Self::PACKWIZ_INSTALLER_NAME),
-            Some((&loading_bar, 50.0)),
-        )
-        .await?;
+        log::info!("Downloading redistributable");
+        for (key, path) in redistributable_paths.iter() {
+            log::debug!("Downloading {}", key);
 
-        log::debug!("Downloading packwiz installer bootstrap");
-        self.download_file(
-            state,
-            PACKWIZ_INSTALLER_BOOTSTRAP_URL,
-            &plugin_dir.join(Self::PACKWIZ_INSTALLER_BOOTSTRAP_NAME),
-            Some((&loading_bar, 50.0)),
-        )
-        .await?;
+            if let Some(url) = Self::REDISTRIBUTABLE_LINKS.get(key) {
+                let res = self
+                    .download_file(
+                        state,
+                        &url,
+                        path,
+                        Some((
+                            &loading_bar,
+                            loading_bar_total / redistributable_paths.len() as f64,
+                        )),
+                    )
+                    .await;
+
+                if res.is_err() {
+                    log::error!("Failed to download redistributable {}", key);
+                    continue;
+                }
+            } else {
+                log::error!("Url for {} not found", key);
+                continue;
+            }
+        }
 
         Ok(())
     }
@@ -334,9 +362,11 @@ impl PackwizPlugin {
 
     async fn init_command(&self, state: &LauncherState) -> crate::Result<()> {
         let plugin_dir = <dyn InstancePlugin>::get_plugin_dir(self).await?;
-        log::debug!("Creating plugin directory");
 
-        create_dir_all(&plugin_dir).await?;
+        if !plugin_dir.exists() || plugin_dir.metadata().is_err() {
+            log::debug!("Creating plugin directory");
+            create_dir_all(&plugin_dir).await?;
+        }
 
         self.download_redistributable(&state).await?;
 

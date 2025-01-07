@@ -1,22 +1,14 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
-use tokio::sync::{OnceCell, Semaphore};
+use tokio::sync::{OnceCell, RwLock, Semaphore};
 
 use crate::utils::fetch::FetchSemaphore;
 
-use super::{
-    InstancePlugin, InstancePluginMetadata, LocationInfo, PackwizPlugin, ProcessManager, Settings,
-};
+use super::{LocationInfo, PluginManager, ProcessManager, Settings};
 
 // Global state
 // RwLock on state only has concurrent reads, except for config dir change which takes control of the State
 static LAUNCHER_STATE: OnceCell<Arc<LauncherState>> = OnceCell::const_new();
-
-#[derive(Debug)]
-pub struct PluginState {
-    pub metadata: InstancePluginMetadata,
-    pub plugin: Box<dyn InstancePlugin>,
-}
 
 #[derive(Debug)]
 pub struct LauncherState {
@@ -36,12 +28,11 @@ pub struct LauncherState {
     // pub(crate) pool: SqlitePool,
 
     // pub(crate) file_watcher: FileWatcher,
-    pub plugins: HashMap<String, PluginState>,
+    pub plugin_manager: RwLock<PluginManager>,
 }
 
 impl LauncherState {
-    // TODO: Use file for settings
-    pub async fn init(settings: &Settings) -> anyhow::Result<()> {
+    pub async fn init(settings: &Settings) -> crate::Result<()> {
         LAUNCHER_STATE
             .get_or_try_init(|| Self::initialize_state(settings))
             .await?;
@@ -51,16 +42,25 @@ impl LauncherState {
 
     pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAUNCHER_STATE.initialized() {
-            while !LAUNCHER_STATE.initialized() {}
+            tracing::error!(
+                "Attempted to get state before it is initialized - this should never happen!"
+            );
+            while !LAUNCHER_STATE.initialized() {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
         }
 
         Ok(Arc::clone(
-            LAUNCHER_STATE.get().expect("State is not initialized"),
+            LAUNCHER_STATE.get().expect("State is not initialized!"),
         ))
     }
 
+    pub async fn initialized() -> bool {
+        LAUNCHER_STATE.initialized()
+    }
+
     #[tracing::instrument]
-    async fn initialize_state(settings: &Settings) -> anyhow::Result<Arc<Self>> {
+    async fn initialize_state(settings: &Settings) -> crate::Result<Arc<Self>> {
         log::info!("Initializing state");
 
         let locations = LocationInfo {
@@ -71,43 +71,13 @@ impl LauncherState {
 
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
 
-        let found_plugins: Vec<Box<dyn InstancePlugin>> = vec![Box::new(PackwizPlugin {
-            id: "packwiz".to_string(),
-            name: "Packwiz".to_string(),
-            description: "A plugin for managing packs".to_string(),
-        })];
-
-        let plugins: HashMap<String, PluginState> = found_plugins
-            .into_iter()
-            .map(|plugin| {
-                (
-                    plugin.get_id().to_string(),
-                    PluginState {
-                        metadata: InstancePluginMetadata { is_loaded: false },
-                        plugin,
-                    },
-                )
-            })
-            .collect();
-
         log::info!("State initialized");
 
         Ok(Arc::new(Self {
             locations,
             process_manager: ProcessManager::new(),
             fetch_semaphore,
-            plugins,
+            plugin_manager: RwLock::new(PluginManager::new()),
         }))
-    }
-
-    pub async fn load_plugin(&self, plugin: String) -> crate::Result<()> {
-        let plugin = self
-            .plugins
-            .get(&plugin)
-            .ok_or(crate::ErrorKind::PluginNotFoundError(format!(
-                "Plugin {plugin} not found"
-            )))?;
-
-        plugin.plugin.init().await
     }
 }
