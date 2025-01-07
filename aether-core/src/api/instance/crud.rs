@@ -56,5 +56,5 @@ pub async fn get_all() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>)> {
 }
 
 pub async fn remove(id: &str) -> crate::Result<()> {
-    Instance::remove_by_path(&get_file_path(id).await?).await
+    Instance::remove_by_path(&get_dir(id).await?).await
 }
