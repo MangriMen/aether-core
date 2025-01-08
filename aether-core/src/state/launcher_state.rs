@@ -1,10 +1,10 @@
 use std::{path::PathBuf, sync::Arc};
 
-use tokio::sync::{OnceCell, Semaphore};
+use tokio::sync::{OnceCell, RwLock, Semaphore};
 
 use crate::utils::fetch::FetchSemaphore;
 
-use super::{LocationInfo, ProcessManager, Settings};
+use super::{LocationInfo, PluginManager, ProcessManager, Settings};
 
 // Global state
 // RwLock on state only has concurrent reads, except for config dir change which takes control of the State
@@ -28,11 +28,11 @@ pub struct LauncherState {
     // pub(crate) pool: SqlitePool,
 
     // pub(crate) file_watcher: FileWatcher,
+    pub plugin_manager: RwLock<PluginManager>,
 }
 
 impl LauncherState {
-    // TODO: Use file for settings
-    pub async fn init(settings: &Settings) -> anyhow::Result<()> {
+    pub async fn init(settings: &Settings) -> crate::Result<()> {
         LAUNCHER_STATE
             .get_or_try_init(|| Self::initialize_state(settings))
             .await?;
@@ -42,27 +42,42 @@ impl LauncherState {
 
     pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAUNCHER_STATE.initialized() {
-            while !LAUNCHER_STATE.initialized() {}
+            tracing::error!(
+                "Attempted to get state before it is initialized - this should never happen!"
+            );
+            while !LAUNCHER_STATE.initialized() {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
         }
 
         Ok(Arc::clone(
-            LAUNCHER_STATE.get().expect("State is not initialized"),
+            LAUNCHER_STATE.get().expect("State is not initialized!"),
         ))
     }
 
+    pub async fn initialized() -> bool {
+        LAUNCHER_STATE.initialized()
+    }
+
     #[tracing::instrument]
-    async fn initialize_state(settings: &Settings) -> anyhow::Result<Arc<Self>> {
+    async fn initialize_state(settings: &Settings) -> crate::Result<Arc<Self>> {
+        log::info!("Initializing state");
+
         let locations = LocationInfo {
             settings_dir: PathBuf::from(settings.launcher_dir.clone().unwrap()),
             config_dir: PathBuf::from(settings.metadata_dir.clone().unwrap()),
+            plugins_dir: PathBuf::from(settings.plugins_dir.clone().unwrap()),
         };
 
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
+
+        log::info!("State initialized");
 
         Ok(Arc::new(Self {
             locations,
             process_manager: ProcessManager::new(),
             fetch_semaphore,
+            plugin_manager: RwLock::new(PluginManager::new()),
         }))
     }
 }

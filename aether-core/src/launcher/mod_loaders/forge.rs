@@ -1,11 +1,15 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use daedalus::minecraft::VersionInfo;
+use daedalus::{
+    minecraft::VersionInfo,
+    modded::{self},
+};
 use tokio::process::Command;
 
 use crate::{
     event::{emit_loading, LoadingBarId},
     launcher::args,
+    processor_rules,
     state::{Instance, Java, LauncherState},
     utils::io::IOError,
     wrap_ref_builder,
@@ -31,7 +35,7 @@ pub async fn process_forge_processors(
         let libraries_dir = state.locations.libraries_dir();
 
         if let Some(ref mut data) = version_info.data {
-            super::processor_rules! {
+            processor_rules! {
                 data;
                 "SIDE":
                     client => "client",
@@ -64,50 +68,7 @@ pub async fn process_forge_processors(
                     }
                 }
 
-                let cp = wrap_ref_builder!(cp = processor.classpath.clone() => {
-                    cp.push(processor.jar.clone())
-                });
-
-                let child = Command::new(&java_version.path)
-                    .arg("-cp")
-                    .arg(args::get_class_paths_jar(
-                        &libraries_dir,
-                        &cp,
-                        &java_version.architecture,
-                    )?)
-                    .arg(
-                        args::get_processor_main_class(args::get_lib_path(
-                            &libraries_dir,
-                            &processor.jar,
-                            false,
-                        )?)
-                        .await?
-                        .ok_or_else(|| {
-                            crate::ErrorKind::LauncherError(format!(
-                                "Could not find processor main class for {}",
-                                processor.jar
-                            ))
-                        })?,
-                    )
-                    .args(args::get_processor_arguments(
-                        &libraries_dir,
-                        &processor.args,
-                        data,
-                    )?)
-                    .output()
-                    .await
-                    .map_err(|e| IOError::with_path(e, &java_version.path))
-                    .map_err(|err| {
-                        crate::ErrorKind::LauncherError(format!("Error running processor: {err}",))
-                    })?;
-
-                if !child.status.success() {
-                    return Err(crate::ErrorKind::LauncherError(format!(
-                        "Processor error: {}",
-                        String::from_utf8_lossy(&child.stderr)
-                    ))
-                    .as_error());
-                }
+                process_forge_processor(processor, &data, &libraries_dir, java_version).await?;
 
                 if let Some(loading_bar) = loading_bar {
                     emit_loading(
@@ -122,6 +83,56 @@ pub async fn process_forge_processors(
                 }
             }
         }
+    }
+
+    Ok(())
+}
+
+pub async fn process_forge_processor(
+    processor: &modded::Processor,
+    data: &HashMap<String, modded::SidedDataEntry>,
+    libraries_dir: &PathBuf,
+    java_version: &Java,
+) -> crate::Result<()> {
+    log::debug!("Running forge processor {}", processor.jar);
+
+    let class_path: Vec<String> = wrap_ref_builder!(cp = processor.classpath.clone() => {
+        cp.push(processor.jar.clone())
+    });
+
+    let class_path_arg =
+        args::get_class_paths_jar(&libraries_dir, &class_path, &java_version.architecture)?;
+
+    let processor_main_class =
+        args::get_processor_main_class(args::get_lib_path(&libraries_dir, &processor.jar, false)?)
+            .await?
+            .ok_or_else(|| {
+                crate::ErrorKind::LauncherError(format!(
+                    "Could not find processor main class for {}",
+                    processor.jar
+                ))
+            })?;
+
+    let processor_args = args::get_processor_arguments(&libraries_dir, &processor.args, data)?;
+
+    let child = Command::new(&java_version.path)
+        .arg("-cp")
+        .arg(class_path_arg)
+        .arg(processor_main_class)
+        .args(processor_args)
+        .output()
+        .await
+        .map_err(|e| IOError::with_path(e, &java_version.path))
+        .map_err(|err| {
+            crate::ErrorKind::LauncherError(format!("Error running processor: {err}",))
+        })?;
+
+    if !child.status.success() {
+        return Err(crate::ErrorKind::LauncherError(format!(
+            "Processor error: {}",
+            String::from_utf8_lossy(&child.stderr)
+        ))
+        .as_error());
     }
 
     Ok(())

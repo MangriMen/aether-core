@@ -42,7 +42,7 @@ async fn process_args(_args: &Args) -> anyhow::Result<()> {
     //         launch_minecraft(
     //             &Instance {
     //                 install_stage: aether_core::state::InstanceInstallStage::NotInstalled,
-    //                 name_id: "Test".to_owned(),
+    //                 id: "Test".to_owned(),
     //                 path: "./test".to_owned(),
     //                 name: "Test".to_owned(),
     //                 icon_path: None,

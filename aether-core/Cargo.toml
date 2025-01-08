@@ -1,6 +1,6 @@
 [package]
 name = "aether-core"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 
 [features]
@@ -52,3 +52,6 @@ sha1_smol = { version = "1.0.1", features = ["alloc", "serde", "std"] }
 tracing-error = "0.2.0"
 serde_ini = "0.2.0"
 async_zip = "0.0.17"
+async-trait = "0.1.83"
+toml = "0.8.19"
+phf = { version = "0.11.3", features = ["macros"] }

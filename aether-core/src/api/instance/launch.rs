@@ -1,51 +1,41 @@
-use chrono::{Datelike, Utc};
-use uuid::Uuid;
-
-use crate::state::{self, Credentials, LauncherState, MinecraftProcessMetadata};
-
-use super::get_instance_by_path;
+use crate::{
+    api,
+    state::{self, Credentials, LauncherState, MinecraftProcessMetadata, Settings},
+};
 
 #[tracing::instrument]
 pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
-    run_credentials(
-        name,
-        &Credentials {
-            id: Uuid::new_v4(),
-            username: "Test".to_owned(),
-            access_token: "".to_owned(),
-            refresh_token: "".to_owned(),
-            expires: Utc::now().with_year(2025).unwrap(),
-            active: true,
-        },
-        &None,
-    )
-    .await
+    let state = LauncherState::get().await?;
+
+    let default_account = Credentials::get_active(&state)
+        .await?
+        .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
+
+    run_credentials(name, &default_account).await
 }
 
 pub async fn run_credentials(
-    name: &str,
+    id: &str,
     credentials: &state::Credentials,
-    wrapper: &Option<String>,
 ) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
+    // TODO: add io semaphore
+    let settings = Settings::get(&state).await?;
 
-    let instance_file = state
-        .locations
-        .instances_dir()
-        .join(name)
-        .join("instance.json");
+    let instance = api::instance::get(id).await?;
 
-    let instance = get_instance_by_path(&instance_file).await?;
+    let launch_args = api::instance::utils::get_launch_args(&instance, &settings);
+    let launch_settings = api::instance::utils::get_launch_settings(&instance, &settings);
+    let launch_metadata = api::instance::utils::get_launch_metadata(&instance, &settings);
+
+    api::instance::utils::run_pre_launch_command(&instance, &settings).await?;
 
     crate::launcher::launch_minecraft(
         &instance,
-        &[],
-        &[],
-        &state::MemorySettings { maximum: 2048 },
-        &state::WindowSize(1280, 720),
-        credentials,
-        None,
-        wrapper,
+        &launch_args,
+        &launch_settings,
+        &launch_metadata,
+        &credentials,
     )
     .await
 }

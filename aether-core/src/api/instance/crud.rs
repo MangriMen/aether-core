@@ -1,31 +1,28 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     state::{Instance, LauncherState},
     utils::io::read_json_async,
 };
 
-pub async fn get_instance_by_path(path: &Path) -> crate::Result<Instance> {
-    let instance = read_json_async(&path).await?;
-
-    Ok(instance)
-}
-
-pub async fn get_instance(name_id: &str) -> crate::Result<Instance> {
+pub async fn get_dir(id: &str) -> crate::Result<PathBuf> {
     let state = LauncherState::get().await?;
-
-    let instance_file = state
-        .locations
-        .instances_dir()
-        .join(name_id)
-        .join("instance.json");
-
-    let instance = get_instance_by_path(&instance_file).await?;
-
-    Ok(instance)
+    Ok(state.locations.instance_dir(id))
 }
 
-pub async fn get_instances() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>)> {
+pub async fn get_file_path(id: &str) -> crate::Result<PathBuf> {
+    Ok(get_dir(id).await?.join("instance.json"))
+}
+
+pub async fn get_by_path(path: &Path) -> crate::Result<Instance> {
+    Ok(read_json_async(&path).await?)
+}
+
+pub async fn get(id: &str) -> crate::Result<Instance> {
+    Ok(get_by_path(&get_file_path(&id).await?).await?)
+}
+
+pub async fn get_all() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>)> {
     let state = LauncherState::get().await?;
 
     let instances_dir = state.locations.instances_dir();
@@ -42,7 +39,7 @@ pub async fn get_instances() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>
             Ok(entry) => {
                 let instance_file = entry.path().join("instance.json");
 
-                let instance = get_instance_by_path(&instance_file).await;
+                let instance = get_by_path(&instance_file).await;
 
                 match instance {
                     Ok(instance) => {
@@ -58,12 +55,6 @@ pub async fn get_instances() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>
     Ok((instances, instances_errors))
 }
 
-pub async fn remove(name_id: &str) -> anyhow::Result<()> {
-    let state = LauncherState::get().await?;
-
-    let path = state.locations.instances_dir().join(name_id);
-
-    Instance::remove_path(&path).await?;
-
-    Ok(())
+pub async fn remove(id: &str) -> crate::Result<()> {
+    Instance::remove_by_path(&get_dir(id).await?).await
 }
