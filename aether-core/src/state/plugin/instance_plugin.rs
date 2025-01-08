@@ -22,6 +22,10 @@ impl dyn InstancePlugin {
         let state = LauncherState::get().await?;
         Ok(state.locations.plugin_dir(&self.get_id()))
     }
+
+    pub fn get_instance_plugin_dir(&self, instance_folder: &PathBuf) -> PathBuf {
+        instance_folder.join(&self.get_id())
+    }
 }
 
 impl fmt::Debug for dyn InstancePlugin {

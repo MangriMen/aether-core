@@ -4,7 +4,9 @@ use chrono::Utc;
 use log::info;
 use tokio::fs;
 
-use crate::state::{Hooks, Instance, InstanceInstallStage, LauncherState, ModLoader};
+use crate::state::{
+    Hooks, Instance, InstanceInstallStage, InstancePluginSettings, LauncherState, ModLoader,
+};
 
 use super::sanitize_instance_name;
 
@@ -16,6 +18,7 @@ pub async fn instance_create(
     loader_version: Option<String>,
     icon_path: Option<String>,
     skip_install_instance: Option<bool>,
+    plugin: Option<InstancePluginSettings>,
 ) -> crate::Result<String> {
     let state = LauncherState::get().await?;
 
@@ -69,6 +72,8 @@ pub async fn instance_create(
         recent_time_played: 0,
 
         hooks: Hooks::default(),
+
+        plugin,
     };
 
     let result = async {

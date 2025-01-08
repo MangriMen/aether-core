@@ -108,4 +108,11 @@ impl LocationInfo {
     pub fn plugin_dir(&self, id: &str) -> PathBuf {
         self.plugins_dir().join(id)
     }
+
+    #[inline]
+    pub fn instance_plugin_dir(&self, id: &str, plugin_id: &str) -> PathBuf {
+        self.instance_dir(id)
+            .join(PLUGIN_FOLDER_NAME)
+            .join(plugin_id)
+    }
 }

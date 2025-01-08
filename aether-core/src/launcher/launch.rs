@@ -8,6 +8,7 @@ use crate::{
     launcher::mod_loader_post_install,
     state::{
         self, Instance, InstanceInstallStage, LauncherState, MinecraftProcessMetadata, ModLoader,
+        PackwizPluginData,
     },
     utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
     wrap_ref_builder,
@@ -187,6 +188,16 @@ pub async fn launch_minecraft(
 
     if instance.install_stage != InstanceInstallStage::Installed {
         install_minecraft(instance, None, false).await?;
+    }
+
+    if let Some(plugin_settings) = &instance.plugin {
+        let data = serde_json::to_string(&PackwizPluginData::PreLaunch {
+            instance_id: instance.id.clone(),
+        })?;
+
+        if let Some(pre_launch) = &plugin_settings.pre_launch {
+            crate::api::plugin::call(&pre_launch, &data).await?;
+        }
     }
 
     let state = LauncherState::get().await?;

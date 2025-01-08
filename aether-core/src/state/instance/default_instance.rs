@@ -13,6 +13,11 @@ use crate::{
 use super::{InstanceInstallStage, ModLoader};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct InstancePluginSettings {
+    pub pre_launch: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
     pub id: String,
@@ -47,6 +52,7 @@ pub struct Instance {
     pub recent_time_played: u64,
 
     pub hooks: Hooks,
+    pub plugin: Option<InstancePluginSettings>,
 }
 
 impl Instance {

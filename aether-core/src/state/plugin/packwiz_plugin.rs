@@ -15,7 +15,7 @@ use crate::{
         instance::{get_dir, instance_create},
     },
     event::{emit_loading, LoadingBarId},
-    state::{LauncherState, ModLoader},
+    state::{InstancePluginSettings, LauncherState, ModLoader},
     utils::{
         fetch::{fetch_advanced, fetch_json},
         io::{read_toml_async, write_async, write_toml_async},
@@ -58,6 +58,7 @@ impl PackwizPluginDataType {
 pub enum PackwizPluginData {
     Import { url: String },
     Update { instance_id: String },
+    PreLaunch { instance_id: String },
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Eq, Hash, PartialEq)]
@@ -103,7 +104,7 @@ impl From<PackwizPluginError> for crate::ErrorKind {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PackwizSettings {
-    path: String,
+    pack_path: String,
 }
 
 impl PackwizPlugin {
@@ -120,8 +121,8 @@ impl PackwizPlugin {
         "packwiz-installer-bootstrap" => "https://github.com/packwiz/packwiz-installer-bootstrap/releases/latest/download/packwiz-installer-bootstrap.jar"
     };
 
-    fn get_instance_settings(&self, folder: &PathBuf) -> PathBuf {
-        folder.join("packwiz.toml")
+    fn get_instance_settings_file(&self, folder: &PathBuf) -> PathBuf {
+        <dyn InstancePlugin>::get_instance_plugin_dir(self, folder).join("packwiz.toml")
     }
 
     async fn get_pack_from_url_or_path(
@@ -150,11 +151,11 @@ impl PackwizPlugin {
         }
     }
 
-    async fn load_settings_from_instance_folder(
+    async fn load_settings_from_instance(
         &self,
         folder: &PathBuf,
     ) -> crate::Result<PackwizSettings> {
-        Ok(read_toml_async::<PackwizSettings>(&self.get_instance_settings(&folder)).await?)
+        Ok(read_toml_async::<PackwizSettings>(&self.get_instance_settings_file(&folder)).await?)
     }
 
     async fn save_settings(
@@ -162,7 +163,7 @@ impl PackwizPlugin {
         folder: &PathBuf,
         settings: &PackwizSettings,
     ) -> crate::Result<()> {
-        Ok(write_toml_async(&self.get_instance_settings(&folder), &settings).await?)
+        Ok(write_toml_async(&self.get_instance_settings_file(&folder), &settings).await?)
     }
 
     fn extract_mod_loader(
@@ -217,7 +218,7 @@ impl PackwizPlugin {
             .arg("-jar")
             .arg(&packwiz_installer_paths.1)
             .arg("--bootstrap-no-update")
-            .arg(settings.path.clone());
+            .arg(settings.pack_path.clone());
         Ok(cmd)
     }
 
@@ -321,6 +322,9 @@ impl PackwizPlugin {
             mod_loader_version,
             None,
             None,
+            Some(InstancePluginSettings {
+                pre_launch: Some(self.get_id()),
+            }),
         )
         .await?;
 
@@ -331,7 +335,7 @@ impl PackwizPlugin {
         self.save_settings(
             &instance_folder,
             &PackwizSettings {
-                path: pack_path.to_string(),
+                pack_path: pack_path.to_string(),
             },
         )
         .await?;
@@ -346,9 +350,7 @@ impl PackwizPlugin {
     ) -> crate::Result<()> {
         log::info!("Updating pack in instance {:?}", &instance_id);
 
-        let settings = self
-            .load_settings_from_instance_folder(&instance_folder)
-            .await?;
+        let settings = self.load_settings_from_instance(&instance_folder).await?;
 
         self.get_command_to_update_pack(&settings, &instance_folder)
             .await?
@@ -428,6 +430,9 @@ impl InstancePlugin for PackwizPlugin {
         match data {
             PackwizPluginData::Import { url } => self.import_pack_command(&state, url).await?,
             PackwizPluginData::Update { instance_id } => {
+                self.update_pack_command(instance_id).await?
+            }
+            PackwizPluginData::PreLaunch { instance_id } => {
                 self.update_pack_command(instance_id).await?
             }
         }
