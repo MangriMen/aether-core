@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 pub const METADATA_FOLDER_NAME: &str = ".minecraft";
 pub const INSTANCES_FOLDER_NAME: &str = "instances";
+pub const PLUGIN_FOLDER_NAME: &str = "plugins";
 
 #[derive(Debug)]
 pub struct LocationInfo {
@@ -9,6 +10,8 @@ pub struct LocationInfo {
 
     /// Changeable through settings
     pub config_dir: PathBuf, // Config directory - instances, minecraft files, etc.
+
+    pub plugins_dir: PathBuf,
 }
 
 impl LocationInfo {
@@ -84,9 +87,32 @@ impl LocationInfo {
         self.natives_dir().join(version)
     }
 
-    /// Get the profiles directory for created profiles
+    /// Get the instances directory for created instances
     #[inline]
     pub fn instances_dir(&self) -> PathBuf {
         self.config_dir.join(INSTANCES_FOLDER_NAME)
+    }
+
+    #[inline]
+    pub fn instance_dir(&self, id: &str) -> PathBuf {
+        self.instances_dir().join(id)
+    }
+
+    /// Get the plugins directory
+    #[inline]
+    pub fn plugins_dir(&self) -> PathBuf {
+        self.config_dir.join(PLUGIN_FOLDER_NAME)
+    }
+
+    #[inline]
+    pub fn plugin_dir(&self, id: &str) -> PathBuf {
+        self.plugins_dir().join(id)
+    }
+
+    #[inline]
+    pub fn instance_plugin_dir(&self, id: &str, plugin_id: &str) -> PathBuf {
+        self.instance_dir(id)
+            .join(PLUGIN_FOLDER_NAME)
+            .join(plugin_id)
     }
 }

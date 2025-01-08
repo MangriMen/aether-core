@@ -1,5 +1,3 @@
-use log::info;
-
 #[derive(Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Clone)]
 pub struct Java {
     pub major_version: u32,
@@ -14,15 +12,15 @@ impl Java {
         state: &super::LauncherState,
         major_version: u32,
     ) -> crate::Result<Option<Java>> {
-        info!("Get Java directory");
-
         let java_directory = state.locations.java_versions_dir();
 
         let java_versions_file = java_directory.join("versions.json");
 
+        log::info!("Reading java versions file");
+
         if !java_versions_file.exists() {
             crate::utils::io::write_json_async(&java_versions_file, Vec::<Java>::new()).await?;
-            info!(
+            log::info!(
                 "Java versions file created at {}.\n",
                 java_versions_file.display()
             );
@@ -36,6 +34,7 @@ impl Java {
             .find(|x| x.major_version == major_version);
 
         if let Some(version) = version {
+            log::info!("Found java version {}", version.major_version);
             return Ok(Some(version.clone()));
         }
 
@@ -44,6 +43,8 @@ impl Java {
 
     #[tracing::instrument]
     pub async fn update(&self, state: &super::LauncherState) -> crate::Result<()> {
+        log::info!("Reading java versions file");
+
         let java_directory = state.locations.java_versions_dir().join("versions.json");
 
         let mut java_versions =
@@ -53,6 +54,7 @@ impl Java {
             .iter_mut()
             .find(|x| x.major_version == self.major_version);
 
+        log::info!("Updating java versions file");
         if let Some(java_version) = java_version {
             java_version.clone_from(self);
         } else {

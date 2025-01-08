@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tauri::Emitter;
 use uuid::Uuid;
 
-use super::{EventError, EventState};
+use super::{EventError, EventState, MinecraftEvent};
 
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -35,18 +35,18 @@ impl Drop for LoadingBarId {
                         let fraction = bar.current / bar.total;
 
                         let payload = LoadingPayload {
-                            fraction: Some(fraction),
+                            fraction: None,
                             message: "Completed".to_string(),
                             event,
                             loader_uuid,
                         };
 
                         let res = app_handle
-                            .emit("loading", payload)
+                            .emit(&MinecraftEvent::Loading.as_str(), payload)
                             .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)));
 
-                        if let Err(err) = res {
-                            log::error!("Loading bar drop emit: {:?}", err);
+                        if let Err(_) = res {
+                            log::error!("Exited at {fraction} for loading bar: {:?}", loader_uuid);
                         }
                     }
                 } else {
@@ -105,6 +105,9 @@ pub enum LoadingBarType {
     LauncherUpdate {
         version: String,
         current_version: String,
+    },
+    PluginDownload {
+        plugin_name: String,
     },
 }
 
@@ -217,7 +220,7 @@ pub async fn emit_loading(
         if let Some(app_handle) = &event_state.app {
             app_handle
                 .emit(
-                    "loading",
+                    &MinecraftEvent::Loading.as_str(),
                     LoadingPayload {
                         fraction: opt_display_frac,
                         message: message.unwrap_or(&loading_bar.message).to_string(),

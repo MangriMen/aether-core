@@ -42,7 +42,7 @@ impl ProcessManager {
             metadata: MinecraftProcessMetadata {
                 uuid: Uuid::new_v4(),
                 start_time: Utc::now(),
-                name_id: profile_path.to_string(),
+                id: profile_path.to_string(),
             },
             child: mc_proc,
         };
