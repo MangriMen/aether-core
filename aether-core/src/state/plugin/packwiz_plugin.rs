@@ -96,12 +96,11 @@ pub struct PackVersions {
 pub enum PackwizPluginError {
     #[error("Unsupported mod loader: {0}")]
     UnsupportedModLoader(String),
+
+    #[error("Unsupported pack format: {0}")]
+    UnsupportedPackFormat(String),
 }
-impl From<PackwizPluginError> for crate::ErrorKind {
-    fn from(err: PackwizPluginError) -> Self {
-        Self::PluginError(err.to_string())
-    }
-}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PackwizSettings {
     pack_path: String,
@@ -135,7 +134,10 @@ impl PackwizPlugin {
         let path = PathBuf::from(path_or_url);
 
         if path.exists() && path.metadata().is_ok() {
-            read_toml_async::<PackwizPack>(&PathBuf::from(path_or_url)).await
+            Ok(read_toml_async::<PackwizPack>(&PathBuf::from(path_or_url))
+                .await
+                .map_err(|_| PackwizPluginError::UnsupportedPackFormat(path_or_url.to_string()))
+                .map_err(|e| crate::ErrorKind::PluginError(self.get_id(), e.to_string()))?)
         } else {
             let url = Url::parse(path_or_url)?;
 
@@ -313,7 +315,8 @@ impl PackwizPlugin {
         pack: &PackwizPack,
         pack_path: &str,
     ) -> crate::Result<(String, PathBuf)> {
-        let (mod_loader, mod_loader_version) = PackwizPlugin::extract_mod_loader(&pack.versions)?;
+        let (mod_loader, mod_loader_version) = PackwizPlugin::extract_mod_loader(&pack.versions)
+            .map_err(|e| crate::ErrorKind::PluginError(self.get_id(), e.to_string()))?;
 
         let instance_id = instance_create(
             pack.name.to_string(),
