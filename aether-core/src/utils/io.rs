@@ -83,7 +83,7 @@ pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> 
 where
     T: serde::Serialize,
 {
-    Ok(write_async(path, serde_json::to_string(&data)?).await?)
+    Ok(write_async(path, serde_json::to_vec(&data)?).await?)
 }
 
 pub async fn write_toml_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>

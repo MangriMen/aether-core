@@ -1,11 +1,7 @@
 use crate::{
     event::{emit_loading, loading_try_for_each_concurrent, LoadingBarId},
     state::LauncherState,
-    utils::{
-        self,
-        fetch::{fetch_advanced, fetch_json},
-        io::write_async,
-    },
+    utils::{self, io::write_async},
 };
 use bytes::Bytes;
 use daedalus::{
@@ -118,7 +114,7 @@ pub async fn download_version_info(
     let res = if path.exists() && !force.unwrap_or(false) {
         utils::io::read_json_async(path).await
     } else {
-        let mut version_info = fetch_json(
+        let mut version_info = utils::fetch::fetch_json(
             Method::GET,
             &version.url,
             None,
@@ -129,7 +125,7 @@ pub async fn download_version_info(
         .await?;
 
         if let Some(loader) = loader {
-            let modded_info = fetch_json(
+            let modded_info = utils::fetch::fetch_json(
                 Method::GET,
                 &loader.url,
                 None,
@@ -182,7 +178,7 @@ pub async fn download_client(
         .join(format!("{version_id}.jar"));
 
     if !path.exists() || force {
-        let bytes = fetch_advanced(
+        let bytes = utils::fetch::fetch_advanced(
             Method::GET,
             &client_download.url,
             None,
@@ -328,7 +324,7 @@ pub async fn download_java_library(
     }) = library.downloads
     {
         if !artifact.url.is_empty() {
-            let bytes = fetch_advanced(
+            let bytes = utils::fetch::fetch_advanced(
                 Method::GET,
                 &artifact.url,
                 None,
@@ -353,7 +349,7 @@ pub async fn download_java_library(
     ]
     .concat();
 
-    let bytes = fetch_advanced(
+    let bytes = utils::fetch::fetch_advanced(
         Method::GET,
         &url,
         None,
@@ -392,7 +388,7 @@ pub async fn download_native_library_files(
         let parsed_key = os_key.replace("${arch}", crate::utils::platform::ARCH_WIDTH);
 
         if let Some(native) = classifiers.get(&parsed_key) {
-            let bytes = fetch_advanced(
+            let bytes = utils::fetch::fetch_advanced(
                 Method::GET,
                 &native.url,
                 None,
@@ -522,7 +518,7 @@ pub async fn download_version_manifest(
         )
         .await?;
 
-        utils::io::write_async(&path, &serde_json::to_vec(&version_manifest)?).await?;
+        utils::io::write_json_async(&path, &version_manifest).await?;
 
         Ok(version_manifest)
     }?;
@@ -533,19 +529,32 @@ pub async fn download_version_manifest(
 pub async fn download_loaders_manifests(
     state: &LauncherState,
     loader: &str,
-    _force: bool,
+    force: bool,
 ) -> crate::Result<modded::Manifest> {
-    // let path = state.locations.versions_dir().join("manifest.json");
+    let path = state
+        .locations
+        .versions_dir()
+        .join(format!("{loader}-manifest.json"));
 
-    let res = fetch_json::<modded::Manifest>(
-        Method::GET,
-        &format!("{META_URL}{}/v0/manifest.json", loader),
-        None,
-        None,
-        None,
-        &state.fetch_semaphore,
-    )
-    .await?;
+    let loaders_manifest_url = format!("{META_URL}{}/v0/manifest.json", loader);
+
+    let res = if path.exists() && !force {
+        utils::io::read_json_async(path).await
+    } else {
+        let loaders_manifest = utils::fetch::fetch_json::<modded::Manifest>(
+            Method::GET,
+            &loaders_manifest_url,
+            None,
+            None,
+            None,
+            &state.fetch_semaphore,
+        )
+        .await?;
+
+        utils::io::write_json_async(path, &loaders_manifest).await?;
+
+        Ok(loaders_manifest)
+    }?;
 
     Ok(res)
 
@@ -572,26 +581,6 @@ pub async fn download_loaders_manifests(
     //     manifest: metadata,
     // })
     // .collect();
-
-    // Ok(res)
-
-    // let res = if path.exists() && !force {
-    //     utils::io::read_json_async(path).await
-    // } else {
-    //     let version_manifest = utils::fetch::fetch_json(
-    //         Method::GET,
-    //         minecraft::VERSION_MANIFEST_URL,
-    //         None,
-    //         None,
-    //         None,
-    //         &state.fetch_semaphore,
-    //     )
-    //     .await?;
-
-    //     utils::io::write_async(&path, &serde_json::to_vec(&version_manifest)?).await?;
-
-    //     Ok(version_manifest)
-    // }?;
 
     // Ok(res)
 }

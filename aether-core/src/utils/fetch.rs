@@ -120,7 +120,6 @@ where
     T: DeserializeOwned,
 {
     let result = fetch_advanced(method, url, headers, sha1, body, semaphore, None).await?;
-
     Ok(serde_json::from_slice(&result)?)
 }
 
