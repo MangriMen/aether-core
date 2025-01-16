@@ -533,7 +533,8 @@ pub async fn download_loaders_manifests(
 ) -> crate::Result<modded::Manifest> {
     let path = state
         .locations
-        .versions_dir()
+        .cache_dir()
+        .join("mod_loaders")
         .join(format!("{loader}-manifest.json"));
 
     let loaders_manifest_url = format!("{META_URL}{}/v0/manifest.json", loader);

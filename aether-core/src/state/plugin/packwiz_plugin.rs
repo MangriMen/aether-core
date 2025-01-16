@@ -17,7 +17,7 @@ use crate::{
     event::{emit_loading, LoadingBarId},
     state::{InstancePluginSettings, LauncherState, ModLoader},
     utils::{
-        fetch::{fetch_advanced, fetch_json},
+        fetch::{fetch_advanced, fetch_toml},
         io::{read_toml_async, write_async, write_toml_async},
     },
 };
@@ -134,14 +134,16 @@ impl PackwizPlugin {
         let path = PathBuf::from(path_or_url);
 
         if path.exists() && path.metadata().is_ok() {
+            println!("file");
             Ok(read_toml_async::<PackwizPack>(&PathBuf::from(path_or_url))
                 .await
                 .map_err(|_| PackwizPluginError::UnsupportedPackFormat(path_or_url.to_string()))
                 .map_err(|e| crate::ErrorKind::PluginError(self.get_id(), e.to_string()))?)
         } else {
+            println!("url");
             let url = Url::parse(path_or_url)?;
 
-            fetch_json::<PackwizPack>(
+            fetch_toml::<PackwizPack>(
                 Method::GET,
                 url.as_str(),
                 None,
@@ -381,10 +383,14 @@ impl PackwizPlugin {
     async fn import_pack_command(&self, state: &LauncherState, path: String) -> crate::Result<()> {
         let packwiz_pack = self.get_pack_from_url_or_path(&state, &path).await?;
 
+        println!("1");
+
         let (instance_id, instance_folder) =
             self.create_instance_from_pack(&packwiz_pack, &path).await?;
+        println!("2");
 
         self.update_pack(instance_id, &instance_folder).await?;
+        println!("3");
 
         Ok(())
     }
@@ -421,14 +427,15 @@ impl InstancePlugin for PackwizPlugin {
     }
 
     async fn init(&self) -> crate::Result<()> {
-        let state = LauncherState::get().await?;
-        self.init_command(&state).await
+        Ok(())
     }
 
     async fn call(&self, data: &str) -> crate::Result<()> {
         let state = LauncherState::get().await?;
 
         let data = serde_json::from_str::<PackwizPluginData>(data)?;
+
+        self.init_command(&state).await?;
 
         match data {
             PackwizPluginData::Import { url } => self.import_pack_command(&state, url).await?,

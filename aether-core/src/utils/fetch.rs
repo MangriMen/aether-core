@@ -123,6 +123,28 @@ where
     Ok(serde_json::from_slice(&result)?)
 }
 
+#[tracing::instrument(skip(body, semaphore))]
+pub async fn fetch_toml<T>(
+    method: Method,
+    url: &str,
+    headers: Option<reqwest::header::HeaderMap>,
+    sha1: Option<&str>,
+    body: Option<Vec<u8>>,
+    semaphore: &FetchSemaphore,
+) -> crate::Result<T>
+where
+    T: DeserializeOwned,
+{
+    fetch_advanced(method, url, headers, sha1, body, semaphore, None)
+        .await
+        .and_then(|ref it| {
+            let toml_str = std::str::from_utf8(&it).map_err(|_| {
+                crate::ErrorKind::NoValueFor(format!("Can't fetch TOML at {:?}", url)).as_error()
+            })?;
+            Ok(toml::from_str(toml_str)?)
+        })
+}
+
 // #[tracing::instrument]
 // TODO: add fetch chunks
 // pub async fn fetch_chunks

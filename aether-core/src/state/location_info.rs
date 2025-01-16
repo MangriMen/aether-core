@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 pub const METADATA_FOLDER_NAME: &str = ".minecraft";
+pub const CACHE_FOLDER_NAME: &str = "cache";
 pub const INSTANCES_FOLDER_NAME: &str = "instances";
 pub const PLUGIN_FOLDER_NAME: &str = "plugins";
 
@@ -19,12 +20,6 @@ impl LocationInfo {
     #[inline]
     pub fn metadata_dir(&self) -> PathBuf {
         self.config_dir.join(METADATA_FOLDER_NAME)
-    }
-
-    /// Get the Minecraft java versions metadata directory
-    #[inline]
-    pub fn java_versions_dir(&self) -> PathBuf {
-        self.metadata_dir().join("java_versions")
     }
 
     /// Get the Minecraft versions metadata directory
@@ -93,9 +88,22 @@ impl LocationInfo {
         self.config_dir.join(INSTANCES_FOLDER_NAME)
     }
 
+    /// Get the directory for a specific instance
     #[inline]
     pub fn instance_dir(&self, id: &str) -> PathBuf {
         self.instances_dir().join(id)
+    }
+
+    /// Get the cache directory
+    #[inline]
+    pub fn cache_dir(&self) -> PathBuf {
+        self.config_dir.join(CACHE_FOLDER_NAME)
+    }
+
+    /// Get the Minecraft java versions metadata directory
+    #[inline]
+    pub fn java_dir(&self) -> PathBuf {
+        self.cache_dir().join("java")
     }
 
     /// Get the plugins directory
@@ -104,11 +112,13 @@ impl LocationInfo {
         self.config_dir.join(PLUGIN_FOLDER_NAME)
     }
 
+    /// Get the directory for a specific plugin
     #[inline]
     pub fn plugin_dir(&self, id: &str) -> PathBuf {
         self.plugins_dir().join(id)
     }
 
+    /// Get the directory for a specific plugin inside an instance
     #[inline]
     pub fn instance_plugin_dir(&self, id: &str, plugin_id: &str) -> PathBuf {
         self.instance_dir(id)

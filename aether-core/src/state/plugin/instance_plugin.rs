@@ -24,7 +24,7 @@ impl dyn InstancePlugin {
     }
 
     pub fn get_instance_plugin_dir(&self, instance_folder: &PathBuf) -> PathBuf {
-        instance_folder.join(&self.get_id())
+        instance_folder.join("plugins").join(&self.get_id())
     }
 }
 

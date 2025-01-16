@@ -12,7 +12,7 @@ impl Java {
         state: &super::LauncherState,
         major_version: u32,
     ) -> crate::Result<Option<Java>> {
-        let java_directory = state.locations.java_versions_dir();
+        let java_directory = state.locations.java_dir();
 
         let java_versions_file = java_directory.join("versions.json");
 
@@ -45,7 +45,7 @@ impl Java {
     pub async fn update(&self, state: &super::LauncherState) -> crate::Result<()> {
         log::info!("Reading java versions file");
 
-        let java_directory = state.locations.java_versions_dir().join("versions.json");
+        let java_directory = state.locations.java_dir().join("versions.json");
 
         let mut java_versions =
             crate::utils::io::read_json_async::<Vec<Java>>(&java_directory).await?;
