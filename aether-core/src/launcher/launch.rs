@@ -332,6 +332,12 @@ pub async fn launch_minecraft(
 
     // run process
 
+    Instance::edit(&instance.id, |instance| {
+        instance.last_played = Some(chrono::Utc::now());
+        async { Ok(()) }
+    })
+    .await?;
+
     state
         .process_manager
         .insert_new_process(
