@@ -1,17 +1,19 @@
-use std::{fs::canonicalize, path::PathBuf};
+use std::fs::canonicalize;
 
 use chrono::Utc;
 use log::info;
 use tokio::fs;
 
-use crate::state::{
-    Hooks, Instance, InstanceInstallStage, InstancePluginSettings, LauncherState, ModLoader,
+use crate::{
+    api::instance::get_instance_path_without_duplicate,
+    state::{
+        Hooks, Instance, InstanceInstallStage, InstancePluginSettings, LauncherState,
+        MemorySettings, ModLoader, WindowSize,
+    },
 };
 
-use super::sanitize_instance_name;
-
 #[tracing::instrument]
-pub async fn instance_create(
+pub async fn create(
     name: String,
     game_version: String,
     mod_loader: ModLoader,
@@ -97,29 +99,31 @@ pub async fn instance_create(
     }
 }
 
-pub fn get_instance_path_without_duplicate(state: &LauncherState, name: &str) -> (PathBuf, String) {
-    let mut sanitized_name = sanitize_instance_name(name);
-    let mut full_path = state.locations.instances_dir().join(&sanitized_name);
-
-    if full_path.exists() {
-        let mut new_sanitized_name;
-        let mut new_full_path;
-        let mut which = 1;
-
-        loop {
-            new_sanitized_name = format!("{}-{}", sanitized_name, which);
-            new_full_path = state.locations.instances_dir().join(&new_sanitized_name);
-
-            if !new_full_path.exists() {
-                break;
-            }
-
-            which += 1;
+#[tracing::instrument]
+pub async fn edit(
+    id: &str,
+    name: &Option<String>,
+    java_path: &Option<String>,
+    extra_launch_args: &Option<Vec<String>>,
+    custom_env_vars: &Option<Vec<(String, String)>>,
+    memory: &Option<MemorySettings>,
+    game_resolution: &Option<WindowSize>,
+) -> crate::Result<()> {
+    Instance::edit(&id, |instance| {
+        if let Some(name) = name.clone() {
+            instance.name = name;
         }
 
-        sanitized_name = new_sanitized_name;
-        full_path = new_full_path;
-    }
+        if let Some(java_path) = java_path.clone() {
+            instance.java_path = Some(java_path);
+        }
 
-    (full_path, sanitized_name)
+        instance.extra_launch_args = extra_launch_args.clone();
+        instance.custom_env_vars = custom_env_vars.clone();
+        instance.memory = memory.clone();
+        instance.game_resolution = game_resolution.clone();
+
+        async { Ok(()) }
+    })
+    .await
 }

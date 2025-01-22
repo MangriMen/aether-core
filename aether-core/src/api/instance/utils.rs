@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
 use tokio::process::Command;
 
 use crate::{
     launcher::{InstanceLaunchArgs, InstanceLaunchMetadata, InstanceLaunchSettings},
-    state::{Instance, Settings},
+    state::{Instance, LauncherState, Settings},
     utils::io::IOError,
 };
 
@@ -80,4 +82,31 @@ pub async fn run_pre_launch_command(instance: &Instance, settings: &Settings) ->
     }
 
     Ok(())
+}
+
+pub fn get_instance_path_without_duplicate(state: &LauncherState, name: &str) -> (PathBuf, String) {
+    let mut sanitized_name = sanitize_instance_name(name);
+    let mut full_path = state.locations.instances_dir().join(&sanitized_name);
+
+    if full_path.exists() {
+        let mut new_sanitized_name;
+        let mut new_full_path;
+        let mut which = 1;
+
+        loop {
+            new_sanitized_name = format!("{}-{}", sanitized_name, which);
+            new_full_path = state.locations.instances_dir().join(&new_sanitized_name);
+
+            if !new_full_path.exists() {
+                break;
+            }
+
+            which += 1;
+        }
+
+        sanitized_name = new_sanitized_name;
+        full_path = new_full_path;
+    }
+
+    (full_path, sanitized_name)
 }

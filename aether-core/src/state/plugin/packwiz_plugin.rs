@@ -12,7 +12,7 @@ use url::Url;
 use crate::{
     api::{
         self,
-        instance::{get_dir, instance_create},
+        instance::{create, get_dir},
     },
     event::{emit_loading, LoadingBarId},
     state::{InstancePluginSettings, LauncherState, ModLoader},
@@ -320,7 +320,7 @@ impl PackwizPlugin {
         let (mod_loader, mod_loader_version) = PackwizPlugin::extract_mod_loader(&pack.versions)
             .map_err(|e| crate::ErrorKind::PluginError(self.get_id(), e.to_string()))?;
 
-        let instance_id = instance_create(
+        let instance_id = create(
             pack.name.to_string(),
             pack.versions.minecraft.to_string(),
             mod_loader,
