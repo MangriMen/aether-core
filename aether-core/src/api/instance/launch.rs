@@ -35,7 +35,7 @@ pub async fn run_credentials(
         &launch_args,
         &launch_settings,
         &launch_metadata,
-        &credentials,
+        credentials,
     )
     .await
 }

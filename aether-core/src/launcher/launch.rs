@@ -146,7 +146,7 @@ pub async fn install_minecraft(
     })
     .await?;
 
-    emit_loading(&loading_bar, 1.0_0000000001, Some("Finished installing")).await?;
+    emit_loading(&loading_bar, 1.000_000_000_01, Some("Finished installing")).await?;
 
     Ok(())
 }
@@ -196,7 +196,7 @@ pub async fn launch_minecraft(
         })?;
 
         if let Some(pre_launch) = &plugin_settings.pre_launch {
-            crate::api::plugin::call(&pre_launch, &data).await?;
+            crate::api::plugin::call(pre_launch, &data).await?;
         }
     }
 
@@ -295,7 +295,7 @@ pub async fn launch_minecraft(
         args.get(&minecraft::ArgumentType::Game)
             .map(|x| x.as_slice()),
         version_info.minecraft_arguments.as_deref(),
-        &credentials,
+        credentials,
         &version.id,
         &version_info.asset_index.id,
         &instance_path,

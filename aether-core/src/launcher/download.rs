@@ -449,6 +449,7 @@ pub async fn download_library(
 }
 
 // TODO: reduce arguments count
+#[allow(clippy::too_many_arguments)]
 #[tracing::instrument]
 pub async fn download_libraries(
     state: &LauncherState,

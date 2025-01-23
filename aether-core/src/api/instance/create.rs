@@ -109,7 +109,7 @@ pub async fn edit(
     memory: &Option<MemorySettings>,
     game_resolution: &Option<WindowSize>,
 ) -> crate::Result<()> {
-    Instance::edit(&id, |instance| {
+    Instance::edit(id, |instance| {
         if let Some(name) = name.clone() {
             instance.name = name;
         }
@@ -120,8 +120,8 @@ pub async fn edit(
 
         instance.extra_launch_args = extra_launch_args.clone();
         instance.custom_env_vars = custom_env_vars.clone();
-        instance.memory = memory.clone();
-        instance.game_resolution = game_resolution.clone();
+        instance.memory = *memory;
+        instance.game_resolution = *game_resolution;
 
         async { Ok(()) }
     })

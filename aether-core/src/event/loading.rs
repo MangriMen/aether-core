@@ -42,10 +42,10 @@ impl Drop for LoadingBarId {
                         };
 
                         let res = app_handle
-                            .emit(&MinecraftEvent::Loading.as_str(), payload)
+                            .emit(MinecraftEvent::Loading.as_str(), payload)
                             .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)));
 
-                        if let Err(_) = res {
+                        if res.is_err() {
                             log::error!("Exited at {fraction} for loading bar: {:?}", loader_uuid);
                         }
                     }
@@ -220,7 +220,7 @@ pub async fn emit_loading(
         if let Some(app_handle) = &event_state.app {
             app_handle
                 .emit(
-                    &MinecraftEvent::Loading.as_str(),
+                    MinecraftEvent::Loading.as_str(),
                     LoadingPayload {
                         fraction: opt_display_frac,
                         message: message.unwrap_or(&loading_bar.message).to_string(),

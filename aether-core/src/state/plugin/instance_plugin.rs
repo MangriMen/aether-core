@@ -1,4 +1,7 @@
-use std::{fmt, path::PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 use async_trait::async_trait;
 
@@ -23,8 +26,8 @@ impl dyn InstancePlugin {
         Ok(state.locations.plugin_dir(&self.get_id()))
     }
 
-    pub fn get_instance_plugin_dir(&self, instance_folder: &PathBuf) -> PathBuf {
-        instance_folder.join("plugins").join(&self.get_id())
+    pub fn get_instance_plugin_dir(&self, instance_folder: &Path) -> PathBuf {
+        instance_folder.join("plugins").join(self.get_id())
     }
 }
 

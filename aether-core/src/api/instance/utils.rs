@@ -64,9 +64,9 @@ pub async fn run_pre_launch_command(instance: &Instance, settings: &Settings) ->
             let full_path = &instance.path;
             let result = Command::new(command)
                 .args(cmd.collect::<Vec<&str>>())
-                .current_dir(&full_path)
+                .current_dir(full_path)
                 .spawn()
-                .map_err(|e| IOError::with_path(e, &full_path))?
+                .map_err(|e| IOError::with_path(e, full_path))?
                 .wait()
                 .await
                 .map_err(IOError::from)?;

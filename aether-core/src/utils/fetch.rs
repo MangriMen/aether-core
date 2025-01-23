@@ -138,7 +138,7 @@ where
     fetch_advanced(method, url, headers, sha1, body, semaphore, None)
         .await
         .and_then(|ref it| {
-            let toml_str = std::str::from_utf8(&it).map_err(|_| {
+            let toml_str = std::str::from_utf8(it).map_err(|_| {
                 crate::ErrorKind::NoValueFor(format!("Can't fetch TOML at {:?}", url)).as_error()
             })?;
             Ok(toml::from_str(toml_str)?)

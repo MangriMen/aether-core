@@ -15,11 +15,11 @@ pub async fn get_file_path(id: &str) -> crate::Result<PathBuf> {
 }
 
 pub async fn get_by_path(path: &Path) -> crate::Result<Instance> {
-    Ok(read_json_async(&path).await?)
+    read_json_async(&path).await
 }
 
 pub async fn get(id: &str) -> crate::Result<Instance> {
-    Ok(get_by_path(&get_file_path(&id).await?).await?)
+    get_by_path(&get_file_path(id).await?).await
 }
 
 pub async fn get_all() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>)> {

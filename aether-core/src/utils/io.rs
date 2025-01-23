@@ -71,7 +71,7 @@ where
         .err_into::<crate::Error>()
         .await
         .and_then(|ref it| {
-            let toml_str = std::str::from_utf8(&it).map_err(|_| {
+            let toml_str = std::str::from_utf8(it).map_err(|_| {
                 crate::ErrorKind::NoValueFor(format!("Can't read TOML at {:?}", path.as_ref()))
                     .as_error()
             })?;

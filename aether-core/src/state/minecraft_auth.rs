@@ -32,7 +32,7 @@ impl Credentials {
     }
 
     pub async fn get(state: &LauncherState) -> crate::Result<CredentialsData> {
-        let state_file = &Credentials::get_credentials_file(&state).await?;
+        let state_file = &Credentials::get_credentials_file(state).await?;
         read_json_async::<CredentialsData>(&state_file).await
     }
 
@@ -40,12 +40,12 @@ impl Credentials {
         state: &LauncherState,
         credentials_state: &CredentialsData,
     ) -> crate::Result<()> {
-        let state_file = &Credentials::get_credentials_file(&state).await?;
+        let state_file = &Credentials::get_credentials_file(state).await?;
         write_json_async(&state_file, credentials_state).await
     }
 
     pub async fn get_active(state: &LauncherState) -> crate::Result<Option<Credentials>> {
-        let credentials = Credentials::get(&state).await?;
+        let credentials = Credentials::get(state).await?;
 
         if credentials.is_empty() {
             return Ok(None);
@@ -89,13 +89,13 @@ impl Credentials {
     }
 
     pub async fn set_active(state: &LauncherState, id: &Uuid) -> crate::Result<()> {
-        let credentials = Credentials::get(&state).await?;
+        let credentials = Credentials::get(state).await?;
         let updated_credentials = Self::set_active_internal(&credentials, id).await?;
         Self::save(state, &updated_credentials).await
     }
 
     pub async fn remove(state: &LauncherState, id: &Uuid) -> crate::Result<()> {
-        let mut credentials = Credentials::get(&state).await?;
+        let mut credentials = Credentials::get(state).await?;
 
         let mut need_to_set_active = false;
         credentials.retain(|x| {
@@ -105,7 +105,7 @@ impl Credentials {
                 need_to_set_active = true
             }
 
-            return need_retain;
+            need_retain
         });
 
         if need_to_set_active {
@@ -123,7 +123,7 @@ impl Credentials {
         state: &LauncherState,
         username: &str,
     ) -> crate::Result<()> {
-        let mut credentials = Credentials::get(&state).await?;
+        let mut credentials = Credentials::get(state).await?;
 
         let new_credentials_id = Uuid::new_v4();
 
