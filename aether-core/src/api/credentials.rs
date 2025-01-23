@@ -19,7 +19,7 @@ pub async fn create_offline_account(username: &str) -> crate::Result<()> {
 pub async fn change_account(id: &Uuid) -> crate::Result<()> {
     let state = crate::state::LauncherState::get().await?;
 
-    Credentials::set_active(&state, &id).await?;
+    Credentials::set_active(&state, id).await?;
 
     Ok(())
 }
@@ -27,7 +27,7 @@ pub async fn change_account(id: &Uuid) -> crate::Result<()> {
 pub async fn logout(id: &Uuid) -> crate::Result<()> {
     let state = crate::state::LauncherState::get().await?;
 
-    Credentials::remove(&state, &id).await?;
+    Credentials::remove(&state, id).await?;
 
     Ok(())
 }

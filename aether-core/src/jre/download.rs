@@ -54,7 +54,7 @@ pub async fn auto_install_java(java_version: u32) -> crate::Result<PathBuf> {
         )
         .await?;
 
-        let path = state.locations.java_versions_dir();
+        let path = state.locations.java_dir();
 
         let mut archive = zip::ZipArchive::new(std::io::Cursor::new(file)).map_err(|_| {
             crate::Error::from(crate::ErrorKind::InputError(

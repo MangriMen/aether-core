@@ -1,4 +1,4 @@
-use aether_core::state::{LauncherState, Settings};
+// use aether_core::state::{LauncherState, Settings};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -21,17 +21,17 @@ pub struct Args {
     command: SubCommands,
 }
 
-async fn init_launcher(args: &Args) -> anyhow::Result<()> {
-    let current_dir = std::env::current_dir().unwrap();
+async fn init_launcher(_args: &Args) -> anyhow::Result<()> {
+    // let current_dir = std::env::current_dir().unwrap();
 
-    let settings_dir = args.path.as_ref().unwrap_or(&current_dir);
+    // let settings_dir = args.path.as_ref().unwrap_or(&current_dir);
 
-    LauncherState::init(&Settings {
-        launcher_dir: Some(settings_dir.to_string_lossy().to_string()),
-        metadata_dir: Some(settings_dir.to_string_lossy().to_string()),
-        max_concurrent_downloads: 4,
-    })
-    .await?;
+    // LauncherState::init(&Settings {
+    //     launcher_dir: Some(settings_dir.to_string_lossy().to_string()),
+    //     metadata_dir: Some(settings_dir.to_string_lossy().to_string()),
+    //     max_concurrent_downloads: 4,
+    // })
+    // .await?;
 
     Ok(())
 }

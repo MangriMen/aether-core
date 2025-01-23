@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use phf::phf_map;
@@ -12,12 +12,12 @@ use url::Url;
 use crate::{
     api::{
         self,
-        instance::{get_dir, instance_create},
+        instance::{create, get_dir},
     },
     event::{emit_loading, LoadingBarId},
     state::{InstancePluginSettings, LauncherState, ModLoader},
     utils::{
-        fetch::{fetch_advanced, fetch_json},
+        fetch::{fetch_advanced, fetch_toml},
         io::{read_toml_async, write_async, write_toml_async},
     },
 };
@@ -120,7 +120,7 @@ impl PackwizPlugin {
         "packwiz-installer-bootstrap" => "https://github.com/packwiz/packwiz-installer-bootstrap/releases/latest/download/packwiz-installer-bootstrap.jar"
     };
 
-    fn get_instance_settings_file(&self, folder: &PathBuf) -> PathBuf {
+    fn get_instance_settings_file(&self, folder: &Path) -> PathBuf {
         <dyn InstancePlugin>::get_instance_plugin_dir(self, folder).join("packwiz.toml")
     }
 
@@ -134,14 +134,16 @@ impl PackwizPlugin {
         let path = PathBuf::from(path_or_url);
 
         if path.exists() && path.metadata().is_ok() {
+            println!("file");
             Ok(read_toml_async::<PackwizPack>(&PathBuf::from(path_or_url))
                 .await
                 .map_err(|_| PackwizPluginError::UnsupportedPackFormat(path_or_url.to_string()))
                 .map_err(|e| crate::ErrorKind::PluginError(self.get_id(), e.to_string()))?)
         } else {
+            println!("url");
             let url = Url::parse(path_or_url)?;
 
-            fetch_json::<PackwizPack>(
+            fetch_toml::<PackwizPack>(
                 Method::GET,
                 url.as_str(),
                 None,
@@ -153,19 +155,12 @@ impl PackwizPlugin {
         }
     }
 
-    async fn load_settings_from_instance(
-        &self,
-        folder: &PathBuf,
-    ) -> crate::Result<PackwizSettings> {
-        Ok(read_toml_async::<PackwizSettings>(&self.get_instance_settings_file(&folder)).await?)
+    async fn load_settings_from_instance(&self, folder: &Path) -> crate::Result<PackwizSettings> {
+        read_toml_async::<PackwizSettings>(&self.get_instance_settings_file(folder)).await
     }
 
-    async fn save_settings(
-        &self,
-        folder: &PathBuf,
-        settings: &PackwizSettings,
-    ) -> crate::Result<()> {
-        Ok(write_toml_async(&self.get_instance_settings_file(&folder), &settings).await?)
+    async fn save_settings(&self, folder: &Path, settings: &PackwizSettings) -> crate::Result<()> {
+        write_toml_async(&self.get_instance_settings_file(folder), &settings).await
     }
 
     fn extract_mod_loader(
@@ -215,7 +210,7 @@ impl PackwizPlugin {
             hard_link(&packwiz_installer_paths.0, &packwiz_installer_instance_path).await?;
         }
 
-        let mut cmd = Command::new(java.path.to_string());
+        let mut cmd = Command::new(&java.path);
         cmd.current_dir(instance_folder)
             .arg("-jar")
             .arg(&packwiz_installer_paths.1)
@@ -288,7 +283,7 @@ impl PackwizPlugin {
                 let res = self
                     .download_file(
                         state,
-                        &url,
+                        url,
                         path,
                         Some((
                             &loading_bar,
@@ -318,7 +313,7 @@ impl PackwizPlugin {
         let (mod_loader, mod_loader_version) = PackwizPlugin::extract_mod_loader(&pack.versions)
             .map_err(|e| crate::ErrorKind::PluginError(self.get_id(), e.to_string()))?;
 
-        let instance_id = instance_create(
+        let instance_id = create(
             pack.name.to_string(),
             pack.versions.minecraft.to_string(),
             mod_loader,
@@ -353,9 +348,9 @@ impl PackwizPlugin {
     ) -> crate::Result<()> {
         log::info!("Updating pack in instance {:?}", &instance_id);
 
-        let settings = self.load_settings_from_instance(&instance_folder).await?;
+        let settings = self.load_settings_from_instance(instance_folder).await?;
 
-        self.get_command_to_update_pack(&settings, &instance_folder)
+        self.get_command_to_update_pack(&settings, instance_folder)
             .await?
             .output()
             .await?;
@@ -373,18 +368,22 @@ impl PackwizPlugin {
             create_dir_all(&plugin_dir).await?;
         }
 
-        self.download_redistributable(&state).await?;
+        self.download_redistributable(state).await?;
 
         Ok(())
     }
 
     async fn import_pack_command(&self, state: &LauncherState, path: String) -> crate::Result<()> {
-        let packwiz_pack = self.get_pack_from_url_or_path(&state, &path).await?;
+        let packwiz_pack = self.get_pack_from_url_or_path(state, &path).await?;
+
+        println!("1");
 
         let (instance_id, instance_folder) =
             self.create_instance_from_pack(&packwiz_pack, &path).await?;
+        println!("2");
 
         self.update_pack(instance_id, &instance_folder).await?;
+        println!("3");
 
         Ok(())
     }
@@ -421,14 +420,15 @@ impl InstancePlugin for PackwizPlugin {
     }
 
     async fn init(&self) -> crate::Result<()> {
-        let state = LauncherState::get().await?;
-        self.init_command(&state).await
+        Ok(())
     }
 
     async fn call(&self, data: &str) -> crate::Result<()> {
         let state = LauncherState::get().await?;
 
         let data = serde_json::from_str::<PackwizPluginData>(data)?;
+
+        self.init_command(&state).await?;
 
         match data {
             PackwizPluginData::Import { url } => self.import_pack_command(&state, url).await?,

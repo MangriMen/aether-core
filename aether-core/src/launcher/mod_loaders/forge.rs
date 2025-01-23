@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use daedalus::{
     minecraft::VersionInfo,
@@ -68,7 +71,7 @@ pub async fn process_forge_processors(
                     }
                 }
 
-                process_forge_processor(processor, &data, &libraries_dir, java_version).await?;
+                process_forge_processor(processor, data, &libraries_dir, java_version).await?;
 
                 if let Some(loading_bar) = loading_bar {
                     emit_loading(
@@ -91,7 +94,7 @@ pub async fn process_forge_processors(
 pub async fn process_forge_processor(
     processor: &modded::Processor,
     data: &HashMap<String, modded::SidedDataEntry>,
-    libraries_dir: &PathBuf,
+    libraries_dir: &Path,
     java_version: &Java,
 ) -> crate::Result<()> {
     log::debug!("Running forge processor {}", processor.jar);
@@ -101,10 +104,10 @@ pub async fn process_forge_processor(
     });
 
     let class_path_arg =
-        args::get_class_paths_jar(&libraries_dir, &class_path, &java_version.architecture)?;
+        args::get_class_paths_jar(libraries_dir, &class_path, &java_version.architecture)?;
 
     let processor_main_class =
-        args::get_processor_main_class(args::get_lib_path(&libraries_dir, &processor.jar, false)?)
+        args::get_processor_main_class(args::get_lib_path(libraries_dir, &processor.jar, false)?)
             .await?
             .ok_or_else(|| {
                 crate::ErrorKind::LauncherError(format!(
@@ -113,7 +116,7 @@ pub async fn process_forge_processor(
                 ))
             })?;
 
-    let processor_args = args::get_processor_arguments(&libraries_dir, &processor.args, data)?;
+    let processor_args = args::get_processor_arguments(libraries_dir, &processor.args, data)?;
 
     let child = Command::new(&java_version.path)
         .arg("-cp")

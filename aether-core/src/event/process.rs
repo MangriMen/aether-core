@@ -32,7 +32,7 @@ pub async fn emit_process(
     if let Some(app_handle) = &event_state.app {
         app_handle
             .emit(
-                &MinecraftEvent::Process.as_str(),
+                MinecraftEvent::Process.as_str(),
                 ProcessPayload {
                     instance_id: id.to_string(),
                     uuid,
