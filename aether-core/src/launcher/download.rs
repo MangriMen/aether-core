@@ -15,8 +15,8 @@ use crate::config::META_URL;
 
 use super::library::parse_rules;
 
-const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net";
-const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net";
+const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net/";
+const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
 
 #[tracing::instrument]
 pub async fn download_minecraft(
@@ -212,7 +212,7 @@ pub async fn download_asset(
 
     let hash = &asset.hash;
     let url = format!(
-        "{MINECRAFT_RESOURCES_BASE_URL}/{sub_hash}/{hash}",
+        "{MINECRAFT_RESOURCES_BASE_URL}{sub_hash}/{hash}",
         sub_hash = &hash[..2]
     );
 
@@ -293,7 +293,20 @@ pub async fn download_assets(
         loading_amount,
         futures_count,
         None,
-        |(name, asset)| async move { download_asset(state, name, asset, with_legacy, force).await },
+        |(name, asset)| async move {
+            log::debug!("Downloading asset \"{}\"", name);
+            let res = download_asset(state, name, asset, with_legacy, force).await;
+            match res {
+                Ok(res) => {
+                    log::debug!("Downloaded asset \"{}\"", name);
+                    Ok(res)
+                }
+                Err(err) => {
+                    log::error!("Failed downloading asset \"{}\". err: {}", name, err);
+                    Err(err)
+                }
+            }
+        },
     )
     .await?;
 
@@ -338,6 +351,14 @@ pub async fn download_java_library(
             return Ok::<(), crate::Error>(());
         }
     }
+    println!(
+        "Library {}, part {}",
+        library
+            .url
+            .as_deref()
+            .unwrap_or(MINECRAFT_LIBRARIES_BASE_URL),
+        library_path_part
+    );
 
     // Else get library by library.url or default library url
     let url = [
@@ -349,6 +370,8 @@ pub async fn download_java_library(
     ]
     .concat();
 
+    println!("Library url {}", url);
+
     let bytes = utils::fetch::fetch_advanced(
         Method::GET,
         &url,
@@ -358,12 +381,19 @@ pub async fn download_java_library(
         &state.fetch_semaphore,
         None,
     )
-    .await?;
-    write_async(&library_path, &bytes).await?;
+    .await;
 
-    log::debug!("Downloaded java library \"{}\" successfully", &library.name);
-
-    Ok(())
+    match bytes {
+        Ok(bytes) => {
+            write_async(&library_path, &bytes).await?;
+            log::debug!("Downloaded java library \"{}\" successfully", &library.name);
+            Ok(())
+        }
+        Err(err) => {
+            log::error!("Failed downloading java library \"{}\"", &library.name,);
+            Err(err)
+        }
+    }
 }
 
 #[tracing::instrument]
@@ -402,13 +432,17 @@ pub async fn download_native_library_files(
 
             if let Ok(mut archive) = zip::ZipArchive::new(reader) {
                 match archive.extract(state.locations.version_natives_dir(&version_info.id)) {
-                    Ok(_) => log::debug!("Fetched native {}", &library.name),
+                    Ok(_) => log::debug!("Extracted native library {}", &library.name),
                     Err(err) => {
-                        log::error!("Failed extracting native {}. err: {}", &library.name, err)
+                        log::error!(
+                            "Failed extracting native library {}. err: {}",
+                            &library.name,
+                            err
+                        )
                     }
                 }
             } else {
-                log::error!("Failed extracting native {}", &library.name)
+                log::error!("Failed extracting native library {}", &library.name)
             }
         }
     }

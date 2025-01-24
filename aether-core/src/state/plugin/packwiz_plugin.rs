@@ -378,6 +378,8 @@ impl PackwizPlugin {
 
         println!("1");
 
+        println!("1");
+
         let (instance_id, instance_folder) =
             self.create_instance_from_pack(&packwiz_pack, &path).await?;
         println!("2");
