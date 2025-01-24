@@ -96,7 +96,7 @@ impl Instance {
         Ok(java_version)
     }
 
-    pub async fn get_loader_version_from_instance(
+    pub async fn get_loader_version(
         game_version: &str,
         loader: ModLoader,
         loader_version: Option<&str>,

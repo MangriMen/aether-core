@@ -29,18 +29,13 @@ pub async fn create(
     fs::create_dir_all(&full_path).await?;
 
     info!(
-        "Created profile \"{}\" at path \"{}\"",
+        "Creating instance \"{}\" at path \"{}\"",
         &sanitized_name,
         &canonicalize(&full_path)?.display()
     );
 
     let loader = if mod_loader != ModLoader::Vanilla {
-        Instance::get_loader_version_from_instance(
-            &game_version,
-            mod_loader,
-            loader_version.as_deref(),
-        )
-        .await?
+        Instance::get_loader_version(&game_version, mod_loader, loader_version.as_deref()).await?
     } else {
         None
     };
@@ -90,10 +85,17 @@ pub async fn create(
     .await;
 
     match result {
-        Ok(path) => Ok(path),
+        Ok(path) => {
+            info!(
+                "Instance \"{}\" created successfully at path \"{}\"",
+                &sanitized_name,
+                &canonicalize(&full_path)?.display()
+            );
+            Ok(path)
+        }
         Err(err) => {
-            let _ = instance.remove().await;
-
+            info!("Failed to create instance \"{}\". Instance removed", &name);
+            Instance::remove_by_path(&full_path).await?;
             Err(err)
         }
     }

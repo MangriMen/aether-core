@@ -8,6 +8,24 @@ use crate::{
     utils::fetch::{fetch_advanced, fetch_json},
 };
 
+pub enum JavaProviders {
+    Azul,
+}
+
+pub fn get_java_download_url(
+    provider: JavaProviders,
+    arch: &str,
+    java_version: u32,
+    os: &str,
+) -> String {
+    match provider {
+        JavaProviders::Azul => format!(
+            "https://api.azul.com/metadata/v1/zulu/packages?arch={}&java_version={}&os={}&archive_type=zip&javafx_bundled=false&java_package_type=jre&page_size=1",
+            arch, java_version, os
+        )
+    }
+}
+
 pub async fn auto_install_java(java_version: u32) -> crate::Result<PathBuf> {
     let state = LauncherState::get().await?;
 
@@ -29,16 +47,19 @@ pub async fn auto_install_java(java_version: u32) -> crate::Result<PathBuf> {
     emit_loading(&loading_bar, 0.0, Some("Fetching java version")).await?;
 
     let packages = fetch_json::<Vec<Package>>(
-              Method::GET,
-              &format!(
-                  "https://api.azul.com/metadata/v1/zulu/packages?arch={}&java_version={}&os={}&archive_type=zip&javafx_bundled=false&java_package_type=jre&page_size=1",
-                  std::env::consts::ARCH, java_version, std::env::consts::OS
-              ),
-              None,
-              None,
-              None,
-              &state.fetch_semaphore,
-          ).await?;
+        Method::GET,
+        &get_java_download_url(
+            JavaProviders::Azul,
+            std::env::consts::ARCH,
+            java_version,
+            std::env::consts::OS,
+        ),
+        None,
+        None,
+        None,
+        &state.fetch_semaphore,
+    )
+    .await?;
 
     emit_loading(&loading_bar, 10.0, Some("Downloading java version")).await?;
 
