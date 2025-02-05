@@ -1,5 +1,5 @@
 use crate::{
-    event::{emit_loading, loading_try_for_each_concurrent, LoadingBarId},
+    event::{emit::emit_loading, loading_try_for_each_concurrent, LoadingBarId},
     state::LauncherState,
     utils::{self, io::write_async},
 };

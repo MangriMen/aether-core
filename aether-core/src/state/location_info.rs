@@ -125,4 +125,9 @@ impl LocationInfo {
             .join(PLUGIN_FOLDER_NAME)
             .join(plugin_id)
     }
+
+    #[inline]
+    pub fn crash_reports_dir(&self, id: &str) -> PathBuf {
+        self.instance_dir(id).join("crash-reports")
+    }
 }

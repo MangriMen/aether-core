@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+    event::emit::emit_instance,
     state::{Instance, LauncherState},
     utils::io::read_json_async,
 };
@@ -22,7 +23,7 @@ pub async fn get(id: &str) -> crate::Result<Instance> {
     get_by_path(&get_file_path(id).await?).await
 }
 
-pub async fn get_all() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>)> {
+pub async fn get_all() -> crate::Result<(Vec<Instance>, Vec<crate::Error>)> {
     let state = LauncherState::get().await?;
 
     let instances_dir = state.locations.instances_dir();
@@ -56,5 +57,10 @@ pub async fn get_all() -> anyhow::Result<(Vec<Instance>, Vec<crate::Error>)> {
 }
 
 pub async fn remove(id: &str) -> crate::Result<()> {
-    Instance::remove_by_path(&get_dir(id).await?).await
+    let instance = get(id).await?;
+    instance.remove().await?;
+
+    emit_instance(id, crate::event::InstancePayloadType::Removed).await?;
+
+    Ok(())
 }

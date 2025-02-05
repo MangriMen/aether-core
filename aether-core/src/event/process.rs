@@ -1,7 +1,9 @@
 use tauri::Emitter;
 use uuid::Uuid;
 
-use super::{EventError, EventState, MinecraftEvent};
+use crate::state::{EventError, EventState};
+
+use super::LauncherEvent;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -19,8 +21,6 @@ pub enum ProcessPayloadType {
     Finished,
 }
 
-// emit_process(uuid, pid, event, message)
-#[allow(unused_variables)]
 pub async fn emit_process(
     id: &str,
     uuid: Uuid,
@@ -32,7 +32,7 @@ pub async fn emit_process(
     if let Some(app_handle) = &event_state.app {
         app_handle
             .emit(
-                MinecraftEvent::Process.as_str(),
+                LauncherEvent::Process.as_str(),
                 ProcessPayload {
                     instance_id: id.to_string(),
                     uuid,

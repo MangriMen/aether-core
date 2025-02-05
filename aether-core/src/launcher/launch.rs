@@ -4,7 +4,10 @@ use daedalus::{minecraft, modded};
 
 use crate::{
     api,
-    event::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
+    event::{
+        emit::{emit_loading, init_or_edit_loading},
+        LoadingBarId, LoadingBarType,
+    },
     launcher::mod_loader_post_install,
     state::{
         self, Instance, InstanceInstallStage, LauncherState, MinecraftProcessMetadata, ModLoader,
@@ -351,10 +354,6 @@ pub async fn launch_minecraft(
     // options.txt override
 
     // authentication credentials
-
-    // minimize launcher
-
-    // run process
 
     Instance::edit(&instance.id, |instance| {
         instance.last_played = Some(chrono::Utc::now());
