@@ -31,7 +31,7 @@ impl MinecraftProcess {
         id: String,
         post_exit_command: Option<String>,
         uuid: Uuid,
-    ) -> anyhow::Result<()> {
+    ) -> crate::Result<()> {
         async fn update_playtime(
             last_updated_playtime: &mut DateTime<Utc>,
             id: &str,
@@ -83,28 +83,7 @@ impl MinecraftProcess {
         // Now fully complete- update playtime one last time
         update_playtime(&mut last_updated_playtime, &id, true).await;
 
-        // Publish play time update
-        // Allow failure, it will be stored locally and sent next time
-        // Sent in another thread as first call may take a couple seconds and hold up process ending
-        // let profile = id.clone();
-        // tokio::spawn(async move {
-        //     if let Err(e) = Instance::try_update_playtime(&profile).await {
-        //         tracing::warn!("Failed to update playtime for profile {}: {}", profile, e);
-        //     }
-        // });
-
         // let _ = state.discord_rpc.clear_to_default(true).await;
-
-        // If in tauri, window should show itself again after process exists if it was hidden
-        // TODO: Make this work with tauri
-        // #[cfg(feature = "tauri")]
-        // {
-        //     let window = crate::EventState::get_main_window().await?;
-        //     if let Some(window) = window {
-        //         window.unminimize()?;
-        //         window.set_focus()?;
-        //     }
-        // }
 
         if mc_exit_status.success() {
             // We do not wait on the post exist command to finish running! We let it spawn + run on its own.

@@ -10,7 +10,7 @@ use daedalus::{
 use tokio::process::Command;
 
 use crate::{
-    event::{emit_loading, LoadingBarId},
+    event::{emit::emit_loading, LoadingBarId},
     launcher::args,
     processor_rules,
     state::{Instance, Java, LauncherState},

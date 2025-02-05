@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use reqwest::Method;
 
 use crate::{
-    event::{emit_loading, init_loading, LoadingBarType},
+    event::{
+        emit::{emit_loading, init_loading},
+        LoadingBarType,
+    },
     state::LauncherState,
     utils::fetch::{fetch_advanced, fetch_json},
 };

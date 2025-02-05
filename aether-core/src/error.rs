@@ -76,13 +76,14 @@ pub enum ErrorKind {
     ChronoParseError(#[from] chrono::ParseError),
 
     #[error("Event error: {0}")]
-    EventError(#[from] crate::event::EventError),
+    EventError(#[from] crate::state::EventError),
 
     #[error("Zip error: {0}")]
     ZipError(#[from] async_zip::error::ZipError),
 
-    // #[error("File watching error: {0}")]
-    // NotifyError(#[from] notify::Error),
+    #[error("File watching error: {0}")]
+    NotifyError(#[from] notify::Error),
+
     #[error("Error stripping prefix: {0}")]
     StripPrefixError(#[from] std::path::StripPrefixError),
 

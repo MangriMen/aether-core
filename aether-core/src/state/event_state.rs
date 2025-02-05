@@ -4,7 +4,7 @@ use dashmap::DashMap;
 use tokio::sync::OnceCell;
 use uuid::Uuid;
 
-use super::LoadingBar;
+use crate::event::LoadingBar;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EventError {
@@ -26,7 +26,7 @@ pub struct EventState {
 }
 
 impl EventState {
-    pub async fn init() -> anyhow::Result<Arc<Self>> {
+    pub async fn init() -> crate::Result<Arc<Self>> {
         EVENT_STATE
             .get_or_try_init(|| async {
                 Ok(Arc::new(Self {
@@ -53,7 +53,7 @@ impl EventState {
     //         .cloned()
     // }
 
-    pub async fn init_with_app(app: tauri::AppHandle) -> anyhow::Result<Arc<Self>> {
+    pub async fn init_with_app(app: tauri::AppHandle) -> crate::Result<Arc<Self>> {
         EVENT_STATE
             .get_or_try_init(|| async {
                 Ok(Arc::new(Self {
@@ -70,7 +70,7 @@ impl EventState {
     }
 
     // Values provided should not be used directly, as they are clones and are not guaranteed to be up-to-date
-    pub async fn list_progress_bars() -> anyhow::Result<DashMap<Uuid, LoadingBar>> {
+    pub async fn list_progress_bars() -> crate::Result<DashMap<Uuid, LoadingBar>> {
         let value = Self::get()?;
         Ok(value.loading_bars.clone())
     }
