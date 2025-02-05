@@ -1,4 +1,6 @@
 pub mod account;
+pub mod event_state;
+pub mod fs_watcher;
 pub mod hooks;
 pub mod instance;
 pub mod java;
@@ -10,6 +12,8 @@ pub mod process;
 pub mod settings;
 
 pub use account::*;
+pub use event_state::*;
+pub use fs_watcher::*;
 pub use hooks::*;
 pub use instance::*;
 pub use java::*;

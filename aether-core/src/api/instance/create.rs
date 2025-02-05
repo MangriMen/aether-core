@@ -6,6 +6,7 @@ use tokio::fs;
 
 use crate::{
     api::instance::get_instance_path_without_duplicate,
+    event::emit::emit_instance,
     state::{
         Hooks, Instance, InstanceInstallStage, InstancePluginSettings, LauncherState,
         MemorySettings, ModLoader, WindowSize,
@@ -76,6 +77,10 @@ pub async fn create(
     let result = async {
         instance.save().await?;
 
+        crate::state::watch_instance(&instance.id, &state.file_watcher, &state.locations).await;
+
+        emit_instance(&instance.id, crate::event::InstancePayloadType::Created).await?;
+
         if !skip_install_instance.unwrap_or(false) {
             crate::launcher::install_minecraft(&instance, None, false).await?;
         }
@@ -95,7 +100,7 @@ pub async fn create(
         }
         Err(err) => {
             info!("Failed to create instance \"{}\". Instance removed", &name);
-            Instance::remove_by_path(&full_path).await?;
+            instance.remove().await?;
             Err(err)
         }
     }

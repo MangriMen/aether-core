@@ -7,7 +7,7 @@ use reqwest_retry::policies::ExponentialBackoff;
 use serde::de::DeserializeOwned;
 use tokio::sync::Semaphore;
 
-use crate::event::{emit_loading, LoadingBarId};
+use crate::event::{emit::emit_loading, LoadingBarId};
 
 use super::file::sha1_async;
 

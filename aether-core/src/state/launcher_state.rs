@@ -2,9 +2,9 @@ use std::{path::PathBuf, sync::Arc};
 
 use tokio::sync::{OnceCell, RwLock, Semaphore};
 
-use crate::utils::fetch::FetchSemaphore;
+use crate::{state::fs_watcher, utils::fetch::FetchSemaphore};
 
-use super::{LocationInfo, PluginManager, ProcessManager, Settings};
+use super::{FsWatcher, LocationInfo, PluginManager, ProcessManager, Settings};
 
 // Global state
 // RwLock on state only has concurrent reads, except for config dir change which takes control of the State
@@ -26,8 +26,7 @@ pub struct LauncherState {
     /// Process manager
     pub process_manager: ProcessManager,
     // pub(crate) pool: SqlitePool,
-
-    // pub(crate) file_watcher: FileWatcher,
+    pub(crate) file_watcher: FsWatcher,
     pub plugin_manager: RwLock<PluginManager>,
 }
 
@@ -63,21 +62,34 @@ impl LauncherState {
     async fn initialize_state(settings: &Settings) -> crate::Result<Arc<Self>> {
         log::info!("Initializing state");
 
+        log::info!("Initialize locations");
         let locations = LocationInfo {
             settings_dir: PathBuf::from(settings.launcher_dir.clone().unwrap()),
             config_dir: PathBuf::from(settings.metadata_dir.clone().unwrap()),
             plugins_dir: PathBuf::from(settings.plugins_dir.clone().unwrap()),
         };
 
+        log::info!("Initialize fetch semaphore");
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
+
+        log::info!("Initialize process manager");
+        let process_manager = ProcessManager::new();
+
+        log::info!("Initialize file watcher");
+        let file_watcher = fs_watcher::init_watcher().await?;
+        fs_watcher::watch_instances(&file_watcher, &locations).await;
+
+        log::info!("Initialize plugin manager");
+        let plugin_manager = RwLock::new(PluginManager::new());
 
         log::info!("State initialized");
 
         Ok(Arc::new(Self {
             locations,
-            process_manager: ProcessManager::new(),
+            process_manager,
             fetch_semaphore,
-            plugin_manager: RwLock::new(PluginManager::new()),
+            file_watcher,
+            plugin_manager,
         }))
     }
 }

@@ -5,7 +5,7 @@ use daedalus::{minecraft, modded};
 use tokio::fs::remove_dir_all;
 
 use crate::{
-    api::{self, instance::get},
+    event::emit::emit_instance,
     state::{Hooks, Java, LauncherState, MemorySettings, WindowSize},
     utils::io,
 };
@@ -113,7 +113,7 @@ impl Instance {
             id => it.id == *id,
         };
 
-        let versions = api::metadata::get_loader_versions(loader.as_meta_str()).await?;
+        let versions = crate::api::metadata::get_loader_versions(loader.as_meta_str()).await?;
 
         let loaders = versions.game_versions.into_iter().find(|x| {
             x.id.replace(daedalus::modded::DUMMY_REPLACE_STRING, game_version) == game_version
@@ -137,13 +137,8 @@ impl Instance {
         }
     }
 
-    pub async fn remove_by_path(path: &PathBuf) -> crate::Result<()> {
-        remove_dir_all(path).await?;
-        Ok(())
-    }
-
-    pub async fn remove(&self) -> anyhow::Result<()> {
-        Instance::remove_by_path(&self.path.join("instance.json")).await?;
+    pub async fn remove(&self) -> crate::Result<()> {
+        remove_dir_all(&self.path).await?;
         Ok(())
     }
 
@@ -162,7 +157,7 @@ impl Instance {
     where
         Fut: Future<Output = crate::Result<()>>,
     {
-        match get(id).await {
+        match crate::api::instance::get(id).await {
             Ok(profile) => {
                 let mut profile = profile;
 
@@ -170,7 +165,7 @@ impl Instance {
 
                 profile.save().await?;
 
-                // emit_profile(path, ProfilePayloadType::Edited).await?;
+                emit_instance(id, crate::event::InstancePayloadType::Edited).await?;
 
                 Ok(())
             }

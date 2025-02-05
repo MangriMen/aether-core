@@ -14,7 +14,10 @@ use crate::{
         self,
         instance::{create, get_dir},
     },
-    event::{emit_loading, LoadingBarId},
+    event::{
+        emit::{emit_loading, init_or_edit_loading},
+        LoadingBarId,
+    },
     state::{InstancePluginSettings, LauncherState, ModLoader},
     utils::{
         fetch::{fetch_advanced, fetch_toml},
@@ -267,7 +270,7 @@ impl PackwizPlugin {
         };
         let loading_bar_total = 100.0;
 
-        let loading_bar = crate::event::init_or_edit_loading(
+        let loading_bar = init_or_edit_loading(
             None,
             loading_bar_type,
             loading_bar_total,

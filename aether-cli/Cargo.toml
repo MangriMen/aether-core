@@ -4,7 +4,7 @@ version = "0.1.2"
 edition = "2021"
 
 [dependencies]
-aether-core = { path = "../aether-core" }
+# aether-core = { path = "../aether-core" }
 
 anyhow = { version = "1.0.86", features = ["backtrace"] }
 clap = { version = "4.0", features = ["derive"] }

@@ -79,7 +79,7 @@ impl ProcessManager {
             .collect()
     }
 
-    pub fn try_wait(&self, id: Uuid) -> anyhow::Result<Option<Option<ExitStatus>>> {
+    pub fn try_wait(&self, id: Uuid) -> crate::Result<Option<Option<ExitStatus>>> {
         if let Some(mut process) = self.processes.get_mut(&id) {
             Ok(Some(process.child.try_wait()?))
         } else {
