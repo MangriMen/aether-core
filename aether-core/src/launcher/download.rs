@@ -299,7 +299,20 @@ pub async fn download_assets(
         loading_amount,
         futures_count,
         None,
-        |(name, asset)| async move { download_asset(state, name, asset, with_legacy, force).await },
+        |(name, asset)| async move {
+            log::debug!("Downloading asset \"{}\"", name);
+            let res = download_asset(state, name, asset, with_legacy, force).await;
+            match res {
+                Ok(res) => {
+                    log::debug!("Downloaded asset \"{}\"", name);
+                    Ok(res)
+                }
+                Err(err) => {
+                    log::error!("Failed downloading asset \"{}\". err: {}", name, err);
+                    Err(err)
+                }
+            }
+        },
     )
     .await?;
 
@@ -344,6 +357,14 @@ pub async fn download_java_library(
             return Ok::<(), crate::Error>(());
         }
     }
+    println!(
+        "Library {}, part {}",
+        library
+            .url
+            .as_deref()
+            .unwrap_or(MINECRAFT_LIBRARIES_BASE_URL),
+        library_path_part
+    );
 
     // Else get library by library.url or default library url
     let url = [
