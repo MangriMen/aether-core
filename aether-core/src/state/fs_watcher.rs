@@ -109,7 +109,7 @@ pub(crate) async fn watch_instance(instance_id: &str, watcher: &FsWatcher, dirs:
             let path = instance_path.join(folder);
 
             if !path.exists() && !path.is_symlink() {
-                if let Err(e) = tokio::fs::create_dir_all(&path).await {
+                if let Err(e) = crate::utils::io::create_dir_all(&path).await {
                     tracing::error!("Failed to create directory for watcher {path:?}: {e}");
                     return;
                 }

@@ -1,5 +1,4 @@
 use futures::TryFutureExt;
-use tokio::fs::create_dir_all;
 
 #[derive(Debug, thiserror::Error)]
 pub enum IOError {
@@ -100,4 +99,34 @@ pub fn canonicalize(path: impl AsRef<std::path::Path>) -> Result<std::path::Path
         source: e,
         path: path.to_string_lossy().to_string(),
     })
+}
+
+pub async fn remove_file(path: impl AsRef<std::path::Path>) -> Result<(), IOError> {
+    let path = path.as_ref();
+    tokio::fs::remove_file(path)
+        .await
+        .map_err(|e| IOError::IOPathError {
+            source: e,
+            path: path.to_string_lossy().to_string(),
+        })
+}
+
+pub async fn create_dir_all(path: impl AsRef<std::path::Path>) -> Result<(), IOError> {
+    let path = path.as_ref();
+    tokio::fs::create_dir_all(path)
+        .await
+        .map_err(|e| IOError::IOPathError {
+            source: e,
+            path: path.to_string_lossy().to_string(),
+        })
+}
+
+pub async fn remove_dir_all(path: impl AsRef<std::path::Path>) -> Result<(), IOError> {
+    let path = path.as_ref();
+    tokio::fs::remove_dir_all(path)
+        .await
+        .map_err(|e| IOError::IOPathError {
+            source: e,
+            path: path.to_string_lossy().to_string(),
+        })
 }

@@ -2,7 +2,6 @@ use std::fs::canonicalize;
 
 use chrono::Utc;
 use log::info;
-use tokio::fs;
 
 use crate::{
     api::instance::get_instance_path_without_duplicate,
@@ -27,7 +26,7 @@ pub async fn create(
 
     let (full_path, sanitized_name) = get_instance_path_without_duplicate(&state, &name);
 
-    fs::create_dir_all(&full_path).await?;
+    crate::utils::io::create_dir_all(&full_path).await?;
 
     info!(
         "Creating instance \"{}\" at path \"{}\"",

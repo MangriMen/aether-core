@@ -7,6 +7,16 @@ edition = "2021"
 # tauri = ["dep:tauri"]
 cli = ["dep:indicatif"]
 
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+
+[profile.release]
+panic = "abort" # Strip expensive panic clean-up logic
+codegen-units = 1 # Compile crates one after another so the compiler can optimize better
+lto = true # Enables link to optimizations
+opt-level = "s" # Optimize for binary size
+strip = true # Remove debug symbols
+
 [dependencies]
 tauri = { version = "2" }
 
@@ -60,5 +70,7 @@ async-trait = "0.1.83"
 notify = "8.0.0"
 notify-debouncer-mini = "0.6.0"
 
+sqlx = { version = "0.8.2", features = ["runtime-tokio", "sqlite", "macros"] }
 indicatif = { version = "0.17.3", optional = true }
 sha1_smol = { version = "1.0.1", features = ["alloc", "serde", "std"] }
+paste = "1.0.15"

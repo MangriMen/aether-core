@@ -20,3 +20,8 @@ target/
 
 # Ide settings
 .vscode/settings.json
+
+
+.env
+
+*.db

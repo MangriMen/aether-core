@@ -1,4 +1,6 @@
 pub mod account;
+pub mod cache;
+pub mod db;
 pub mod event_state;
 pub mod fs_watcher;
 pub mod hooks;
@@ -12,6 +14,7 @@ pub mod process;
 pub mod settings;
 
 pub use account::*;
+pub use cache::*;
 pub use event_state::*;
 pub use fs_watcher::*;
 pub use hooks::*;

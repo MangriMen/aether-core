@@ -302,7 +302,7 @@ pub async fn launch_minecraft(
 
     let natives_dir = state.locations.version_natives_dir(&version_jar);
     if !natives_dir.exists() {
-        tokio::fs::create_dir_all(&natives_dir).await?;
+        crate::utils::io::create_dir_all(&natives_dir).await?;
     }
 
     let jvm_arguments = get_minecraft_jvm_arguments(

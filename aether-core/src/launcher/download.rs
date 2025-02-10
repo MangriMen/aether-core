@@ -504,8 +504,8 @@ pub async fn download_libraries(
     log::info!("Downloading libraries for {}", version_info.id);
 
     tokio::try_join! {
-        tokio::fs::create_dir_all(state.locations.libraries_dir()),
-        tokio::fs::create_dir_all(state.locations.version_natives_dir(&version_info.id)),
+        crate::utils::io::create_dir_all(state.locations.libraries_dir()),
+        crate::utils::io::create_dir_all(state.locations.version_natives_dir(&version_info.id)),
     }?;
 
     let libraries_stream =

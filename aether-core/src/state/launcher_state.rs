@@ -1,8 +1,12 @@
 use std::{path::PathBuf, sync::Arc};
 
+use sqlx::SqlitePool;
 use tokio::sync::{OnceCell, RwLock, Semaphore};
 
-use crate::{state::fs_watcher, utils::fetch::FetchSemaphore};
+use crate::{
+    state::{db, fs_watcher},
+    utils::fetch::FetchSemaphore,
+};
 
 use super::{FsWatcher, LocationInfo, PluginManager, ProcessManager, Settings};
 
@@ -14,20 +18,22 @@ static LAUNCHER_STATE: OnceCell<Arc<LauncherState>> = OnceCell::const_new();
 pub struct LauncherState {
     // Information about files location
     pub locations: LocationInfo,
+
     /// Semaphore used to limit concurrent network requests and avoid errors
     pub fetch_semaphore: FetchSemaphore,
 
     // /// Semaphore used to limit concurrent I/O and avoid errors
     // pub io_semaphore: IoSemaphore,
+    /// Semaphore to limit concurrent API requests. This is separate from the fetch semaphore
+    /// to keep API functionality while the app is performing intensive tasks.
+    pub api_semaphore: FetchSemaphore,
 
-    // /// Semaphore to limit concurrent API requests. This is separate from the fetch semaphore
-    // /// to keep API functionality while the app is performing intensive tasks.
-    // pub api_semaphore: FetchSemaphore,
-    /// Process manager
     pub process_manager: ProcessManager,
-    // pub(crate) pool: SqlitePool,
-    pub(crate) file_watcher: FsWatcher,
+
     pub plugin_manager: RwLock<PluginManager>,
+
+    pub(crate) pool: SqlitePool,
+    pub(crate) file_watcher: FsWatcher,
 }
 
 impl LauncherState {
@@ -69,8 +75,14 @@ impl LauncherState {
             plugins_dir: PathBuf::from(settings.plugins_dir.clone().unwrap()),
         };
 
+        log::info!("Initialize database");
+        let pool = db::connect(&locations.settings_dir).await?;
+
         log::info!("Initialize fetch semaphore");
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
+
+        log::info!("Initialize api semaphore");
+        let api_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
 
         log::info!("Initialize process manager");
         let process_manager = ProcessManager::new();
@@ -86,10 +98,12 @@ impl LauncherState {
 
         Ok(Arc::new(Self {
             locations,
-            process_manager,
             fetch_semaphore,
-            file_watcher,
+            api_semaphore,
+            process_manager,
             plugin_manager,
+            pool,
+            file_watcher,
         }))
     }
 }

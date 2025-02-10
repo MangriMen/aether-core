@@ -104,6 +104,12 @@ pub enum ErrorKind {
 
     #[error("Deserialization error (TOML): {0}")]
     TomlDeserializationError(#[from] toml::de::Error),
+
+    #[error("Error interacting with database: {0}")]
+    Sqlx(#[from] sqlx::Error),
+
+    #[error("Error while applying migrations: {0}")]
+    SqlxMigrate(#[from] sqlx::migrate::MigrateError),
 }
 
 #[derive(Debug)]
