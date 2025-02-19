@@ -2,6 +2,7 @@ use std::{future::Future, path::PathBuf};
 
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
+use dashmap::DashMap;
 use tokio::fs::remove_dir_all;
 
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
     utils::io,
 };
 
-use super::{InstanceInstallStage, ModLoader};
+use super::{ContentType, InstanceInstallStage, ModLoader};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InstancePluginSettings {
@@ -53,6 +54,25 @@ pub struct Instance {
 
     pub hooks: Hooks,
     pub plugin: Option<InstancePluginSettings>,
+}
+
+// #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+// pub struct FileMetadata {
+//     pub project_id: String,
+//     pub version_id: String,
+// }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceFile {
+    // pub hash: String,
+    pub file_name: String,
+    pub size: u64,
+    // pub metadata: Option<FileMetadata>,
+    // pub update_version_id: Option<String>,
+    pub content_type: ContentType,
+    pub path: String,
+    pub disabled: bool,
 }
 
 impl Instance {
@@ -171,5 +191,77 @@ impl Instance {
             }
             Err(e) => Err(e),
         }
+    }
+
+    pub async fn get_contents(&self) -> crate::Result<DashMap<String, InstanceFile>> {
+        let path = &self.path;
+
+        let files = DashMap::new();
+
+        for content_type in ContentType::iterator() {
+            let folder = content_type.get_folder();
+            let path = path.join(folder);
+
+            if !path.exists() {
+                continue;
+            }
+
+            for subdirectory in
+                std::fs::read_dir(&path).map_err(|e| io::IOError::with_path(e, &path))?
+            {
+                let subdirectory = subdirectory.map_err(io::IOError::from)?.path();
+
+                if !subdirectory.is_file() {
+                    continue;
+                }
+
+                if let Some(file_name) = subdirectory.file_name().and_then(|x| x.to_str()) {
+                    let file_size = subdirectory.metadata().map_err(io::IOError::from)?.len();
+
+                    let path = format!("{folder}/{}", file_name.trim_end_matches(".disabled"));
+
+                    files.insert(
+                        path.to_string(),
+                        InstanceFile {
+                            file_name: file_name.to_string(),
+                            content_type,
+                            size: file_size,
+                            disabled: file_name.ends_with(".disabled"),
+                            path: format!("{folder}/{}", file_name),
+                        },
+                    );
+                }
+            }
+        }
+
+        Ok(files)
+    }
+
+    pub async fn toggle_disable_content(id: &str, content_path: &str) -> crate::Result<String> {
+        let instance_path = crate::api::instance::get_dir(id).await?;
+
+        let new_path = if content_path.ends_with(".disabled") {
+            content_path.trim_end_matches(".disabled").to_string()
+        } else {
+            format!("{content_path}.disabled")
+        };
+
+        println!("{:?}", &instance_path.join(content_path));
+
+        io::rename(
+            &instance_path.join(content_path),
+            &instance_path.join(&new_path),
+        )
+        .await?;
+
+        Ok(new_path)
+    }
+
+    pub async fn remove_content(id: &str, content_path: &str) -> crate::Result<()> {
+        if let Ok(path) = crate::api::instance::get_dir(id).await {
+            io::remove_file(path.join(content_path)).await?;
+        }
+
+        Ok(())
     }
 }

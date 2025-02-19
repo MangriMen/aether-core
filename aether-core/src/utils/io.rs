@@ -101,3 +101,27 @@ pub fn canonicalize(path: impl AsRef<std::path::Path>) -> Result<std::path::Path
         path: path.to_string_lossy().to_string(),
     })
 }
+
+pub async fn rename(
+    from: impl AsRef<std::path::Path>,
+    to: impl AsRef<std::path::Path>,
+) -> Result<(), IOError> {
+    let from = from.as_ref();
+    let to = to.as_ref();
+    tokio::fs::rename(from, to)
+        .await
+        .map_err(|e| IOError::IOPathError {
+            source: e,
+            path: from.to_string_lossy().to_string(),
+        })
+}
+
+pub async fn remove_file(path: impl AsRef<std::path::Path>) -> Result<(), IOError> {
+    let path = path.as_ref();
+    tokio::fs::remove_file(path)
+        .await
+        .map_err(|e| IOError::IOPathError {
+            source: e,
+            path: path.to_string_lossy().to_string(),
+        })
+}
