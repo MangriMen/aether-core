@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use crate::state::LauncherState;
 
 #[async_trait]
-pub trait InstancePlugin: Send + Sync {
+pub trait _LauncherPlugin: Send + Sync {
     fn get_id(&self) -> String;
     fn get_name(&self) -> String;
     fn get_description(&self) -> String;
@@ -20,7 +20,7 @@ pub trait InstancePlugin: Send + Sync {
     async fn clear_cache(&self) -> crate::Result<()>;
 }
 
-impl dyn InstancePlugin {
+impl dyn _LauncherPlugin {
     pub async fn get_plugin_dir(&self) -> crate::Result<PathBuf> {
         let state = LauncherState::get().await?;
         Ok(state.locations.plugin_dir(&self.get_id()))
@@ -31,7 +31,7 @@ impl dyn InstancePlugin {
     }
 }
 
-impl fmt::Debug for dyn InstancePlugin {
+impl fmt::Debug for dyn _LauncherPlugin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

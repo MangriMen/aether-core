@@ -96,6 +96,9 @@ pub enum ErrorKind {
     #[error("Plugin not found error: {0}")]
     PluginNotFoundError(String),
 
+    #[error("Plugin load error: {0}")]
+    PluginLoadError(String),
+
     #[error("Plugin error ({0}): {1}")]
     PluginError(String, String),
 

@@ -25,7 +25,7 @@ use crate::{
     },
 };
 
-use super::InstancePlugin;
+use super::_LauncherPlugin;
 
 pub struct PackwizPlugin {
     pub id: String,
@@ -124,7 +124,7 @@ impl PackwizPlugin {
     };
 
     fn get_instance_settings_file(&self, folder: &Path) -> PathBuf {
-        <dyn InstancePlugin>::get_instance_plugin_dir(self, folder).join("packwiz.toml")
+        <dyn _LauncherPlugin>::get_instance_plugin_dir(self, folder).join("packwiz.toml")
     }
 
     async fn get_pack_from_url_or_path(
@@ -194,7 +194,7 @@ impl PackwizPlugin {
         const JAVA_VERSION: u32 = 8;
         let java = api::jre::get_or_download_java(JAVA_VERSION).await?;
 
-        let plugin_dir = <dyn InstancePlugin>::get_plugin_dir(self).await?;
+        let plugin_dir = <dyn _LauncherPlugin>::get_plugin_dir(self).await?;
 
         let packwiz_installer_paths = (
             plugin_dir.join(Self::PACKWIZ_INSTALLER_NAME),
@@ -253,7 +253,7 @@ impl PackwizPlugin {
     }
 
     async fn download_redistributable(&self, state: &LauncherState) -> crate::Result<()> {
-        let plugin_dir = <dyn InstancePlugin>::get_plugin_dir(self).await?;
+        let plugin_dir = <dyn _LauncherPlugin>::get_plugin_dir(self).await?;
 
         let redistributable_paths: std::collections::HashMap<&str, PathBuf> =
             Self::REDISTRIBUTABLE_FILES
@@ -364,7 +364,7 @@ impl PackwizPlugin {
     }
 
     async fn init_command(&self, state: &LauncherState) -> crate::Result<()> {
-        let plugin_dir = <dyn InstancePlugin>::get_plugin_dir(self).await?;
+        let plugin_dir = <dyn _LauncherPlugin>::get_plugin_dir(self).await?;
 
         if !plugin_dir.exists() || plugin_dir.metadata().is_err() {
             log::debug!("Creating plugin directory");
@@ -379,16 +379,10 @@ impl PackwizPlugin {
     async fn import_pack_command(&self, state: &LauncherState, path: String) -> crate::Result<()> {
         let packwiz_pack = self.get_pack_from_url_or_path(state, &path).await?;
 
-        println!("1");
-
-        println!("1");
-
         let (instance_id, instance_folder) =
             self.create_instance_from_pack(&packwiz_pack, &path).await?;
-        println!("2");
 
         self.update_pack(instance_id, &instance_folder).await?;
-        println!("3");
 
         Ok(())
     }
@@ -402,7 +396,7 @@ impl PackwizPlugin {
     }
 
     async fn clear_cache_command(&self) -> crate::Result<()> {
-        let plugin_dir = <dyn InstancePlugin>::get_plugin_dir(self).await?;
+        let plugin_dir = <dyn _LauncherPlugin>::get_plugin_dir(self).await?;
 
         remove_dir_all(plugin_dir).await?;
 
@@ -411,7 +405,7 @@ impl PackwizPlugin {
 }
 
 #[async_trait]
-impl InstancePlugin for PackwizPlugin {
+impl _LauncherPlugin for PackwizPlugin {
     fn get_id(&self) -> String {
         self.id.clone()
     }

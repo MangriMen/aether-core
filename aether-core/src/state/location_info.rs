@@ -11,8 +11,6 @@ pub struct LocationInfo {
 
     /// Changeable through settings
     pub config_dir: PathBuf, // Config directory - instances, minecraft files, etc.
-
-    pub plugins_dir: PathBuf,
 }
 
 impl LocationInfo {
@@ -116,6 +114,16 @@ impl LocationInfo {
     #[inline]
     pub fn plugin_dir(&self, id: &str) -> PathBuf {
         self.plugins_dir().join(id)
+    }
+
+    #[inline]
+    pub fn plugin_settings(&self, id: &str) -> PathBuf {
+        self.plugin_dir(id).join("settings.toml")
+    }
+
+    #[inline]
+    pub fn plugin_cache_dir(&self, id: &str) -> PathBuf {
+        self.cache_dir().join("plugins").join(id)
     }
 
     /// Get the directory for a specific plugin inside an instance

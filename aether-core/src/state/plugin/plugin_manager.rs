@@ -1,74 +1,33 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
-use super::{InstancePlugin, InstancePluginMetadata, PackwizPlugin};
+use super::PluginState;
 
-#[derive(Debug)]
-pub struct PluginState {
-    pub metadata: InstancePluginMetadata,
-    pub plugin: Box<dyn InstancePlugin>,
-}
-
-impl PluginState {
-    pub fn new(plugin: Box<dyn InstancePlugin>) -> Self {
-        Self {
-            metadata: InstancePluginMetadata { is_loaded: false },
-            plugin,
-        }
-    }
-
-    async fn enable(&mut self) -> crate::Result<()> {
-        self.plugin.init().await?;
-        self.metadata.is_loaded = true;
-
-        Ok(())
-    }
-
-    async fn disable(&mut self) -> crate::Result<()> {
-        self.plugin.unload().await?;
-        self.metadata.is_loaded = false;
-
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PluginManager {
-    pub plugins: HashMap<String, PluginState>,
-}
-
-impl Default for PluginManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    plugins: HashMap<String, PluginState>,
 }
 
 impl PluginManager {
-    pub fn new() -> Self {
-        Self {
-            plugins: HashMap::new(),
+    pub async fn scan_plugins(&mut self, path: &Path) -> crate::Result<()> {
+        let mut stream = tokio::fs::read_dir(path).await?;
+
+        while let Some(dir) = &stream.next_entry().await? {
+            match PluginState::from_dir(&dir.path()) {
+                Ok(plugin_state) => {
+                    self.plugins
+                        .insert(plugin_state.metadata.plugin.id.clone(), plugin_state);
+                }
+                Err(e) => {
+                    log::debug!("Failed to load plugin: {}\n{e}", dir.path().display());
+                }
+            }
         }
+
+        Ok(())
     }
 
-    fn plugin_state_from_plugin(plugin: Box<dyn InstancePlugin>) -> (String, PluginState) {
-        (plugin.get_id().to_string(), PluginState::new(plugin))
-    }
-
-    pub fn scan_plugins(
-        &mut self,
-        //  _path: &PathBuf
-    ) {
-        let found_plugins: Vec<Box<dyn InstancePlugin>> = vec![Box::new(PackwizPlugin {
-            id: "packwiz".to_string(),
-            name: "Packwiz".to_string(),
-            description: "A plugin for managing packs".to_string(),
-        })];
-
-        let plugins: HashMap<String, PluginState> = found_plugins
-            .into_iter()
-            .map(PluginManager::plugin_state_from_plugin)
-            .collect();
-
-        self.plugins = plugins;
+    pub fn get_plugins(&self) -> impl Iterator<Item = &PluginState> {
+        self.plugins.values()
     }
 
     pub fn get_plugin(&self, plugin: &str) -> crate::Result<&PluginState> {
@@ -83,17 +42,11 @@ impl PluginManager {
         })
     }
 
-    pub async fn enable_plugin(&mut self, plugin: String) -> crate::Result<()> {
-        let plugin = self.get_plugin_mut(&plugin)?;
-        plugin.enable().await?;
-
-        Ok(())
+    pub async fn load_plugin(&mut self, plugin: &str) -> crate::Result<()> {
+        self.get_plugin_mut(plugin)?.load().await
     }
 
-    pub async fn disable_plugin(&mut self, plugin: String) -> crate::Result<()> {
-        let plugin = self.get_plugin_mut(&plugin)?;
-        plugin.disable().await?;
-
-        Ok(())
+    pub async fn unload_plugin(&mut self, plugin: &str) -> crate::Result<()> {
+        self.get_plugin_mut(plugin)?.unload().await
     }
 }

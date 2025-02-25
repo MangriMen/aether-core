@@ -14,6 +14,7 @@ pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
     run_credentials(name, &default_account).await
 }
 
+#[tracing::instrument]
 pub async fn run_credentials(
     id: &str,
     credentials: &state::Credentials,

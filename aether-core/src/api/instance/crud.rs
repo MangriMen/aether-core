@@ -141,23 +141,28 @@ pub async fn edit(
     .await
 }
 
+#[tracing::instrument]
 pub async fn get_dir(id: &str) -> crate::Result<PathBuf> {
     let state = LauncherState::get().await?;
     Ok(state.locations.instance_dir(id))
 }
 
+#[tracing::instrument]
 pub async fn get_file_path(id: &str) -> crate::Result<PathBuf> {
     Ok(get_dir(id).await?.join("instance.json"))
 }
 
+#[tracing::instrument]
 pub async fn get_by_path(path: &Path) -> crate::Result<Instance> {
     read_json_async(&path).await
 }
 
+#[tracing::instrument]
 pub async fn get(id: &str) -> crate::Result<Instance> {
     get_by_path(&get_file_path(id).await?).await
 }
 
+#[tracing::instrument]
 pub async fn get_all() -> crate::Result<(Vec<Instance>, Vec<crate::Error>)> {
     let state = LauncherState::get().await?;
 
@@ -191,6 +196,7 @@ pub async fn get_all() -> crate::Result<(Vec<Instance>, Vec<crate::Error>)> {
     Ok((instances, instances_errors))
 }
 
+#[tracing::instrument]
 pub async fn remove(id: &str) -> crate::Result<()> {
     let instance = get(id).await?;
     instance.remove().await?;
