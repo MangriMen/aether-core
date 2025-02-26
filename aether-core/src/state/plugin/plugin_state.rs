@@ -113,15 +113,27 @@ impl PluginState {
         let mut allowed_paths = self.metadata.wasm.allowed_paths.clone().unwrap_or_default();
 
         if let Some(settings) = settings {
-            allowed_hosts.extend_from_slice(&settings.allowed_hosts);
-            allowed_paths.extend_from_slice(&settings.allowed_paths);
+            if let Some(hosts) = &settings.allowed_hosts {
+                allowed_hosts.extend_from_slice(hosts);
+            }
+            if let Some(paths) = &settings.allowed_paths {
+                allowed_paths.extend_from_slice(paths);
+            }
         }
 
-        Manifest::new([file])
+        let mut manifest = Manifest::new([file])
             .with_allowed_path(cache_dir.to_string_lossy().to_string(), "/cache")
-            .with_allowed_path(instances_dir.to_string_lossy().to_string(), "/instances/*")
-            .with_allowed_hosts(allowed_hosts.into_iter())
-            .with_allowed_paths(allowed_paths.into_iter())
+            .with_allowed_path(instances_dir.to_string_lossy().to_string(), "/instances/*");
+
+        if !allowed_hosts.is_empty() {
+            manifest = manifest.with_allowed_hosts(allowed_hosts.into_iter());
+        }
+
+        if !allowed_paths.is_empty() {
+            manifest = manifest.with_allowed_paths(allowed_paths.into_iter());
+        }
+
+        manifest
     }
 
     fn load_wasm_plugin(

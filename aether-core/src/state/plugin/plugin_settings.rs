@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
 pub struct PluginSettings {
-    pub allowed_hosts: Vec<String>,
-    pub allowed_paths: Vec<(String, PathBuf)>,
+    pub allowed_hosts: Option<Vec<String>>,
+    pub allowed_paths: Option<Vec<(String, PathBuf)>>,
 }
 
 impl PluginSettings {
