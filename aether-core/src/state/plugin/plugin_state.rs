@@ -12,28 +12,11 @@ pub struct PluginContext {
     pub id: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PluginState {
     pub dir: PathBuf,
     pub metadata: PluginMetadata,
     plugin: Option<std::sync::Arc<Mutex<LauncherPlugin>>>,
-}
-
-impl Drop for PluginState {
-    fn drop(&mut self) {
-        let plugin_state = std::sync::Arc::new(Mutex::new(std::mem::take(self)));
-        tokio::task::spawn_blocking(move || {
-            tokio::task::block_in_place(|| {
-                let plugin_state = plugin_state.clone();
-
-                let mut plugin_state =
-                    tokio::runtime::Handle::current().block_on(plugin_state.lock());
-                tokio::runtime::Handle::current()
-                    .block_on(plugin_state.unload())
-                    .unwrap();
-            });
-        });
-    }
 }
 
 impl PluginState {
@@ -62,6 +45,22 @@ impl PluginState {
             super::host_functions::log_debug,
         );
 
+        let instance_get_dir_fn = extism::Function::new(
+            "instance_get_dir",
+            [extism::PTR],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            super::host_functions::instance_get_dir,
+        );
+
+        let instance_plugin_get_dir_fn = extism::Function::new(
+            "instance_plugin_get_dir",
+            [extism::PTR],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            super::host_functions::instance_plugin_get_dir,
+        );
+
         let download_file_fn = extism::Function::new(
             "download_file",
             [extism::PTR, extism::PTR],
@@ -70,16 +69,8 @@ impl PluginState {
             super::host_functions::download_file,
         );
 
-        let file_exists_fn = extism::Function::new(
-            "file_exists",
-            [extism::PTR],
-            [extism::ValType::I64],
-            extism::UserData::new(context.clone()),
-            super::host_functions::file_exists,
-        );
-
-        let create_instance_fn = extism::Function::new(
-            "create_instance",
+        let instance_create_fn = extism::Function::new(
+            "instance_create",
             [
                 extism::PTR,
                 extism::PTR,
@@ -88,16 +79,35 @@ impl PluginState {
                 extism::PTR,
                 extism::PTR,
             ],
-            [],
+            [extism::PTR],
             extism::UserData::new(context.clone()),
-            super::host_functions::create_instance,
+            super::host_functions::instance_create,
+        );
+
+        let get_or_download_java_fn = extism::Function::new(
+            "get_or_download_java",
+            [extism::PTR],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            super::host_functions::get_or_download_java,
+        );
+
+        let run_command_fn = extism::Function::new(
+            "run_command",
+            [extism::PTR, extism::PTR],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            super::host_functions::run_command,
         );
 
         vec![
             log_debug_fn,
+            instance_get_dir_fn,
+            instance_plugin_get_dir_fn,
             download_file_fn,
-            file_exists_fn,
-            create_instance_fn,
+            instance_create_fn,
+            get_or_download_java_fn,
+            run_command_fn,
         ]
     }
 
@@ -187,8 +197,6 @@ impl PluginState {
             }
         }
 
-        self.call().await;
-
         Ok(())
     }
 
@@ -214,15 +222,5 @@ impl PluginState {
 
     pub fn get_plugin(&mut self) -> Option<std::sync::Arc<Mutex<LauncherPlugin>>> {
         self.plugin.clone()
-    }
-
-    pub async fn call(&self) {
-        if let Some(plugin) = &self.plugin {
-            let mut plugin = plugin.lock().await;
-
-            if let Err(res) = plugin.call(()) {
-                log::debug!("Failed to call plugin: {}", res);
-            }
-        }
     }
 }

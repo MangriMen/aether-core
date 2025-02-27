@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::state::{settings, LauncherState, PluginMetadata, PluginSettings};
+use crate::state::{LauncherState, PluginMetadata, PluginSettings};
 
 #[tracing::instrument]
 pub async fn scan() -> crate::Result<()> {
@@ -21,6 +21,14 @@ pub async fn list() -> crate::Result<Vec<PluginMetadata>> {
         .get_plugins()
         .map(|value| value.metadata.clone())
         .collect())
+}
+
+#[tracing::instrument]
+pub async fn get(id: &str) -> crate::Result<PluginMetadata> {
+    let state = LauncherState::get().await?;
+    let plugin_manager = state.plugin_manager.read().await;
+
+    Ok(plugin_manager.get_plugin(id)?.metadata.clone())
 }
 
 #[tracing::instrument]
@@ -60,7 +68,7 @@ pub async fn call(id: &str, data: &str) -> crate::Result<()> {
     let state = LauncherState::get().await?;
     let plugin_manager = state.plugin_manager.read().await;
 
-    let plugin = plugin_manager.get_plugin(id)?;
+    let _plugin = plugin_manager.get_plugin(id)?;
 
     log::debug!("Calling plugin {:?}", id);
     // plugin.plugin.call(data).await?;

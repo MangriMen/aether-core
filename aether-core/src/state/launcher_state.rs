@@ -1,4 +1,4 @@
-use std::{backtrace, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use tokio::sync::{OnceCell, RwLock, Semaphore};
 

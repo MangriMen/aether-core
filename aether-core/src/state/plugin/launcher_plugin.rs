@@ -2,7 +2,8 @@ extism::typed_plugin!(
   pub LauncherPlugin {
   on_load(()) -> ();
   on_unload(()) ->  ();
-  call(()) -> ();
+  import(String) -> String;
+  // get_import_handler(()) -> String;
 });
 
 impl std::fmt::Debug for LauncherPlugin {

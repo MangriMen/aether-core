@@ -408,7 +408,7 @@ pub async fn download_native_library_files(
     library: &minecraft::Library,
     version_info: &minecraft::VersionInfo,
     java_arch: &str,
-    force: bool,
+    _force: bool,
 ) -> crate::Result<()> {
     use crate::utils::platform::OsExt;
     use minecraft::Os;

@@ -57,6 +57,7 @@ dependencies = [
  "dashmap",
  "dunce",
  "extism",
+ "extism-convert",
  "futures",
  "indicatif",
  "lazy_static",

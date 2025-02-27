@@ -61,8 +61,11 @@ pub enum ErrorKind {
     #[error("Error acquiring semaphore: {0}")]
     AcquireError(#[from] tokio::sync::AcquireError),
 
-    #[error("Profile {0} is not managed by the app!")]
+    #[error("Instance {0} is not managed by the app!")]
     UnmanagedProfileError(String),
+
+    #[error("Instance import error: {0}")]
+    InstanceImportError(String),
 
     // #[error("Could not create profile: {0}")]
     // ProfileCreationError(#[from] instance::create::ProfileCreationError),

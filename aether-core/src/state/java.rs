@@ -1,4 +1,8 @@
-#[derive(Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Clone)]
+use extism::ToBytes;
+use extism_convert::Json;
+
+#[derive(Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Clone, ToBytes)]
+#[encoding(Json)]
 pub struct Java {
     pub major_version: u32,
     pub version: String,

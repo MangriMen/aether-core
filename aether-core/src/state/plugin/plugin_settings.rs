@@ -12,6 +12,15 @@ impl PluginSettings {
             return Ok(None);
         }
 
-        crate::utils::io::read_toml_async(path).await
+        let settings: PluginSettings = crate::utils::io::read_toml_async(path).await?;
+
+        // settings.allowed_paths = settings
+        //     .allowed_paths
+        //     .iter()
+        //     .filter(|(src, dest)| dest.exists())
+        //     .cloned()
+        //     .collect();
+
+        Ok(Some(settings))
     }
 }
