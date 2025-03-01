@@ -105,6 +105,9 @@ pub enum ErrorKind {
     #[error("Plugin error ({0}): {1}")]
     PluginError(String, String),
 
+    #[error("Plugin {0} tried to access disallowed path {1}")]
+    PluginNotAllowedPathError(String, String),
+
     #[error("Serialization error (TOML): {0}")]
     TomlSerializationError(#[from] toml::ser::Error),
 

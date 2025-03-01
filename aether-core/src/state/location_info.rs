@@ -138,4 +138,14 @@ impl LocationInfo {
     pub fn crash_reports_dir(&self, id: &str) -> PathBuf {
         self.instance_dir(id).join("crash-reports")
     }
+
+    #[inline]
+    pub fn wasm_cache_config(&self) -> PathBuf {
+        self.config_dir.join("wasm.toml")
+    }
+
+    #[inline]
+    pub fn wasm_cache_dir(&self) -> PathBuf {
+        self.cache_dir().join("wasm")
+    }
 }

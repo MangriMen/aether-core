@@ -1,11 +1,28 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
-use extism::{Manifest, Plugin, Wasm};
+use bytes::Bytes;
+use extism::{Manifest, PluginBuilder, Wasm};
 use tokio::sync::Mutex;
 
-use crate::state::LauncherState;
+use crate::{state::LauncherState, utils::file::sha1_async};
 
-use super::{LauncherPlugin, PluginMetadata, PluginSettings};
+use super::{LauncherPlugin, PluginMetadata, PluginSettings, WasmCache, WasmCacheConfig};
+
+pub fn get_default_allowed_paths(
+    state: &LauncherState,
+    plugin_id: &str,
+) -> HashMap<String, PathBuf> {
+    HashMap::from([
+        (
+            "/cache".to_owned(),
+            state.locations.plugin_cache_dir(plugin_id),
+        ),
+        ("/instances".to_owned(), state.locations.instances_dir()),
+    ])
+}
 
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PluginContext {
@@ -16,18 +33,25 @@ pub struct PluginContext {
 pub struct PluginState {
     pub dir: PathBuf,
     pub metadata: PluginMetadata,
+    pub plugin_hash: String,
     plugin: Option<std::sync::Arc<Mutex<LauncherPlugin>>>,
 }
 
 impl PluginState {
-    pub fn from_dir(dir: &Path) -> crate::Result<Self> {
+    pub async fn from_dir(dir: &Path) -> crate::Result<Self> {
         let plugin_metadata_path = dir.join("plugin.toml");
         let metadata_string = std::fs::read_to_string(&plugin_metadata_path)
             .map_err(|e| crate::utils::io::IOError::with_path(e, &plugin_metadata_path))?;
         let metadata = toml::from_str::<PluginMetadata>(&metadata_string)?;
+
+        let plugin_file = crate::utils::io::read_async(dir.join(&metadata.wasm.file)).await?;
+        let plugin_file_bytes: Bytes = bytes::Bytes::from(plugin_file);
+        let plugin_hash = sha1_async(plugin_file_bytes).await?;
+
         Ok(Self {
             dir: dir.to_path_buf(),
             metadata,
+            plugin_hash,
             plugin: None,
         })
     }
@@ -37,12 +61,12 @@ impl PluginState {
             id: self.metadata.plugin.id.to_string(),
         };
 
-        let log_debug_fn = extism::Function::new(
-            "log_debug",
-            [extism::PTR],
+        let log_fn = extism::Function::new(
+            "log",
+            [extism::ValType::I64, extism::PTR],
             [],
             extism::UserData::new(context.clone()),
-            super::host_functions::log_debug,
+            super::host_functions::log,
         );
 
         let instance_get_dir_fn = extism::Function::new(
@@ -59,14 +83,6 @@ impl PluginState {
             [extism::PTR],
             extism::UserData::new(context.clone()),
             super::host_functions::instance_plugin_get_dir,
-        );
-
-        let download_file_fn = extism::Function::new(
-            "download_file",
-            [extism::PTR, extism::PTR],
-            [],
-            extism::UserData::new(context.clone()),
-            super::host_functions::download_file,
         );
 
         let instance_create_fn = extism::Function::new(
@@ -87,24 +103,23 @@ impl PluginState {
         let get_or_download_java_fn = extism::Function::new(
             "get_or_download_java",
             [extism::PTR],
-            [extism::PTR],
+            [extism::ValType::I64],
             extism::UserData::new(context.clone()),
             super::host_functions::get_or_download_java,
         );
 
         let run_command_fn = extism::Function::new(
             "run_command",
-            [extism::PTR, extism::PTR],
+            [extism::PTR],
             [extism::PTR],
             extism::UserData::new(context.clone()),
             super::host_functions::run_command,
         );
 
         vec![
-            log_debug_fn,
+            log_fn,
             instance_get_dir_fn,
             instance_plugin_get_dir_fn,
-            download_file_fn,
             instance_create_fn,
             get_or_download_java_fn,
             run_command_fn,
@@ -113,8 +128,7 @@ impl PluginState {
 
     fn get_manifest(
         &self,
-        cache_dir: &Path,
-        instances_dir: &Path,
+        default_allowed_paths: &Option<HashMap<String, PathBuf>>,
         settings: &Option<PluginSettings>,
     ) -> Manifest {
         let file = Wasm::file(self.dir.join(&self.metadata.wasm.file));
@@ -131,9 +145,13 @@ impl PluginState {
             }
         }
 
-        let mut manifest = Manifest::new([file])
-            .with_allowed_path(cache_dir.to_string_lossy().to_string(), "/cache")
-            .with_allowed_path(instances_dir.to_string_lossy().to_string(), "/instances/*");
+        let mut manifest = Manifest::new([file]);
+
+        if let Some(default_allowed_paths) = default_allowed_paths {
+            for (path, host) in default_allowed_paths {
+                manifest = manifest.with_allowed_path(host.to_string_lossy().to_string(), path);
+            }
+        }
 
         if !allowed_hosts.is_empty() {
             manifest = manifest.with_allowed_hosts(allowed_hosts.into_iter());
@@ -148,14 +166,23 @@ impl PluginState {
 
     fn load_wasm_plugin(
         &self,
-        cache_dir: &Path,
-        instances_dir: &Path,
+        cache_dir: &Option<PathBuf>,
+        default_allowed_paths: &Option<HashMap<String, PathBuf>>,
         settings: &Option<PluginSettings>,
     ) -> crate::Result<LauncherPlugin> {
-        let manifest = self.get_manifest(cache_dir, instances_dir, settings);
+        let manifest = self.get_manifest(default_allowed_paths, settings);
 
         let path = &self.dir.join(&self.metadata.wasm.file);
-        let plugin: LauncherPlugin = Plugin::new(&manifest, self.get_host_functions(), true)
+        let mut builder = PluginBuilder::new(&manifest)
+            .with_functions(self.get_host_functions())
+            .with_wasi(true);
+
+        if let Some(cache_dir) = cache_dir {
+            builder = builder.with_cache_config(cache_dir);
+        }
+
+        let plugin = builder
+            .build()
             .map_err(|e| {
                 log::debug!("Failed to load plugin: {:?}", e);
                 crate::ErrorKind::PluginLoadError(path.to_string_lossy().to_string()).as_error()
@@ -175,17 +202,38 @@ impl PluginState {
         }
 
         let state = LauncherState::get().await?;
-        let plugin_cache_dir = &state.locations.plugin_cache_dir(&self.metadata.plugin.id);
-        let instances_dir = &state.locations.instances_dir();
-
-        tokio::fs::create_dir_all(plugin_cache_dir).await?;
-        tokio::fs::create_dir_all(instances_dir).await?;
 
         let plugin_settings =
             PluginSettings::from_path(&state.locations.plugin_settings(&self.metadata.plugin.id))
                 .await?;
 
-        let plugin = self.load_wasm_plugin(plugin_cache_dir, instances_dir, &plugin_settings)?;
+        let default_allowed_paths = get_default_allowed_paths(&state, &self.metadata.plugin.id);
+
+        for (_, host) in default_allowed_paths.iter() {
+            tokio::fs::create_dir_all(host).await?;
+        }
+
+        let cache_config = state.locations.wasm_cache_config();
+        if !cache_config.exists() {
+            let cache_dir = state.locations.wasm_cache_dir();
+
+            let cache = WasmCache {
+                enabled: true,
+                cleanup_interval: "30m".to_owned(),
+                files_total_size_soft_limit: "1Gi".to_owned(),
+                directory: cache_dir.clone(),
+            };
+            let config = WasmCacheConfig { cache };
+
+            crate::utils::io::write_toml_async(&cache_config, config).await?;
+            tokio::fs::create_dir_all(&cache_dir).await?;
+        }
+
+        let plugin = self.load_wasm_plugin(
+            &Some(cache_config),
+            &Some(default_allowed_paths),
+            &plugin_settings,
+        )?;
 
         self.plugin = Some(std::sync::Arc::new(Mutex::new(plugin)));
 

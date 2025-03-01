@@ -19,7 +19,7 @@ impl PluginManager {
         let mut found_plugins = HashMap::new();
 
         while let Some(dir) = stream.next_entry().await? {
-            match PluginState::from_dir(&dir.path()) {
+            match PluginState::from_dir(&dir.path()).await {
                 Ok(plugin_state) => {
                     found_plugins.insert(plugin_state.metadata.plugin.id.clone(), plugin_state);
                 }
@@ -41,7 +41,7 @@ impl PluginManager {
         for plugin in &existing_plugins & &new_plugins {
             if let (Some(old), Some(new)) = (self.plugins.get(&plugin), found_plugins.get(&plugin))
             {
-                if old.metadata != new.metadata {
+                if old.metadata != new.metadata || old.plugin_hash != new.plugin_hash {
                     changed_plugins.insert(plugin.clone());
                 }
             }
@@ -54,17 +54,20 @@ impl PluginManager {
 
         // Removing old plugins
         for plugin in &existing_plugins - &new_plugins {
+            log::debug!("Removing plugin {plugin}");
             self.remove_plugin(&plugin).await?;
         }
 
         // Removing changed plugins
         for plugin in &changed_plugins {
+            log::debug!("Removing change plugin {plugin}");
             self.remove_plugin(plugin).await?;
         }
 
         // Adding new or changed plugins
         for plugin in &plugins_to_add {
             if let Some(plugin_state) = found_plugins.get(plugin) {
+                log::debug!("Adding plugin {plugin}");
                 self.plugins.insert(plugin.clone(), plugin_state.clone());
             }
         }
