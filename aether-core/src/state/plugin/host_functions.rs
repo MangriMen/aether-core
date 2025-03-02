@@ -5,9 +5,7 @@ use path_slash::PathBufExt;
 use reqwest::Method;
 
 use crate::{
-    state::{
-        InstancePluginSettings, LauncherState, ModLoader, SerializableCommand, SerializableOutput,
-    },
+    state::{LauncherState, ModLoader, SerializableCommand, SerializableOutput},
     utils::plugin::log_level_from_u32,
 };
 
@@ -97,13 +95,10 @@ pub instance_create(
     icon_path: Option<String>,
     skip_install_instance: Option<i64>
 ) -> extism::Result<String> {
-    let context = user_data.get().unwrap();
-    let id = context.lock().unwrap().id.to_string();
+    let context = user_data.get()?;
+    let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
 
     let mod_loader = ModLoader::from_string(&mod_loader);
-    let instance_plugin_settings = InstancePluginSettings {
-        pre_launch:Some(id)
-    };
 
     let res =
         tokio::task::block_in_place(|| {
@@ -115,7 +110,7 @@ pub instance_create(
                     loader_version,
                     icon_path,
                     skip_install_instance.map(|x| x != 0),
-                    Some(instance_plugin_settings)
+                    Some(id.to_string())
                 )
             )
         })?;
@@ -158,3 +153,36 @@ pub run_command(user_data: PluginContext; command: SerializableCommand) -> extis
 
     Ok(SerializableOutput::from_output(&output))
 });
+
+// host_fn!(
+// pub get_contents(user_data: PluginContext; id: String) -> extism::Result<DashMap<String, InstanceFile>> {
+//     let res = tokio::task::block_in_place(|| {
+//         tokio::runtime::Handle::current().block_on(
+//             crate::api::instance::get_contents(&id)
+//         )
+//     })?;
+
+//     Ok(res)
+// });
+
+// host_fn!(
+// pub enable_contents(user_data: PluginContext; instance_id: String, content_paths: Vec<String>) -> extism::Result<()> {
+//     let res = tokio::task::block_in_place(|| {
+//         tokio::runtime::Handle::current().block_on(
+//             crate::api::instance::disable_contents(&instance_id, content_paths)
+//         )
+//     })?;
+
+//     Ok(res)
+// });
+
+// host_fn!(
+// pub disable_contents(user_data: PluginContext; instance_id: String, content_paths: Vec<String>) -> extism::Result<()> {
+//     let res = tokio::task::block_in_place(|| {
+//         tokio::runtime::Handle::current().block_on(
+//             crate::api::instance::disable_contents(&instance_id, content_paths)
+//         )
+//     })?;
+
+//     Ok(res)
+// });

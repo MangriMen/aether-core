@@ -181,17 +181,12 @@ impl PluginState {
             builder = builder.with_cache_config(cache_dir);
         }
 
-        let plugin = builder
-            .build()
-            .map_err(|e| {
-                log::debug!("Failed to load plugin: {:?}", e);
-                crate::ErrorKind::PluginLoadError(path.to_string_lossy().to_string()).as_error()
-            })?
-            .try_into()
-            .map_err(|e| {
-                log::debug!("Failed to load plugin: {:?}", e);
-                crate::ErrorKind::PluginLoadError(path.to_string_lossy().to_string()).as_error()
-            })?;
+        let inner_plugin = builder.build().map_err(|e| {
+            log::debug!("Failed to load plugin: {:?}", e);
+            crate::ErrorKind::PluginLoadError(path.to_string_lossy().to_string()).as_error()
+        })?;
+
+        let plugin = LauncherPlugin::from_plugin(inner_plugin, &self.metadata.plugin.id)?;
 
         Ok(plugin)
     }
@@ -240,7 +235,7 @@ impl PluginState {
         if let Some(plugin) = &self.plugin {
             let mut plugin = plugin.lock().await;
 
-            if let Err(res) = plugin.on_load(()) {
+            if let Err(res) = plugin.on_load() {
                 log::debug!("Failed to initialize plugin: {}", res);
             }
         }
@@ -252,7 +247,7 @@ impl PluginState {
         if let Some(plugin) = &self.plugin {
             let mut plugin = plugin.lock().await;
 
-            if let Err(res) = plugin.on_load(()) {
+            if let Err(res) = plugin.on_unload() {
                 log::debug!("Failed to unload plugin: {}", res);
             }
 
@@ -268,7 +263,7 @@ impl PluginState {
         self.plugin.is_some()
     }
 
-    pub fn get_plugin(&mut self) -> Option<std::sync::Arc<Mutex<LauncherPlugin>>> {
+    pub fn get_plugin(&self) -> Option<std::sync::Arc<Mutex<LauncherPlugin>>> {
         self.plugin.clone()
     }
 }

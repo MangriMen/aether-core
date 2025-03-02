@@ -105,6 +105,9 @@ pub enum ErrorKind {
     #[error("Plugin error ({0}): {1}")]
     PluginError(String, String),
 
+    #[error("Plugin call error ({0}): {1}")]
+    PluginCallError(String, extism::Error),
+
     #[error("Plugin {0} tried to access disallowed path {1}")]
     PluginNotAllowedPathError(String, String),
 

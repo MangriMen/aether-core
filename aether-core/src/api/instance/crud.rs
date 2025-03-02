@@ -14,9 +14,7 @@ use tokio::fs;
 
 use crate::{
     api::instance::get_instance_path_without_duplicate,
-    state::{
-        Hooks, InstanceInstallStage, InstancePluginSettings, MemorySettings, ModLoader, WindowSize,
-    },
+    state::{Hooks, InstanceInstallStage, MemorySettings, ModLoader, WindowSize},
 };
 
 #[tracing::instrument]
@@ -27,7 +25,7 @@ pub async fn create(
     loader_version: Option<String>,
     icon_path: Option<String>,
     skip_install_instance: Option<bool>,
-    plugin: Option<InstancePluginSettings>,
+    pack_type: Option<String>,
 ) -> crate::Result<String> {
     let state = LauncherState::get().await?;
 
@@ -77,7 +75,7 @@ pub async fn create(
 
         hooks: Hooks::default(),
 
-        plugin,
+        pack_type: None,
     };
 
     let result = async {
