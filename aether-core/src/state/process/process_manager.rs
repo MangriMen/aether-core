@@ -12,24 +12,12 @@ use crate::{
 
 use super::{MinecraftProcess, MinecraftProcessMetadata};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ProcessManager {
     processes: DashMap<Uuid, MinecraftProcess>,
 }
 
-impl Default for ProcessManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ProcessManager {
-    pub fn new() -> Self {
-        Self {
-            processes: DashMap::new(),
-        }
-    }
-
     pub async fn insert_new_process(
         &self,
         profile_path: &str,

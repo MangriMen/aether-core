@@ -3,6 +3,8 @@ use std::{future::Future, path::PathBuf};
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
 use dashmap::DashMap;
+use extism::{FromBytes, ToBytes};
+use extism_convert::{encoding, Json};
 use tokio::fs::remove_dir_all;
 
 use crate::{
@@ -13,9 +15,13 @@ use crate::{
 
 use super::{ContentType, InstanceInstallStage, ModLoader};
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-pub struct InstancePluginSettings {
-    pub pre_launch: Option<String>,
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, FromBytes)]
+#[encoding(Json)]
+#[serde(rename_all = "camelCase")]
+pub struct PackInfo {
+    pub pack_type: String,
+    pub pack_version: String,
+    pub can_update: bool,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -53,23 +59,16 @@ pub struct Instance {
     pub recent_time_played: u64,
 
     pub hooks: Hooks,
-    pub plugin: Option<InstancePluginSettings>,
+
+    pub pack_info: Option<PackInfo>,
 }
 
-// #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-// pub struct FileMetadata {
-//     pub project_id: String,
-//     pub version_id: String,
-// }
-
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToBytes)]
+#[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceFile {
-    // pub hash: String,
     pub file_name: String,
     pub size: u64,
-    // pub metadata: Option<FileMetadata>,
-    // pub update_version_id: Option<String>,
     pub content_type: ContentType,
     pub path: String,
     pub disabled: bool,
@@ -238,15 +237,44 @@ impl Instance {
     }
 
     pub async fn toggle_disable_content(id: &str, content_path: &str) -> crate::Result<String> {
+        let path = if content_path.ends_with(".disabled") {
+            Instance::enable_content(id, content_path).await
+        } else {
+            Instance::disable_content(id, content_path).await
+        }?;
+
+        if let Some(path) = path {
+            Ok(path)
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub async fn enable_content(id: &str, content_path: &str) -> crate::Result<Option<String>> {
+        if !content_path.ends_with(".disabled") {
+            return Ok(None);
+        }
+
+        let new_path = content_path.trim_end_matches(".disabled").to_string();
+
+        let instance_path = crate::api::instance::get_dir(id).await?;
+        io::rename(
+            &instance_path.join(content_path),
+            &instance_path.join(&new_path),
+        )
+        .await?;
+
+        Ok(Some(new_path))
+    }
+
+    pub async fn disable_content(id: &str, content_path: &str) -> crate::Result<Option<String>> {
         let instance_path = crate::api::instance::get_dir(id).await?;
 
-        let new_path = if content_path.ends_with(".disabled") {
-            content_path.trim_end_matches(".disabled").to_string()
-        } else {
-            format!("{content_path}.disabled")
-        };
+        if content_path.ends_with(".disabled") {
+            return Ok(None);
+        }
 
-        println!("{:?}", &instance_path.join(content_path));
+        let new_path = format!("{content_path}.disabled");
 
         io::rename(
             &instance_path.join(content_path),
@@ -254,7 +282,29 @@ impl Instance {
         )
         .await?;
 
-        Ok(new_path)
+        Ok(Some(new_path))
+    }
+
+    pub async fn enable_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
+    where
+        I: IntoIterator<Item = D>,
+        D: AsRef<str>,
+    {
+        for content_path in content_paths {
+            Instance::enable_content(id, content_path.as_ref()).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn disable_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
+    where
+        I: IntoIterator<Item = D>,
+        D: AsRef<str>,
+    {
+        for content_path in content_paths {
+            Instance::disable_content(id, content_path.as_ref()).await?;
+        }
+        Ok(())
     }
 
     pub async fn remove_content(id: &str, content_path: &str) -> crate::Result<()> {

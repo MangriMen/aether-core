@@ -61,8 +61,14 @@ pub enum ErrorKind {
     #[error("Error acquiring semaphore: {0}")]
     AcquireError(#[from] tokio::sync::AcquireError),
 
-    #[error("Profile {0} is not managed by the app!")]
+    #[error("Instance {0} is not managed by the app!")]
     UnmanagedProfileError(String),
+
+    #[error("Instance import error: {0}")]
+    InstanceImportError(String),
+
+    #[error("Instance update error: {0}")]
+    InstanceUpdateError(String),
 
     // #[error("Could not create profile: {0}")]
     // ProfileCreationError(#[from] instance::create::ProfileCreationError),
@@ -96,8 +102,17 @@ pub enum ErrorKind {
     #[error("Plugin not found error: {0}")]
     PluginNotFoundError(String),
 
+    #[error("Plugin load error: {0}")]
+    PluginLoadError(String),
+
     #[error("Plugin error ({0}): {1}")]
     PluginError(String, String),
+
+    #[error("Plugin call error ({0}): {1}")]
+    PluginCallError(String, extism::Error),
+
+    #[error("Plugin {0} tried to access disallowed path {1}")]
+    PluginNotAllowedPathError(String, String),
 
     #[error("Serialization error (TOML): {0}")]
     TomlSerializationError(#[from] toml::ser::Error),

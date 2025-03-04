@@ -26,3 +26,23 @@ pub async fn toggle_disable_content(id: &str, content_path: &str) -> crate::Resu
     emit_instance(id, InstancePayloadType::Edited).await?;
     Ok(res)
 }
+
+pub async fn enable_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
+where
+    I: IntoIterator<Item = D>,
+    D: AsRef<str>,
+{
+    Instance::enable_contents(id, content_paths).await?;
+    emit_instance(id, InstancePayloadType::Edited).await?;
+    Ok(())
+}
+
+pub async fn disable_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
+where
+    I: IntoIterator<Item = D>,
+    D: AsRef<str>,
+{
+    Instance::disable_contents(id, content_paths).await?;
+    emit_instance(id, InstancePayloadType::Edited).await?;
+    Ok(())
+}
