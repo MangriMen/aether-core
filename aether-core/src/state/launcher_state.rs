@@ -38,11 +38,14 @@ impl LauncherState {
         Ok(())
     }
 
+    #[tracing::instrument]
     pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAUNCHER_STATE.initialized() {
             tracing::error!(
-                "Attempted to get state before it is initialized - this should never happen!"
+                "Attempted to get state before it is initialized - this should never happen!\n{:?}",
+                std::backtrace::Backtrace::capture()
             );
+
             while !LAUNCHER_STATE.initialized() {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             }
@@ -65,7 +68,6 @@ impl LauncherState {
         let locations = LocationInfo {
             settings_dir: PathBuf::from(settings.launcher_dir.clone().unwrap()),
             config_dir: PathBuf::from(settings.metadata_dir.clone().unwrap()),
-            plugins_dir: PathBuf::from(settings.plugins_dir.clone().unwrap()),
         };
 
         log::info!("Initialize fetch semaphore");
@@ -75,14 +77,14 @@ impl LauncherState {
         let api_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
 
         log::info!("Initialize process manager");
-        let process_manager = ProcessManager::new();
+        let process_manager = ProcessManager::default();
 
         log::info!("Initialize file watcher");
         let file_watcher = fs_watcher::init_watcher().await?;
         fs_watcher::watch_instances(&file_watcher, &locations).await;
 
         log::info!("Initialize plugin manager");
-        let plugin_manager = RwLock::new(PluginManager::new());
+        let plugin_manager = RwLock::new(PluginManager::default());
 
         log::info!("State initialized");
 

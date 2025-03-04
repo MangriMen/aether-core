@@ -4,6 +4,7 @@ pub const METADATA_FOLDER_NAME: &str = ".minecraft";
 pub const CACHE_FOLDER_NAME: &str = "cache";
 pub const INSTANCES_FOLDER_NAME: &str = "instances";
 pub const PLUGIN_FOLDER_NAME: &str = "plugins";
+pub const INSTANCE_PLUGIN_FOLDER_NAME: &str = ".plugins";
 
 #[derive(Debug)]
 pub struct LocationInfo {
@@ -11,8 +12,6 @@ pub struct LocationInfo {
 
     /// Changeable through settings
     pub config_dir: PathBuf, // Config directory - instances, minecraft files, etc.
-
-    pub plugins_dir: PathBuf,
 }
 
 impl LocationInfo {
@@ -118,16 +117,36 @@ impl LocationInfo {
         self.plugins_dir().join(id)
     }
 
+    #[inline]
+    pub fn plugin_settings(&self, id: &str) -> PathBuf {
+        self.plugin_dir(id).join("settings.toml")
+    }
+
+    #[inline]
+    pub fn plugin_cache_dir(&self, id: &str) -> PathBuf {
+        self.cache_dir().join("plugins").join(id)
+    }
+
     /// Get the directory for a specific plugin inside an instance
     #[inline]
     pub fn instance_plugin_dir(&self, id: &str, plugin_id: &str) -> PathBuf {
         self.instance_dir(id)
-            .join(PLUGIN_FOLDER_NAME)
+            .join(INSTANCE_PLUGIN_FOLDER_NAME)
             .join(plugin_id)
     }
 
     #[inline]
     pub fn crash_reports_dir(&self, id: &str) -> PathBuf {
         self.instance_dir(id).join("crash-reports")
+    }
+
+    #[inline]
+    pub fn wasm_cache_config(&self) -> PathBuf {
+        self.config_dir.join("wasm.toml")
+    }
+
+    #[inline]
+    pub fn wasm_cache_dir(&self) -> PathBuf {
+        self.cache_dir().join("wasm")
     }
 }

@@ -18,7 +18,7 @@ use super::library::parse_rules;
 const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net/";
 const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
 
-#[tracing::instrument]
+#[tracing::instrument(skip(state, version_info))]
 pub async fn download_minecraft(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
@@ -96,7 +96,7 @@ pub async fn download_assets_index(
     Ok(res)
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all, fields(version = version.id.as_str() ,loader = ?loader))]
 pub async fn download_version_info(
     state: &LauncherState,
     version: &minecraft::Version,
@@ -151,7 +151,7 @@ pub async fn download_version_info(
     Ok(res)
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn download_client(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
@@ -200,7 +200,7 @@ pub async fn download_client(
     Ok(())
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn download_asset(
     state: &LauncherState,
     name: &String,
@@ -276,7 +276,7 @@ pub async fn download_asset(
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(state, index))]
 pub async fn download_assets(
     state: &LauncherState,
     index: &minecraft::AssetsIndex,
@@ -321,7 +321,7 @@ pub async fn download_assets(
     Ok(())
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn download_java_library(
     state: &LauncherState,
     library: &minecraft::Library,
@@ -402,13 +402,13 @@ pub async fn download_java_library(
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn download_native_library_files(
     state: &LauncherState,
     library: &minecraft::Library,
     version_info: &minecraft::VersionInfo,
     java_arch: &str,
-    force: bool,
+    _force: bool,
 ) -> crate::Result<()> {
     use crate::utils::platform::OsExt;
     use minecraft::Os;
@@ -461,7 +461,7 @@ pub async fn download_native_library_files(
     Ok(())
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn download_library(
     state: &LauncherState,
     library: &minecraft::Library,
@@ -490,7 +490,7 @@ pub async fn download_library(
 
 // TODO: reduce arguments count
 #[allow(clippy::too_many_arguments)]
-#[tracing::instrument]
+#[tracing::instrument(skip(state, libraries))]
 pub async fn download_libraries(
     state: &LauncherState,
     libraries: &[minecraft::Library],
@@ -539,7 +539,7 @@ pub async fn download_libraries(
     Ok(())
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn download_version_manifest(
     state: &LauncherState,
     force: bool,
@@ -555,7 +555,7 @@ pub async fn download_version_manifest(
             None,
             None,
             None,
-            &state.fetch_semaphore,
+            &state.api_semaphore,
         )
         .await?;
 
@@ -567,6 +567,7 @@ pub async fn download_version_manifest(
     Ok(res)
 }
 
+#[tracing::instrument(skip_all)]
 pub async fn download_loaders_manifests(
     state: &LauncherState,
     loader: &str,
@@ -589,7 +590,7 @@ pub async fn download_loaders_manifests(
             None,
             None,
             None,
-            &state.fetch_semaphore,
+            &state.api_semaphore,
         )
         .await?;
 

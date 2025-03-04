@@ -6,10 +6,12 @@ use crate::{
 };
 
 // Validates JRE at a given path
+#[tracing::instrument]
 pub async fn check_jre(path: PathBuf) -> crate::Result<Option<Java>> {
     Ok(jre::check_java_at_filepath(&path).await)
 }
 
+#[tracing::instrument]
 pub async fn get_or_download_java(version: u32) -> crate::Result<Java> {
     let state = LauncherState::get().await?;
 

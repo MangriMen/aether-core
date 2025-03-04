@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     event::emit::emit_instance,
-    state::{Instance, LauncherState},
+    state::{Instance, LauncherState, PackInfo},
     utils::io::read_json_async,
 };
 
@@ -14,9 +14,7 @@ use tokio::fs;
 
 use crate::{
     api::instance::get_instance_path_without_duplicate,
-    state::{
-        Hooks, InstanceInstallStage, InstancePluginSettings, MemorySettings, ModLoader, WindowSize,
-    },
+    state::{Hooks, InstanceInstallStage, MemorySettings, ModLoader, WindowSize},
 };
 
 #[tracing::instrument]
@@ -27,7 +25,7 @@ pub async fn create(
     loader_version: Option<String>,
     icon_path: Option<String>,
     skip_install_instance: Option<bool>,
-    plugin: Option<InstancePluginSettings>,
+    pack_info: Option<PackInfo>,
 ) -> crate::Result<String> {
     let state = LauncherState::get().await?;
 
@@ -77,7 +75,7 @@ pub async fn create(
 
         hooks: Hooks::default(),
 
-        plugin,
+        pack_info,
     };
 
     let result = async {
@@ -113,6 +111,69 @@ pub async fn create(
 }
 
 #[tracing::instrument]
+pub async fn install(id: &str, force: bool) -> crate::Result<()> {
+    if let Ok(instance) = get(id).await {
+        let result = crate::launcher::install_minecraft(&instance, None, force).await;
+
+        if result.is_err() && instance.install_stage != InstanceInstallStage::Installed {
+            Instance::edit(id, |instance| {
+                instance.install_stage = InstanceInstallStage::NotInstalled;
+                async { Ok(()) }
+            })
+            .await?;
+        }
+
+        result?;
+    } else {
+        return Err(crate::ErrorKind::UnmanagedProfileError(id.to_string()).as_error());
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument]
+pub async fn update(id: &str) -> crate::Result<()> {
+    if let Ok(instance) = get(id).await {
+        if let Some(pack_info) = instance.pack_info {
+            let state = crate::state::LauncherState::get().await?;
+            let plugin_manager = state.plugin_manager.read().await;
+
+            if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
+                if let Some(plugin) = plugin.get_plugin() {
+                    plugin.lock().await.update(id).map_err(|_| {
+                        crate::ErrorKind::InstanceUpdateError(format!(
+                            "Failed to import instance from plugin {}",
+                            pack_info.pack_type
+                        ))
+                        .as_error()
+                    })?;
+                } else {
+                    return Err(crate::ErrorKind::InstanceUpdateError(format!(
+                        "Can't get plugin \"{}\" to update instance. Check if it is installed and enabled",
+                        &pack_info.pack_type
+                    ))
+                    .as_error());
+                }
+
+                return Ok(());
+            } else {
+                return Err(crate::ErrorKind::InstanceUpdateError(
+                    "Unsupported pack type".to_owned(),
+                )
+                .as_error());
+            };
+        } else {
+            return Err(
+                crate::ErrorKind::InstanceUpdateError("There is not pack info".to_owned())
+                    .as_error(),
+            );
+        };
+    } else {
+        return Err(crate::ErrorKind::UnmanagedProfileError(id.to_string()).as_error());
+    }
+}
+
+#[tracing::instrument]
 pub async fn edit(
     id: &str,
     name: &Option<String>,
@@ -141,23 +202,28 @@ pub async fn edit(
     .await
 }
 
+#[tracing::instrument]
 pub async fn get_dir(id: &str) -> crate::Result<PathBuf> {
     let state = LauncherState::get().await?;
     Ok(state.locations.instance_dir(id))
 }
 
+#[tracing::instrument]
 pub async fn get_file_path(id: &str) -> crate::Result<PathBuf> {
     Ok(get_dir(id).await?.join("instance.json"))
 }
 
+#[tracing::instrument]
 pub async fn get_by_path(path: &Path) -> crate::Result<Instance> {
     read_json_async(&path).await
 }
 
+#[tracing::instrument]
 pub async fn get(id: &str) -> crate::Result<Instance> {
     get_by_path(&get_file_path(id).await?).await
 }
 
+#[tracing::instrument]
 pub async fn get_all() -> crate::Result<(Vec<Instance>, Vec<crate::Error>)> {
     let state = LauncherState::get().await?;
 
@@ -191,6 +257,7 @@ pub async fn get_all() -> crate::Result<(Vec<Instance>, Vec<crate::Error>)> {
     Ok((instances, instances_errors))
 }
 
+#[tracing::instrument]
 pub async fn remove(id: &str) -> crate::Result<()> {
     let instance = get(id).await?;
     instance.remove().await?;

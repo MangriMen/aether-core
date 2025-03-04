@@ -1,74 +1,82 @@
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
-use super::{InstancePlugin, InstancePluginMetadata, PackwizPlugin};
+use super::PluginState;
 
-#[derive(Debug)]
-pub struct PluginState {
-    pub metadata: InstancePluginMetadata,
-    pub plugin: Box<dyn InstancePlugin>,
-}
-
-impl PluginState {
-    pub fn new(plugin: Box<dyn InstancePlugin>) -> Self {
-        Self {
-            metadata: InstancePluginMetadata { is_loaded: false },
-            plugin,
-        }
-    }
-
-    async fn enable(&mut self) -> crate::Result<()> {
-        self.plugin.init().await?;
-        self.metadata.is_loaded = true;
-
-        Ok(())
-    }
-
-    async fn disable(&mut self) -> crate::Result<()> {
-        self.plugin.unload().await?;
-        self.metadata.is_loaded = false;
-
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PluginManager {
-    pub plugins: HashMap<String, PluginState>,
-}
-
-impl Default for PluginManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    plugins: HashMap<String, PluginState>,
 }
 
 impl PluginManager {
-    pub fn new() -> Self {
-        Self {
-            plugins: HashMap::new(),
-        }
-    }
-
-    fn plugin_state_from_plugin(plugin: Box<dyn InstancePlugin>) -> (String, PluginState) {
-        (plugin.get_id().to_string(), PluginState::new(plugin))
-    }
-
-    pub fn scan_plugins(
+    pub async fn get_plugins_from_dir(
         &mut self,
-        //  _path: &PathBuf
-    ) {
-        let found_plugins: Vec<Box<dyn InstancePlugin>> = vec![Box::new(PackwizPlugin {
-            id: "packwiz".to_string(),
-            name: "Packwiz".to_string(),
-            description: "A plugin for managing packs".to_string(),
-        })];
+        path: &Path,
+    ) -> crate::Result<HashMap<String, PluginState>> {
+        let mut stream = tokio::fs::read_dir(path).await?;
+        let mut found_plugins = HashMap::new();
 
-        let plugins: HashMap<String, PluginState> = found_plugins
-            .into_iter()
-            .map(PluginManager::plugin_state_from_plugin)
+        while let Some(dir) = stream.next_entry().await? {
+            match PluginState::from_dir(&dir.path()).await {
+                Ok(plugin_state) => {
+                    found_plugins.insert(plugin_state.metadata.plugin.id.clone(), plugin_state);
+                }
+                Err(e) => {
+                    log::debug!("Failed to load plugin: {:?}. {e}", dir);
+                }
+            };
+        }
+
+        Ok(found_plugins)
+    }
+
+    pub async fn scan_plugins(&mut self, path: &Path) -> crate::Result<()> {
+        let found_plugins: HashMap<_, _> = self.get_plugins_from_dir(path).await?;
+        let existing_plugins: HashSet<_> = self.plugins.keys().cloned().collect();
+        let new_plugins: HashSet<_> = found_plugins.keys().cloned().collect();
+
+        let mut changed_plugins: HashSet<String> = HashSet::new();
+        for plugin in &existing_plugins & &new_plugins {
+            if let (Some(old), Some(new)) = (self.plugins.get(&plugin), found_plugins.get(&plugin))
+            {
+                if old.metadata != new.metadata || old.plugin_hash != new.plugin_hash {
+                    changed_plugins.insert(plugin.clone());
+                }
+            }
+        }
+
+        let plugins_to_add: HashSet<String> = (&new_plugins - &existing_plugins)
+            .union(&changed_plugins)
+            .cloned()
             .collect();
 
-        self.plugins = plugins;
+        // Removing old plugins
+        for plugin in &existing_plugins - &new_plugins {
+            log::debug!("Removing plugin {plugin}");
+            self.remove_plugin(&plugin).await?;
+        }
+
+        // Removing changed plugins
+        for plugin in &changed_plugins {
+            log::debug!("Removing change plugin {plugin}");
+            self.remove_plugin(plugin).await?;
+        }
+
+        // Adding new or changed plugins
+        for plugin in &plugins_to_add {
+            if let Some(plugin_state) = found_plugins.get(plugin) {
+                log::debug!("Adding plugin {plugin}");
+                self.plugins.insert(plugin.clone(), plugin_state.clone());
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn get_plugins(&self) -> impl Iterator<Item = &PluginState> {
+        self.plugins.values()
     }
 
     pub fn get_plugin(&self, plugin: &str) -> crate::Result<&PluginState> {
@@ -77,23 +85,23 @@ impl PluginManager {
         })
     }
 
-    fn get_plugin_mut(&mut self, plugin: &str) -> crate::Result<&mut PluginState> {
+    pub fn get_plugin_mut(&mut self, plugin: &str) -> crate::Result<&mut PluginState> {
         self.plugins.get_mut(plugin).ok_or_else(|| {
             crate::ErrorKind::PluginNotFoundError(format!("Plugin {plugin} not found")).as_error()
         })
     }
 
-    pub async fn enable_plugin(&mut self, plugin: String) -> crate::Result<()> {
-        let plugin = self.get_plugin_mut(&plugin)?;
-        plugin.enable().await?;
-
-        Ok(())
+    pub async fn load_plugin(&mut self, plugin: &str) -> crate::Result<()> {
+        self.get_plugin_mut(plugin)?.load().await
     }
 
-    pub async fn disable_plugin(&mut self, plugin: String) -> crate::Result<()> {
-        let plugin = self.get_plugin_mut(&plugin)?;
-        plugin.disable().await?;
+    pub async fn unload_plugin(&mut self, plugin: &str) -> crate::Result<()> {
+        self.get_plugin_mut(plugin)?.unload().await
+    }
 
+    async fn remove_plugin(&mut self, plugin: &str) -> crate::Result<()> {
+        self.get_plugin_mut(plugin)?.unload().await?;
+        self.plugins.remove(plugin);
         Ok(())
     }
 }
