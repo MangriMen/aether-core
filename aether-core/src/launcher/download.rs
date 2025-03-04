@@ -555,7 +555,7 @@ pub async fn download_version_manifest(
             None,
             None,
             None,
-            &state.fetch_semaphore,
+            &state.api_semaphore,
         )
         .await?;
 
@@ -590,7 +590,7 @@ pub async fn download_loaders_manifests(
             None,
             None,
             None,
-            &state.fetch_semaphore,
+            &state.api_semaphore,
         )
         .await?;
 

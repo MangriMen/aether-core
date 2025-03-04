@@ -1,5 +1,7 @@
 use crate::state::ImportConfig;
 
+use super::plugin_event::PluginEvent;
+
 #[derive(Debug)]
 pub struct LauncherPlugin {
     pub inner: extism::Plugin,
@@ -50,9 +52,26 @@ impl LauncherPlugin {
     pub fn supports_import(&self) -> bool {
         self.inner.function_exists("import")
     }
+
     pub fn import(&mut self, url_or_path: &str) -> crate::Result<()> {
         self.inner
             .call::<String, ()>("import", url_or_path.to_string())
+            .map_err(|e| self.get_error(e))
+    }
+
+    pub fn update(&mut self, instance_id: &str) -> crate::Result<()> {
+        self.inner
+            .call::<String, ()>("update", instance_id.to_string())
+            .map_err(|e| self.get_error(e))
+    }
+
+    pub fn supports_handle_events(&self) -> bool {
+        self.inner.function_exists("handle_event")
+    }
+
+    pub fn handle_event(&mut self, event: &PluginEvent) -> crate::Result<()> {
+        self.inner
+            .call::<PluginEvent, ()>("handle_event", event.clone())
             .map_err(|e| self.get_error(e))
     }
 }

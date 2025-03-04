@@ -5,7 +5,7 @@ use path_slash::PathBufExt;
 use reqwest::Method;
 
 use crate::{
-    state::{LauncherState, ModLoader, SerializableCommand, SerializableOutput},
+    state::{LauncherState, ModLoader, PackInfo, SerializableCommand, SerializableOutput},
     utils::plugin::log_level_from_u32,
 };
 
@@ -18,6 +18,14 @@ pub log(user_data: PluginContext; level: u32, msg: String) -> extism::Result<()>
 
     log::log!(target: "plugin", log_level_from_u32(level), "[{}]: {}", id, msg);
     Ok(())
+});
+
+host_fn!(
+pub get_id(user_data: PluginContext;) -> extism::Result<String> {
+    let context = user_data.get()?;
+    let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
+
+    Ok(id)
 });
 
 host_fn!(
@@ -93,11 +101,9 @@ pub instance_create(
     mod_loader: String,
     loader_version: Option<String>,
     icon_path: Option<String>,
-    skip_install_instance: Option<i64>
+    skip_install_instance: Option<i64>,
+    pack_info: Option<PackInfo>
 ) -> extism::Result<String> {
-    let context = user_data.get()?;
-    let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
-
     let mod_loader = ModLoader::from_string(&mod_loader);
 
     let res =
@@ -110,7 +116,7 @@ pub instance_create(
                     loader_version,
                     icon_path,
                     skip_install_instance.map(|x| x != 0),
-                    Some(id.to_string())
+                    pack_info
                 )
             )
         })?;

@@ -4,6 +4,7 @@ pub const METADATA_FOLDER_NAME: &str = ".minecraft";
 pub const CACHE_FOLDER_NAME: &str = "cache";
 pub const INSTANCES_FOLDER_NAME: &str = "instances";
 pub const PLUGIN_FOLDER_NAME: &str = "plugins";
+pub const INSTANCE_PLUGIN_FOLDER_NAME: &str = ".plugins";
 
 #[derive(Debug)]
 pub struct LocationInfo {
@@ -130,7 +131,7 @@ impl LocationInfo {
     #[inline]
     pub fn instance_plugin_dir(&self, id: &str, plugin_id: &str) -> PathBuf {
         self.instance_dir(id)
-            .join(PLUGIN_FOLDER_NAME)
+            .join(INSTANCE_PLUGIN_FOLDER_NAME)
             .join(plugin_id)
     }
 

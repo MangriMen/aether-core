@@ -3,8 +3,8 @@ use std::{future::Future, path::PathBuf};
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
 use dashmap::DashMap;
-use extism::ToBytes;
-use extism_convert::Json;
+use extism::{FromBytes, ToBytes};
+use extism_convert::{encoding, Json};
 use tokio::fs::remove_dir_all;
 
 use crate::{
@@ -14,6 +14,15 @@ use crate::{
 };
 
 use super::{ContentType, InstanceInstallStage, ModLoader};
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, FromBytes)]
+#[encoding(Json)]
+#[serde(rename_all = "camelCase")]
+pub struct PackInfo {
+    pub pack_type: String,
+    pub pack_version: String,
+    pub can_update: bool,
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -49,9 +58,9 @@ pub struct Instance {
     pub time_played: u64,
     pub recent_time_played: u64,
 
-    pub pack_type: Option<String>,
-
     pub hooks: Hooks,
+
+    pub pack_info: Option<PackInfo>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToBytes)]

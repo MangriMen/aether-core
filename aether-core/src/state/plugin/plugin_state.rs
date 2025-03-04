@@ -69,6 +69,14 @@ impl PluginState {
             super::host_functions::log,
         );
 
+        let get_id_fn = extism::Function::new(
+            "get_id",
+            [],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            super::host_functions::get_id,
+        );
+
         let instance_get_dir_fn = extism::Function::new(
             "instance_get_dir",
             [extism::PTR],
@@ -88,6 +96,7 @@ impl PluginState {
         let instance_create_fn = extism::Function::new(
             "instance_create",
             [
+                extism::PTR,
                 extism::PTR,
                 extism::PTR,
                 extism::PTR,
@@ -118,6 +127,7 @@ impl PluginState {
 
         vec![
             log_fn,
+            get_id_fn,
             instance_get_dir_fn,
             instance_plugin_get_dir_fn,
             instance_create_fn,

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::utils::io::{read_json_async, write_json_async};
 
 use super::{Hooks, LauncherState};
@@ -16,6 +18,8 @@ pub struct Settings {
     pub extra_launch_args: Vec<String>,
 
     pub hooks: Hooks,
+
+    pub enabled_plugins: HashSet<String>,
 }
 
 impl Settings {

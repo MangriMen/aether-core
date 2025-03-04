@@ -10,7 +10,8 @@ use crate::{
     },
     launcher::mod_loader_post_install,
     state::{
-        self, Instance, InstanceInstallStage, LauncherState, MinecraftProcessMetadata, ModLoader,
+        self, plugin_event::PluginEvent, Instance, InstanceInstallStage, LauncherState,
+        MinecraftProcessMetadata, ModLoader,
     },
     utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
     wrap_ref_builder,
@@ -22,7 +23,7 @@ use super::{args, download_minecraft, download_version_info, download_version_ma
 pub async fn install_minecraft(
     instance: &Instance,
     loading_bar: Option<LoadingBarId>,
-    repairing: bool,
+    force: bool,
 ) -> crate::Result<()> {
     log::info!(
         "Installing instance: \"{}\" (minecraft: \"{}\", modloader: \"{}\")",
@@ -90,7 +91,7 @@ pub async fn install_minecraft(
             &state,
             &version,
             loader_version.as_ref(),
-            Some(repairing),
+            Some(force),
             Some(&loading_bar),
         )
         .await?;
@@ -127,7 +128,7 @@ pub async fn install_minecraft(
             &state,
             &version_info,
             &java_version.architecture,
-            repairing,
+            force,
             minecraft_updated,
             Some(&loading_bar),
         )
@@ -216,17 +217,21 @@ pub async fn launch_minecraft(
         install_minecraft(instance, None, false).await?;
     }
 
-    // if let Some(plugin_settings) = &instance.plugin {
-    //     let data = serde_json::to_string(&PackwizPluginData::PreLaunch {
-    //         instance_id: instance.id.clone(),
-    //     })?;
-
-    //     if let Some(pre_launch) = &plugin_settings.pre_launch {
-    //         crate::api::plugin::call(pre_launch, &data).await?;
-    //     }
-    // }
-
     let state = LauncherState::get().await?;
+    let plugin_manager = state.plugin_manager.read().await;
+
+    if let Some(pack_info) = &instance.pack_info {
+        if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
+            if let Some(plugin) = plugin.get_plugin() {
+                let mut plugin = plugin.lock().await;
+                if plugin.supports_handle_events() {
+                    plugin.handle_event(&PluginEvent::BeforeInstanceLaunch {
+                        instance_id: instance.id.clone(),
+                    })?;
+                }
+            }
+        }
+    }
 
     let instance_path = Instance::get_full_path(&instance.id).await?;
 
@@ -360,12 +365,27 @@ pub async fn launch_minecraft(
     })
     .await?;
 
-    state
+    let metadata = state
         .process_manager
         .insert_new_process(
             &instance.id,
             command,
             launch_metadata.post_exit_command.clone(),
         )
-        .await
+        .await;
+
+    if let Some(pack_info) = &instance.pack_info {
+        if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
+            if let Some(plugin) = plugin.get_plugin() {
+                let mut plugin = plugin.lock().await;
+                if plugin.supports_handle_events() {
+                    plugin.handle_event(&PluginEvent::AfterInstanceLaunch {
+                        instance_id: instance.id.clone(),
+                    })?;
+                }
+            }
+        }
+    }
+
+    metadata
 }

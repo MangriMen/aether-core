@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     event::emit::emit_instance,
-    state::{Instance, LauncherState},
+    state::{Instance, LauncherState, PackInfo},
     utils::io::read_json_async,
 };
 
@@ -25,7 +25,7 @@ pub async fn create(
     loader_version: Option<String>,
     icon_path: Option<String>,
     skip_install_instance: Option<bool>,
-    pack_type: Option<String>,
+    pack_info: Option<PackInfo>,
 ) -> crate::Result<String> {
     let state = LauncherState::get().await?;
 
@@ -75,7 +75,7 @@ pub async fn create(
 
         hooks: Hooks::default(),
 
-        pack_type: None,
+        pack_info,
     };
 
     let result = async {
@@ -107,6 +107,69 @@ pub async fn create(
             instance.remove().await?;
             Err(err)
         }
+    }
+}
+
+#[tracing::instrument]
+pub async fn install(id: &str, force: bool) -> crate::Result<()> {
+    if let Ok(instance) = get(id).await {
+        let result = crate::launcher::install_minecraft(&instance, None, force).await;
+
+        if result.is_err() && instance.install_stage != InstanceInstallStage::Installed {
+            Instance::edit(id, |instance| {
+                instance.install_stage = InstanceInstallStage::NotInstalled;
+                async { Ok(()) }
+            })
+            .await?;
+        }
+
+        result?;
+    } else {
+        return Err(crate::ErrorKind::UnmanagedProfileError(id.to_string()).as_error());
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument]
+pub async fn update(id: &str) -> crate::Result<()> {
+    if let Ok(instance) = get(id).await {
+        if let Some(pack_info) = instance.pack_info {
+            let state = crate::state::LauncherState::get().await?;
+            let plugin_manager = state.plugin_manager.read().await;
+
+            if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
+                if let Some(plugin) = plugin.get_plugin() {
+                    plugin.lock().await.update(id).map_err(|_| {
+                        crate::ErrorKind::InstanceUpdateError(format!(
+                            "Failed to import instance from plugin {}",
+                            pack_info.pack_type
+                        ))
+                        .as_error()
+                    })?;
+                } else {
+                    return Err(crate::ErrorKind::InstanceUpdateError(format!(
+                        "Can't get plugin \"{}\" to update instance. Check if it is installed and enabled",
+                        &pack_info.pack_type
+                    ))
+                    .as_error());
+                }
+
+                return Ok(());
+            } else {
+                return Err(crate::ErrorKind::InstanceUpdateError(
+                    "Unsupported pack type".to_owned(),
+                )
+                .as_error());
+            };
+        } else {
+            return Err(
+                crate::ErrorKind::InstanceUpdateError("There is not pack info".to_owned())
+                    .as_error(),
+            );
+        };
+    } else {
+        return Err(crate::ErrorKind::UnmanagedProfileError(id.to_string()).as_error());
     }
 }
 

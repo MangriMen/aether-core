@@ -67,6 +67,9 @@ pub enum ErrorKind {
     #[error("Instance import error: {0}")]
     InstanceImportError(String),
 
+    #[error("Instance update error: {0}")]
+    InstanceUpdateError(String),
+
     // #[error("Could not create profile: {0}")]
     // ProfileCreationError(#[from] instance::create::ProfileCreationError),
     #[error("User is not logged in, no credentials available!")]
