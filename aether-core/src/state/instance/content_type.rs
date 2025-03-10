@@ -98,4 +98,14 @@ impl ContentType {
         .iter()
         .copied()
     }
+
+    pub fn from_string(s: &str) -> Option<ContentType> {
+        match s {
+            "mod" => Some(ContentType::Mod),
+            "datapack" => Some(ContentType::DataPack),
+            "resourcepack" => Some(ContentType::ResourcePack),
+            "shaderpack" => Some(ContentType::ShaderPack),
+            _ => None,
+        }
+    }
 }
