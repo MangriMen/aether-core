@@ -9,6 +9,10 @@ pub struct ContentItem {
     pub author: String,
     pub content_type: ContentType,
     pub url: String,
+    pub icon_url: String,
+    pub versions: Vec<String>,
+    pub latest_version: String,
+    pub provider_data: Option<serde_json::Value>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
