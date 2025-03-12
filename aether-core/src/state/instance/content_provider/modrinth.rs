@@ -3,11 +3,14 @@ use serde_json::json;
 
 use crate::{
     state::{ContentItem, ContentRequest, ContentResponse, ContentType, LauncherState},
-    utils::fetch::fetch_json,
+    utils::{
+        fetch::{fetch_advanced, fetch_json},
+        io::write_async,
+    },
 };
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct ModrinthContentResponse {
+pub struct ModrinthContentSearchResponse {
     hits: Vec<Hit>,
     offset: i64,
     limit: i64,
@@ -49,7 +52,7 @@ struct ModrinthQueryParams {
     query: Option<String>,
 }
 
-async fn get_raw_content(payload: &ContentRequest) -> crate::Result<ModrinthContentResponse> {
+async fn get_raw_content(payload: &ContentRequest) -> crate::Result<ModrinthContentSearchResponse> {
     let state = LauncherState::get().await?;
 
     let mut headers = reqwest::header::HeaderMap::new();
@@ -65,7 +68,8 @@ async fn get_raw_content(payload: &ContentRequest) -> crate::Result<ModrinthCont
         payload.content_type.get_name()
     ));
 
-    let base_url = "https://staging-api.modrinth.com/v2/search";
+    // let base_url = "https://staging-api.modrinth.com/v2/search";
+    let base_url = "https://api.modrinth.com/v2/search";
     let query_params = ModrinthQueryParams {
         index: "relevance",
         offset: (payload.page - 1) * payload.page_size,
@@ -77,7 +81,7 @@ async fn get_raw_content(payload: &ContentRequest) -> crate::Result<ModrinthCont
     let query_string = serde_qs::to_string(&query_params).unwrap();
     let url = format!("{}?{}", base_url, query_string);
 
-    fetch_json::<ModrinthContentResponse>(
+    fetch_json::<ModrinthContentSearchResponse>(
         Method::GET,
         &url,
         Some(headers),
@@ -90,7 +94,7 @@ async fn get_raw_content(payload: &ContentRequest) -> crate::Result<ModrinthCont
 
 fn modrinth_to_content_response(
     request: &ContentRequest,
-    response: &ModrinthContentResponse,
+    response: &ModrinthContentSearchResponse,
 ) -> ContentResponse {
     let page = response.offset / response.limit + 1;
 
@@ -126,4 +130,91 @@ pub async fn get_content(payload: &ContentRequest) -> crate::Result<ContentRespo
     let response = get_raw_content(payload).await?;
 
     Ok(modrinth_to_content_response(payload, &response))
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct ModrinthContentVersionResponse {
+    game_versions: Vec<String>,
+    loaders: Vec<String>,
+    id: String,
+    project_id: String,
+    author_id: String,
+    featured: bool,
+    name: String,
+    version_number: String,
+    changelog: String,
+    changelog_url: Option<serde_json::Value>,
+    date_published: String,
+    downloads: i64,
+    version_type: String,
+    status: String,
+    requested_status: Option<serde_json::Value>,
+    files: Vec<File>,
+    dependencies: Vec<Option<serde_json::Value>>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct File {
+    hashes: Hashes,
+    url: String,
+    filename: String,
+    primary: bool,
+    size: i64,
+    file_type: Option<serde_json::Value>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct Hashes {
+    sha1: String,
+    sha512: String,
+}
+
+pub async fn install_content(id: &str, payload: &ContentItem) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        "User-Agent",
+        "MangriMen/aether".to_string().parse().unwrap(),
+    );
+
+    let url = format!(
+        "https://api.modrinth.com/v2/version/{}",
+        payload.latest_version
+    );
+
+    let response = fetch_json::<ModrinthContentVersionResponse>(
+        Method::GET,
+        &url,
+        Some(headers.clone()),
+        None,
+        None,
+        &state.api_semaphore,
+    )
+    .await?;
+
+    let file_data = &response.files[0];
+
+    let file = fetch_advanced(
+        Method::GET,
+        &file_data.url,
+        Some(headers),
+        None,
+        None,
+        &state.fetch_semaphore,
+        None,
+    )
+    .await?;
+
+    let instance_folder = crate::api::instance::get_dir(id).await?;
+
+    write_async(
+        instance_folder
+            .join(payload.content_type.get_folder())
+            .join(&file_data.filename),
+        file,
+    )
+    .await?;
+
+    Ok(())
 }

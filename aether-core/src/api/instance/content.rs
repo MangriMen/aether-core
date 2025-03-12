@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
 use dashmap::DashMap;
 
 use crate::{
     event::{emit::emit_instance, InstancePayloadType},
-    state::{content_provider, ContentRequest, ContentResponse, Instance, InstanceFile},
+    state::{
+        content_provider, ContentItem, ContentRequest, ContentResponse, Instance, InstanceFile,
+    },
 };
 
 use super::get;
@@ -47,11 +51,32 @@ where
     Ok(())
 }
 
+pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
+    Ok(HashMap::from([
+        ("Curseforge".to_string(), "curseforge".to_string()),
+        ("Modrinth".to_string(), "modrinth".to_string()),
+    ]))
+}
+
 pub async fn get_content_by_provider(payload: &ContentRequest) -> crate::Result<ContentResponse> {
     match payload.provider.as_str() {
         "modrinth" => content_provider::modrinth::get_content(payload).await,
         _ => Err(crate::ErrorKind::ContentProviderNotFound {
             provider: payload.provider.to_string(),
+        }
+        .as_error()),
+    }
+}
+
+pub async fn install_content(
+    id: &str,
+    content_item: &ContentItem,
+    provider: &str,
+) -> crate::Result<()> {
+    match provider {
+        "modrinth" => content_provider::modrinth::install_content(id, content_item).await,
+        _ => Err(crate::ErrorKind::ContentProviderNotFound {
+            provider: provider.to_string(),
         }
         .as_error()),
     }
