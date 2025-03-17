@@ -1,10 +1,12 @@
 use reqwest::Method;
-use serde_json::json;
 
 use crate::{
-    state::{ContentItem, ContentRequest, ContentResponse, ContentType, LauncherState},
+    state::{
+        ContentItem, ContentRequest, ContentResponse, ContentType, InstallContentPayload,
+        LauncherState,
+    },
     utils::{
-        fetch::{fetch_advanced, fetch_json},
+        fetch::{fetch_advanced, fetch_json, FetchSemaphore},
         io::write_async,
     },
 };
@@ -110,10 +112,13 @@ fn modrinth_to_content_response(
             author: hit.author.clone(),
             icon_url: hit.icon_url.clone(),
             versions: hit.versions.clone(),
-            latest_version: hit.latest_version.clone(),
-            provider_data: Some(json!({
-                "project_id": hit.project_id
-            })),
+            provider_data: Some(
+                serde_json::to_value(&ModrinthProviderData {
+                    project_id: hit.project_id.to_owned(),
+                    latest_version: hit.latest_version.to_owned(),
+                })
+                .unwrap(),
+            ),
         })
         .collect();
 
@@ -133,7 +138,7 @@ pub async fn get_content(payload: &ContentRequest) -> crate::Result<ContentRespo
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct ModrinthContentVersionResponse {
+pub struct ModrinthProjectVersionResponse {
     game_versions: Vec<String>,
     loaders: Vec<String>,
     id: String,
@@ -153,7 +158,7 @@ pub struct ModrinthContentVersionResponse {
     dependencies: Vec<Option<serde_json::Value>>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct File {
     hashes: Hashes,
     url: String,
@@ -163,58 +168,211 @@ pub struct File {
     file_type: Option<serde_json::Value>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Hashes {
     sha1: String,
     sha512: String,
 }
 
-pub async fn install_content(id: &str, payload: &ContentItem) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct ModrinthProviderData {
+    project_id: String,
+    latest_version: String,
+}
 
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        "User-Agent",
-        "MangriMen/aether".to_string().parse().unwrap(),
-    );
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct ModrinthProjectResponse {
+    client_side: String,
+    server_side: String,
+    game_versions: Vec<String>,
+    id: String,
+    slug: String,
+    project_type: String,
+    team: String,
+    organization: Option<serde_json::Value>,
+    title: String,
+    description: String,
+    body: String,
+    body_url: Option<serde_json::Value>,
+    published: String,
+    updated: String,
+    approved: String,
+    queued: Option<serde_json::Value>,
+    status: String,
+    requested_status: Option<serde_json::Value>,
+    moderator_message: Option<serde_json::Value>,
+    license: License,
+    downloads: i64,
+    followers: i64,
+    categories: Vec<String>,
+    additional_categories: Vec<Option<serde_json::Value>>,
+    loaders: Vec<String>,
+    versions: Vec<String>,
+    icon_url: String,
+    issues_url: String,
+    source_url: String,
+    wiki_url: String,
+    discord_url: String,
+    donation_urls: Vec<Option<serde_json::Value>>,
+    gallery: Vec<Option<serde_json::Value>>,
+    color: i64,
+    thread_id: String,
+    monetization_status: String,
+}
 
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct License {
+    id: String,
+    name: String,
+    url: Option<serde_json::Value>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct ModrinthListProjectsVersionsParams {
+    loaders: Option<Vec<String>>,
+    game_versions: Vec<String>,
+}
+
+pub type ModrinthListProjectsVersionsResponse = Vec<ModrinthProjectVersionResponse>;
+
+pub async fn get_file_data_for_game_version(
+    project_id: &str,
+    game_version: &str,
+    loader: &Option<String>,
+    headers: reqwest::header::HeaderMap,
+    api_semaphore: &FetchSemaphore,
+) -> crate::Result<File> {
+    let mut params = ModrinthListProjectsVersionsParams {
+        loaders: None,
+        game_versions: vec![game_version.to_string()],
+    };
+
+    if let Some(loader) = loader {
+        params.loaders = Some(vec![loader.to_string()]);
+    }
+
+    let query_string = serde_qs::to_string(&params).unwrap();
     let url = format!(
-        "https://api.modrinth.com/v2/version/{}",
-        payload.latest_version
+        "https://api.modrinth.com/v2/project/{}/version?{}",
+        project_id, query_string
     );
 
-    let response = fetch_json::<ModrinthContentVersionResponse>(
+    let response = fetch_json::<ModrinthListProjectsVersionsResponse>(
+        Method::GET,
+        &url,
+        Some(headers),
+        None,
+        None,
+        api_semaphore,
+    )
+    .await?;
+
+    let version_index = response.iter().find(|project_versions| {
+        project_versions
+            .game_versions
+            .iter()
+            .any(|version| version == game_version)
+    });
+
+    if let Some(version_index) = version_index {
+        let file = version_index.files.iter().find(|file| file.primary);
+
+        if let Some(file) = file {
+            Ok(file.clone())
+        } else {
+            Ok({
+                version_index
+                    .files
+                    .first()
+                    .ok_or(crate::ErrorKind::NoValueFor(format!(
+                        "Content for version \"{}\" not found",
+                        game_version
+                    )))?
+                    .clone()
+            })
+        }
+    } else {
+        Err(crate::ErrorKind::NoValueFor(format!(
+            "Content for version \"{}\" not found",
+            game_version
+        ))
+        .as_error())
+    }
+}
+
+pub async fn get_file_data_for_content_version(
+    content_version: &str,
+    headers: reqwest::header::HeaderMap,
+    api_semaphore: &FetchSemaphore,
+) -> crate::Result<File> {
+    let url = format!("https://api.modrinth.com/v2/version/{}", content_version);
+
+    let response = fetch_json::<ModrinthProjectVersionResponse>(
         Method::GET,
         &url,
         Some(headers.clone()),
         None,
         None,
-        &state.api_semaphore,
+        api_semaphore,
     )
     .await?;
 
-    let file_data = &response.files[0];
+    Ok(response.files[0].clone())
+}
 
-    let file = fetch_advanced(
-        Method::GET,
-        &file_data.url,
-        Some(headers),
-        None,
-        None,
-        &state.fetch_semaphore,
-        None,
-    )
-    .await?;
+pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
 
-    let instance_folder = crate::api::instance::get_dir(id).await?;
+    if let Some(provider_data) = &payload.provider_data {
+        let provider_data = serde_json::from_value::<ModrinthProviderData>(provider_data.clone())?;
 
-    write_async(
-        instance_folder
-            .join(payload.content_type.get_folder())
-            .join(&file_data.filename),
-        file,
-    )
-    .await?;
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            "User-Agent",
+            "MangriMen/aether".to_string().parse().unwrap(),
+        );
 
-    Ok(())
+        let file_data = if let Some(content_version) = payload.content_version.clone() {
+            get_file_data_for_content_version(
+                &content_version,
+                headers.clone(),
+                &state.api_semaphore,
+            )
+            .await?
+        } else {
+            get_file_data_for_game_version(
+                &provider_data.project_id,
+                &payload.game_version,
+                &payload.loader,
+                headers.clone(),
+                &state.api_semaphore,
+            )
+            .await?
+        };
+
+        let file = fetch_advanced(
+            Method::GET,
+            &file_data.url,
+            Some(headers),
+            None,
+            None,
+            &state.fetch_semaphore,
+            None,
+        )
+        .await?;
+
+        let instance_folder = crate::api::instance::get_dir(id).await?;
+
+        write_async(
+            instance_folder
+                .join(payload.content_type.get_folder())
+                .join(&file_data.filename),
+            file,
+        )
+        .await?;
+
+        Ok(())
+    } else {
+        Err(crate::ErrorKind::NoValueFor("Not found provider data".to_string()).as_error())
+    }
 }

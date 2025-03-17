@@ -5,7 +5,8 @@ use dashmap::DashMap;
 use crate::{
     event::{emit::emit_instance, InstancePayloadType},
     state::{
-        content_provider, ContentItem, ContentRequest, ContentResponse, Instance, InstanceFile,
+        content_provider, ContentRequest, ContentResponse, InstallContentPayload, Instance,
+        InstanceFile,
     },
 };
 
@@ -68,15 +69,11 @@ pub async fn get_content_by_provider(payload: &ContentRequest) -> crate::Result<
     }
 }
 
-pub async fn install_content(
-    id: &str,
-    content_item: &ContentItem,
-    provider: &str,
-) -> crate::Result<()> {
-    match provider {
-        "modrinth" => content_provider::modrinth::install_content(id, content_item).await,
+pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate::Result<()> {
+    match payload.provider.as_str() {
+        "modrinth" => content_provider::modrinth::install_content(id, payload).await,
         _ => Err(crate::ErrorKind::ContentProviderNotFound {
-            provider: provider.to_string(),
+            provider: payload.provider.to_string(),
         }
         .as_error()),
     }

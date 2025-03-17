@@ -11,7 +11,6 @@ pub struct ContentItem {
     pub url: String,
     pub icon_url: String,
     pub versions: Vec<String>,
-    pub latest_version: String,
     pub provider_data: Option<serde_json::Value>,
 }
 
@@ -33,4 +32,15 @@ pub struct ContentResponse {
     pub page_count: i64,
     pub provider: String,
     pub items: Vec<ContentItem>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallContentPayload {
+    pub game_version: String,
+    pub loader: Option<String>,
+    pub content_type: ContentType,
+    pub content_version: Option<String>,
+    pub provider: String,
+    pub provider_data: Option<serde_json::Value>,
 }
