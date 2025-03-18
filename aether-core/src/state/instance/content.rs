@@ -1,4 +1,4 @@
-use super::ContentType;
+use super::{ContentType, ModLoader};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +22,8 @@ pub struct ContentRequest {
     pub page: i64,
     pub page_size: i64,
     pub query: Option<String>,
+    pub game_versions: Option<Vec<String>>,
+    pub loader: ModLoader,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]

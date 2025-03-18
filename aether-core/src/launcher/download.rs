@@ -357,7 +357,7 @@ pub async fn download_java_library(
             return Ok::<(), crate::Error>(());
         }
     }
-    println!(
+    log::debug!(
         "Library {}, part {}",
         library
             .url
@@ -376,7 +376,7 @@ pub async fn download_java_library(
     ]
     .concat();
 
-    println!("Library url {}", url);
+    log::debug!("Library url {}", url);
 
     let bytes = utils::fetch::fetch_advanced(
         Method::GET,
