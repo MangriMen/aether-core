@@ -1,19 +1,29 @@
-use std::{future::Future, path::PathBuf};
+use std::{
+    future::Future,
+    path::{Path, PathBuf},
+};
 
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
 use dashmap::DashMap;
 use extism::{FromBytes, ToBytes};
 use extism_convert::{encoding, Json};
+use path_slash::PathBufExt;
 use tokio::fs::remove_dir_all;
 
 use crate::{
     event::emit::emit_instance,
     state::{Hooks, Java, LauncherState, MemorySettings, WindowSize},
-    utils::io,
+    utils::{
+        file::sha1_async,
+        io::{self, read_async},
+    },
 };
 
-use super::{ContentType, InstanceInstallStage, InstancePack, InstancePackFile, ModLoader};
+use super::{
+    ContentType, InstanceInstallStage, InstancePack, InstancePackFile, InstancePackIndex,
+    InstancePackIndexField, ModLoader,
+};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, FromBytes)]
 #[encoding(Json)]
@@ -198,10 +208,11 @@ impl Instance {
 
         let files = DashMap::new();
 
-        let pack_index = crate::api::instance::get_pack_index(&self.id).await?;
+        let mut pack_index = Instance::get_pack_index(&self.id).await?;
 
         let pack_index_by_path = pack_index
             .files
+            .clone()
             .into_iter()
             .map(|it| (it.file.clone(), it))
             .collect::<DashMap<String, InstancePackFile>>();
@@ -226,24 +237,45 @@ impl Instance {
                 if let Some(file_name) = subdirectory.file_name().and_then(|x| x.to_str()) {
                     let file_size = subdirectory.metadata().map_err(io::IOError::from)?.len();
 
-                    let path = format!("{folder}/{}", file_name.trim_end_matches(".disabled"));
+                    let path = PathBuf::from(&folder)
+                        .join(file_name.trim_end_matches(".disabled"))
+                        .to_slash_lossy()
+                        .to_string();
 
-                    if let Some(pack_file) = pack_index_by_path.get(&path) {
-                        files.insert(
-                            path.to_string(),
-                            InstanceFile {
-                                hash: pack_file.hash.clone(),
-                                file_name: file_name.to_string(),
-                                content_type,
-                                size: file_size,
-                                disabled: file_name.ends_with(".disabled"),
-                                path: format!("{folder}/{}", file_name),
-                            },
-                        );
-                    }
+                    let hash = if let Some(pack_file) = pack_index_by_path.get(&path) {
+                        pack_file.hash.clone()
+                    } else {
+                        let bytes = read_async(&subdirectory).await?;
+                        let hash = sha1_async(bytes::Bytes::from(bytes)).await?;
+
+                        pack_index.files.push(InstancePackFile {
+                            file: path.clone(),
+                            hash: hash.clone(),
+                            alias: None,
+                            hash_format: None,
+                            metafile: Some(true),
+                            preserve: None,
+                        });
+
+                        hash.clone()
+                    };
+
+                    files.insert(
+                        path.clone(),
+                        InstanceFile {
+                            hash,
+                            file_name: file_name.to_string(),
+                            content_type,
+                            size: file_size,
+                            disabled: file_name.ends_with(".disabled"),
+                            path,
+                        },
+                    );
                 }
             }
         }
+
+        Instance::set_pack_index(&self.id, pack_index).await?;
 
         Ok(files)
     }
@@ -330,21 +362,78 @@ impl Instance {
     pub async fn get_pack(id: &str) -> crate::Result<InstancePack> {
         let state = LauncherState::get().await?;
 
-        let instance_launcher_dir = state.locations.instance_launcher_dir(id);
+        let instance_pack_dir = state.locations.instance_pack_dir(id);
 
-        let pack = match InstancePack::from_path(&instance_launcher_dir).await {
+        let pack = match InstancePack::from_path(&instance_pack_dir).await {
             Ok(pack) => pack,
             Err(_) => {
-                let index_file = instance_launcher_dir.join("index.toml");
+                let index = InstancePackIndex {
+                    hash_format: "sha1".to_owned(),
+                    files: Vec::default(),
+                };
+
+                let index_bytes = toml::to_string(&index)?.into_bytes();
+                let index_hash = sha1_async(bytes::Bytes::from(index_bytes)).await?;
 
                 let pack = InstancePack {
-                    index: index_file.to_string_lossy().to_string(),
+                    index: InstancePackIndexField {
+                        file: "index.toml".to_owned(),
+                        hash_format: index.hash_format.clone(),
+                        hash: index_hash,
+                    },
                 };
-                pack.write_path(&instance_launcher_dir).await?;
+                pack.write_path(&instance_pack_dir).await?;
+                index.write_path(&instance_pack_dir).await?;
+
                 pack
             }
         };
 
         Ok(pack)
+    }
+
+    async fn get_pack_index_path(id: &str, file: &Path) -> crate::Result<PathBuf> {
+        let state = LauncherState::get().await?;
+        Ok(file
+            .exists()
+            .then_some(file.to_path_buf())
+            .unwrap_or_else(|| {
+                let instance_pack_dir = state.locations.instance_pack_dir(id);
+                instance_pack_dir.join(file)
+            }))
+    }
+
+    pub async fn get_pack_index(id: &str) -> crate::Result<InstancePackIndex> {
+        let pack = Instance::get_pack(id).await?;
+
+        let index_path = Path::new(&pack.index.file);
+        let real_index_path = Self::get_pack_index_path(id, index_path).await?;
+
+        let pack_index = InstancePackIndex::from_file(&real_index_path).await?;
+
+        Ok(pack_index)
+    }
+
+    pub async fn set_pack(id: &str, pack: InstancePack) -> crate::Result<()> {
+        let state = LauncherState::get().await?;
+        let instance_pack_dir = state.locations.instance_pack_dir(id);
+        pack.write_path(&instance_pack_dir).await?;
+        Ok(())
+    }
+
+    pub async fn set_pack_index(id: &str, pack_index: InstancePackIndex) -> crate::Result<()> {
+        let mut pack = Instance::get_pack(id).await?;
+
+        let index_bytes = toml::to_string(&pack_index)?.into_bytes();
+        let index_hash = sha1_async(bytes::Bytes::from(index_bytes)).await?;
+
+        pack.index.hash = index_hash;
+
+        let index_path = Path::new(&pack.index.file);
+        let real_index_path = Self::get_pack_index_path(id, index_path).await?;
+
+        Instance::set_pack(id, pack).await?;
+        pack_index.write_file(&real_index_path).await?;
+        Ok(())
     }
 }

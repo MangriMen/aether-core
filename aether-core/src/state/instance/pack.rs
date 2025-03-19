@@ -4,7 +4,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InstancePack {
-    pub index: String,
+    pub index: InstancePackIndexField,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct InstancePackIndexField {
+    pub file: String,
+    pub hash_format: String,
+    pub hash: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

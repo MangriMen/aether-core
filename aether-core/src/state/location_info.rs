@@ -3,8 +3,7 @@ use std::path::PathBuf;
 pub const METADATA_FOLDER_NAME: &str = ".minecraft";
 pub const CACHE_FOLDER_NAME: &str = "cache";
 pub const INSTANCES_FOLDER_NAME: &str = "instances";
-pub const PLUGIN_FOLDER_NAME: &str = "plugins";
-pub const INSTANCE_PLUGIN_FOLDER_NAME: &str = ".plugins";
+pub const PLUGINS_FOLDER_NAME: &str = "plugins";
 
 #[derive(Debug)]
 pub struct LocationInfo {
@@ -99,10 +98,10 @@ impl LocationInfo {
         self.instance_dir(id).join(".launcher")
     }
 
-    /// Get the pack file for a specific instance
+    /// Get the pack dir for a specific instance
     #[inline]
-    pub fn instance_pack_file(&self, id: &str) -> PathBuf {
-        self.instance_launcher_dir(id).join("pack.toml")
+    pub fn instance_pack_dir(&self, id: &str) -> PathBuf {
+        self.instance_launcher_dir(id).join("pack")
     }
 
     /// Get the cache directory
@@ -120,7 +119,7 @@ impl LocationInfo {
     /// Get the plugins directory
     #[inline]
     pub fn plugins_dir(&self) -> PathBuf {
-        self.config_dir.join(PLUGIN_FOLDER_NAME)
+        self.config_dir.join(PLUGINS_FOLDER_NAME)
     }
 
     /// Get the directory for a specific plugin
@@ -142,8 +141,8 @@ impl LocationInfo {
     /// Get the directory for a specific plugin inside an instance
     #[inline]
     pub fn instance_plugin_dir(&self, id: &str, plugin_id: &str) -> PathBuf {
-        self.instance_dir(id)
-            .join(INSTANCE_PLUGIN_FOLDER_NAME)
+        self.instance_launcher_dir(id)
+            .join(PLUGINS_FOLDER_NAME)
             .join(plugin_id)
     }
 

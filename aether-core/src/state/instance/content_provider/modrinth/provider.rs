@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+
+use path_slash::PathExt;
 use reqwest::Method;
 
 use crate::{
@@ -47,19 +50,20 @@ pub async fn install_content(
         )
         .await?;
 
+        let folder = payload.content_type.get_folder();
+        let relative_path = PathBuf::from(folder).join(&file_data.filename);
+
         let instance_folder = crate::api::instance::get_dir(id).await?;
-        let file_path = instance_folder
-            .join(payload.content_type.get_folder())
-            .join(&file_data.filename);
+        let file_path = instance_folder.join(&relative_path);
 
         write_async(&file_path, &file).await?;
 
         Ok(InstanceFile {
-            hash: file_data.hashes.sha1.to_string(),
+            hash: file_data.hashes.sha1,
             file_name: file_data.filename,
             size: file_data.size as u64,
             content_type: payload.content_type,
-            path: file_path.to_string_lossy().to_string(),
+            path: relative_path.to_slash_lossy().to_string(),
             disabled: false,
         })
     } else {

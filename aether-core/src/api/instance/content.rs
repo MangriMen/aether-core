@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 use dashmap::DashMap;
 
@@ -6,19 +6,11 @@ use crate::{
     event::{emit::emit_instance, InstancePayloadType},
     state::{
         content_provider, ContentRequest, ContentResponse, InstallContentPayload, Instance,
-        InstanceFile, InstancePack, InstancePackFile, InstancePackIndex,
+        InstanceFile, InstancePackFile,
     },
 };
 
 use super::get;
-
-pub async fn get_pack(id: &str) -> crate::Result<InstancePack> {
-    Instance::get_pack(id).await
-}
-
-pub async fn get_pack_index(id: &str) -> crate::Result<InstancePackIndex> {
-    InstancePackIndex::from_file(Path::new(&get_pack(id).await?.index)).await
-}
 
 pub async fn get_contents(id: &str) -> crate::Result<DashMap<String, InstanceFile>> {
     if let Ok(instance) = get(id).await {
@@ -86,28 +78,16 @@ pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate
         .as_error()),
     }?;
 
-    let pack = get_pack(id).await?;
-
-    let index_path = Path::new(&pack.index);
-
-    let mut pack_index = match InstancePackIndex::from_file(index_path).await {
-        Ok(index) => index,
-        Err(_) => InstancePackIndex {
-            hash_format: "sha1".to_owned(),
-            files: Vec::new(),
-        },
-    };
-
+    let mut pack_index = Instance::get_pack_index(id).await?;
     pack_index.files.push(InstancePackFile {
         file: instance_file.path,
         hash: instance_file.hash,
         alias: None,
-        hash_format: Some("sha1".to_owned()),
+        hash_format: None,
         metafile: Some(true),
         preserve: None,
     });
-
-    pack_index.write_file(index_path).await?;
+    Instance::set_pack_index(id, pack_index).await?;
 
     Ok(())
 }
