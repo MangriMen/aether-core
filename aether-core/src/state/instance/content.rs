@@ -7,10 +7,10 @@ pub struct ContentItem {
     pub name: String,
     pub description: Option<String>,
     pub author: String,
-    pub content_type: ContentType,
     pub url: String,
     pub icon_url: String,
     pub versions: Vec<String>,
+    pub content_type: ContentType,
     pub provider_data: Option<serde_json::Value>,
 }
 

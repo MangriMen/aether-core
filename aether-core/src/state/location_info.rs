@@ -93,6 +93,18 @@ impl LocationInfo {
         self.instances_dir().join(id)
     }
 
+    /// Get the launcher directory for a specific instance
+    #[inline]
+    pub fn instance_launcher_dir(&self, id: &str) -> PathBuf {
+        self.instance_dir(id).join(".launcher")
+    }
+
+    /// Get the pack file for a specific instance
+    #[inline]
+    pub fn instance_pack_file(&self, id: &str) -> PathBuf {
+        self.instance_launcher_dir(id).join("pack.toml")
+    }
+
     /// Get the cache directory
     #[inline]
     pub fn cache_dir(&self) -> PathBuf {

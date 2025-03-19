@@ -13,7 +13,7 @@ use crate::{
     utils::io,
 };
 
-use super::{ContentType, InstanceInstallStage, ModLoader};
+use super::{ContentType, InstanceInstallStage, InstancePack, InstancePackFile, ModLoader};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, FromBytes)]
 #[encoding(Json)]
@@ -67,6 +67,7 @@ pub struct Instance {
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceFile {
+    pub hash: String,
     pub file_name: String,
     pub size: u64,
     pub content_type: ContentType,
@@ -197,6 +198,14 @@ impl Instance {
 
         let files = DashMap::new();
 
+        let pack_index = crate::api::instance::get_pack_index(&self.id).await?;
+
+        let pack_index_by_path = pack_index
+            .files
+            .into_iter()
+            .map(|it| (it.file.clone(), it))
+            .collect::<DashMap<String, InstancePackFile>>();
+
         for content_type in ContentType::iterator() {
             let folder = content_type.get_folder();
             let path = path.join(folder);
@@ -219,16 +228,19 @@ impl Instance {
 
                     let path = format!("{folder}/{}", file_name.trim_end_matches(".disabled"));
 
-                    files.insert(
-                        path.to_string(),
-                        InstanceFile {
-                            file_name: file_name.to_string(),
-                            content_type,
-                            size: file_size,
-                            disabled: file_name.ends_with(".disabled"),
-                            path: format!("{folder}/{}", file_name),
-                        },
-                    );
+                    if let Some(pack_file) = pack_index_by_path.get(&path) {
+                        files.insert(
+                            path.to_string(),
+                            InstanceFile {
+                                hash: pack_file.hash.clone(),
+                                file_name: file_name.to_string(),
+                                content_type,
+                                size: file_size,
+                                disabled: file_name.ends_with(".disabled"),
+                                path: format!("{folder}/{}", file_name),
+                            },
+                        );
+                    }
                 }
             }
         }
@@ -313,5 +325,26 @@ impl Instance {
         }
 
         Ok(())
+    }
+
+    pub async fn get_pack(id: &str) -> crate::Result<InstancePack> {
+        let state = LauncherState::get().await?;
+
+        let instance_launcher_dir = state.locations.instance_launcher_dir(id);
+
+        let pack = match InstancePack::from_path(&instance_launcher_dir).await {
+            Ok(pack) => pack,
+            Err(_) => {
+                let index_file = instance_launcher_dir.join("index.toml");
+
+                let pack = InstancePack {
+                    index: index_file.to_string_lossy().to_string(),
+                };
+                pack.write_path(&instance_launcher_dir).await?;
+                pack
+            }
+        };
+
+        Ok(pack)
     }
 }

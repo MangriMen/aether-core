@@ -1,7 +1,7 @@
 use reqwest::Method;
 
 use crate::{
-    state::{ContentRequest, ContentResponse, InstallContentPayload, LauncherState},
+    state::{ContentRequest, ContentResponse, InstallContentPayload, InstanceFile, LauncherState},
     utils::{fetch::fetch_advanced, io::write_async},
 };
 
@@ -15,7 +15,10 @@ pub async fn get_content(payload: &ContentRequest) -> crate::Result<ContentRespo
     Ok(modrinth_to_content_response(payload, &response))
 }
 
-pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate::Result<()> {
+pub async fn install_content(
+    id: &str,
+    payload: &InstallContentPayload,
+) -> crate::Result<InstanceFile> {
     let state = LauncherState::get().await?;
 
     if let Some(provider_data) = &payload.provider_data {
@@ -49,9 +52,16 @@ pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate
             .join(payload.content_type.get_folder())
             .join(&file_data.filename);
 
-        write_async(file_path, file).await?;
+        write_async(&file_path, &file).await?;
 
-        Ok(())
+        Ok(InstanceFile {
+            hash: file_data.hashes.sha1.to_string(),
+            file_name: file_data.filename,
+            size: file_data.size as u64,
+            content_type: payload.content_type,
+            path: file_path.to_string_lossy().to_string(),
+            disabled: false,
+        })
     } else {
         Err(crate::ErrorKind::NoValueFor("Not found provider data".to_string()).as_error())
     }

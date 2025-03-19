@@ -42,10 +42,12 @@ pub async fn write_async(
     let path_ref = path.as_ref();
     let data_ref = data.as_ref();
 
-    if path_ref.is_dir() {
-        create_dir_all(path_ref).await?;
-    } else {
-        create_dir_all(path_ref.parent().unwrap()).await?;
+    if !path_ref.exists() {
+        if path_ref.extension().is_some() {
+            create_dir_all(path_ref.parent().unwrap()).await?;
+        } else if path_ref.is_dir() {
+            create_dir_all(path_ref).await?;
+        }
     }
 
     tokio::fs::write(path_ref, data_ref)

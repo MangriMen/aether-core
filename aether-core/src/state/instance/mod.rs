@@ -5,6 +5,7 @@ pub mod default_instance;
 pub mod import;
 pub mod install_stage;
 pub mod mod_loader;
+pub mod pack;
 
 pub use content::*;
 pub use content_provider::*;
@@ -13,3 +14,4 @@ pub use default_instance::*;
 pub use import::*;
 pub use install_stage::*;
 pub use mod_loader::*;
+pub use pack::*;
