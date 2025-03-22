@@ -43,10 +43,8 @@ pub async fn write_async(
     let data_ref = data.as_ref();
 
     if !path_ref.exists() {
-        if path_ref.extension().is_some() {
-            create_dir_all(path_ref.parent().unwrap()).await?;
-        } else if path_ref.is_dir() {
-            create_dir_all(path_ref).await?;
+        if let Some(parent) = path_ref.parent() {
+            create_dir_all(parent).await?;
         }
     }
 

@@ -5,8 +5,8 @@ use dashmap::DashMap;
 use crate::{
     event::{emit::emit_instance, InstancePayloadType},
     state::{
-        content_provider, ContentRequest, ContentResponse, InstallContentPayload, Instance,
-        InstanceFile, InstancePackFile,
+        content_provider, ContentMetadataFile, ContentRequest, ContentResponse,
+        InstallContentPayload, Instance, InstanceFile,
     },
 };
 
@@ -61,9 +61,19 @@ pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
 
 pub async fn get_content_by_provider(payload: &ContentRequest) -> crate::Result<ContentResponse> {
     match payload.provider.as_str() {
-        "modrinth" => content_provider::modrinth::get_content(payload).await,
+        "modrinth" => content_provider::modrinth::search_content(payload).await,
         _ => Err(crate::ErrorKind::ContentProviderNotFound {
             provider: payload.provider.to_string(),
+        }
+        .as_error()),
+    }
+}
+
+pub async fn get_metadata_field_to_check_installed(provider: &str) -> crate::Result<String> {
+    match provider {
+        "modrinth" => Ok(content_provider::modrinth::get_field_to_check_installed()),
+        _ => Err(crate::ErrorKind::ContentProviderNotFound {
+            provider: provider.to_string(),
         }
         .as_error()),
     }
@@ -78,16 +88,21 @@ pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate
         .as_error()),
     }?;
 
-    let mut pack_index = Instance::get_pack_index(id).await?;
-    pack_index.files.push(InstancePackFile {
-        file: instance_file.path,
-        hash: instance_file.hash,
-        alias: None,
-        hash_format: None,
-        metafile: Some(true),
-        preserve: None,
-    });
-    Instance::set_pack_index(id, pack_index).await?;
+    Instance::update_content_metadata_file(
+        id,
+        &instance_file.path,
+        &ContentMetadataFile {
+            name: instance_file.file_name.clone(),
+            file_name: instance_file.file_name.clone(),
+            hash: instance_file.hash,
+            download: None,
+            option: None,
+            side: None,
+            update_provider: Some(payload.provider.to_owned()),
+            update: instance_file.update,
+        },
+    )
+    .await?;
 
     Ok(())
 }

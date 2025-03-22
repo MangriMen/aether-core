@@ -31,7 +31,7 @@ lazy_static! {
     };
 }
 
-#[tracing::instrument(skip(body, semaphore))]
+#[tracing::instrument(level = tracing::Level::TRACE, skip(body, semaphore))]
 pub async fn fetch_advanced(
     method: Method,
     url: &str,

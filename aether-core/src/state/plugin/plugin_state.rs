@@ -171,6 +171,8 @@ impl PluginState {
             manifest = manifest.with_allowed_paths(allowed_paths.into_iter());
         }
 
+        log::debug!("Manifest: {:?}", manifest);
+
         manifest
     }
 

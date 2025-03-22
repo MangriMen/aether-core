@@ -5,6 +5,8 @@ pub const CACHE_FOLDER_NAME: &str = "cache";
 pub const INSTANCES_FOLDER_NAME: &str = "instances";
 pub const PLUGINS_FOLDER_NAME: &str = "plugins";
 
+pub const CONTENT_METADATA_FILE_NAME: &str = "content.toml";
+
 #[derive(Debug)]
 pub struct LocationInfo {
     pub settings_dir: PathBuf, // Base settings directory - app database
@@ -94,14 +96,19 @@ impl LocationInfo {
 
     /// Get the launcher directory for a specific instance
     #[inline]
-    pub fn instance_launcher_dir(&self, id: &str) -> PathBuf {
-        self.instance_dir(id).join(".launcher")
+    pub fn instance_metadata_dir(&self, id: &str) -> PathBuf {
+        self.instance_dir(id).join(".metadata")
     }
 
     /// Get the pack dir for a specific instance
     #[inline]
     pub fn instance_pack_dir(&self, id: &str) -> PathBuf {
-        self.instance_launcher_dir(id).join("pack")
+        self.instance_metadata_dir(id).join("pack")
+    }
+
+    #[inline]
+    pub fn instance_content_metadata(&self, id: &str) -> PathBuf {
+        self.instance_pack_dir(id).join("content.toml")
     }
 
     /// Get the cache directory
@@ -141,7 +148,7 @@ impl LocationInfo {
     /// Get the directory for a specific plugin inside an instance
     #[inline]
     pub fn instance_plugin_dir(&self, id: &str, plugin_id: &str) -> PathBuf {
-        self.instance_launcher_dir(id)
+        self.instance_metadata_dir(id)
             .join(PLUGINS_FOLDER_NAME)
             .join(plugin_id)
     }

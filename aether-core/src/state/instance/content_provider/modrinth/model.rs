@@ -14,7 +14,6 @@ lazy_static::lazy_static! {
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct ModrinthProviderData {
     pub project_id: String,
-    pub latest_version: String,
 }
 
 #[derive(serde::Serialize)]
@@ -60,7 +59,7 @@ pub struct Hit {
     pub color: Option<i64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ProjectVersionResponse {
     pub game_versions: Vec<String>,
     pub loaders: Vec<String>,
@@ -152,3 +151,9 @@ pub struct ListProjectVersionsParams {
 }
 
 pub type ListProjectsVersionsResponse = Vec<ProjectVersionResponse>;
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct ModrinthUpdateData {
+    pub project_id: String,
+    pub version: String,
+}

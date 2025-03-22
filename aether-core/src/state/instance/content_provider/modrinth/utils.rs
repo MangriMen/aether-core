@@ -8,7 +8,6 @@ pub fn hit_to_content_item(hit: &Hit) -> crate::Result<ContentItem> {
 
     let provider_data = Some(serde_json::to_value(&ModrinthProviderData {
         project_id: hit.project_id.to_owned(),
-        latest_version: hit.latest_version.to_owned(),
     })?);
 
     Ok(ContentItem {

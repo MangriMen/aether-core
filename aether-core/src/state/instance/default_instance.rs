@@ -1,7 +1,4 @@
-use std::{
-    future::Future,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, future::Future, path::PathBuf};
 
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
@@ -16,13 +13,13 @@ use crate::{
     state::{Hooks, Java, LauncherState, MemorySettings, WindowSize},
     utils::{
         file::sha1_async,
-        io::{self, read_async},
+        io::{self, read_async, read_toml_async, write_toml_async},
     },
 };
 
 use super::{
-    ContentType, InstanceInstallStage, InstancePack, InstancePackFile, InstancePackIndex,
-    InstancePackIndexField, ModLoader,
+    ContentMetadata, ContentMetadataEntry, ContentMetadataFile, ContentType, InstanceInstallStage,
+    ModLoader,
 };
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, FromBytes)]
@@ -83,6 +80,7 @@ pub struct InstanceFile {
     pub content_type: ContentType,
     pub path: String,
     pub disabled: bool,
+    pub update: Option<HashMap<String, toml::Value>>,
 }
 
 impl Instance {
@@ -208,14 +206,14 @@ impl Instance {
 
         let files = DashMap::new();
 
-        let mut pack_index = Instance::get_pack_index(&self.id).await?;
+        let content_metadata = Instance::get_content_metadata(&self.id).await?;
 
-        let pack_index_by_path = pack_index
+        let metadata_entry_by_path = content_metadata
             .files
             .clone()
             .into_iter()
             .map(|it| (it.file.clone(), it))
-            .collect::<DashMap<String, InstancePackFile>>();
+            .collect::<DashMap<String, ContentMetadataEntry>>();
 
         for content_type in ContentType::iterator() {
             let folder = content_type.get_folder();
@@ -242,20 +240,43 @@ impl Instance {
                         .to_slash_lossy()
                         .to_string();
 
-                    let hash = if let Some(pack_file) = pack_index_by_path.get(&path) {
-                        pack_file.hash.clone()
+                    let metadata_entry = metadata_entry_by_path.get(&path);
+
+                    println!("{:?}", metadata_entry);
+
+                    let metadata = if let Some(metadata_entry) = metadata_entry {
+                        Self::get_content_metadata_file(&self.id, &metadata_entry.file)
+                            .await
+                            .ok()
+                    } else {
+                        None
+                    };
+
+                    println!("{:?}", metadata);
+
+                    let hash = if let Some(metadata) = &metadata {
+                        metadata.hash.to_owned()
                     } else {
                         let bytes = read_async(&subdirectory).await?;
                         let hash = sha1_async(bytes::Bytes::from(bytes)).await?;
 
-                        pack_index.files.push(InstancePackFile {
-                            file: path.clone(),
+                        let content_metadata_file = ContentMetadataFile {
+                            file_name: file_name.to_string(),
+                            name: file_name.to_string(),
                             hash: hash.clone(),
-                            alias: None,
-                            hash_format: None,
-                            metafile: Some(true),
-                            preserve: None,
-                        });
+                            download: None,
+                            option: None,
+                            side: None,
+                            update_provider: None,
+                            update: None,
+                        };
+
+                        Instance::update_content_metadata_file(
+                            &self.id,
+                            &path,
+                            &content_metadata_file,
+                        )
+                        .await?;
 
                         hash.clone()
                     };
@@ -269,13 +290,12 @@ impl Instance {
                             size: file_size,
                             disabled: file_name.ends_with(".disabled"),
                             path,
+                            update: metadata.and_then(|it| it.update),
                         },
                     );
                 }
             }
         }
-
-        Instance::set_pack_index(&self.id, pack_index).await?;
 
         Ok(files)
     }
@@ -352,88 +372,68 @@ impl Instance {
     }
 
     pub async fn remove_content(id: &str, content_path: &str) -> crate::Result<()> {
+        let state = LauncherState::get().await?;
+        let pack_dir = state.locations.instance_pack_dir(id);
+
         if let Ok(path) = crate::api::instance::get_dir(id).await {
             io::remove_file(path.join(content_path)).await?;
+            io::remove_file(pack_dir.join(content_path)).await?;
         }
 
         Ok(())
     }
 
-    pub async fn get_pack(id: &str) -> crate::Result<InstancePack> {
+    pub async fn get_content_metadata(id: &str) -> crate::Result<ContentMetadata> {
         let state = LauncherState::get().await?;
 
-        let instance_pack_dir = state.locations.instance_pack_dir(id);
-
-        let pack = match InstancePack::from_path(&instance_pack_dir).await {
-            Ok(pack) => pack,
+        let content_metadata_path = state.locations.instance_content_metadata(id);
+        match ContentMetadata::from_file(&content_metadata_path).await {
+            Ok(index) => Ok(index),
             Err(_) => {
-                let index = InstancePackIndex {
-                    hash_format: "sha1".to_owned(),
-                    files: Vec::default(),
-                };
-
-                let index_bytes = toml::to_string(&index)?.into_bytes();
-                let index_hash = sha1_async(bytes::Bytes::from(index_bytes)).await?;
-
-                let pack = InstancePack {
-                    index: InstancePackIndexField {
-                        file: "index.toml".to_owned(),
-                        hash_format: index.hash_format.clone(),
-                        hash: index_hash,
-                    },
-                };
-                pack.write_path(&instance_pack_dir).await?;
-                index.write_path(&instance_pack_dir).await?;
-
-                pack
+                let content_metadata = ContentMetadata::default();
+                Instance::update_content_metadata(id, &content_metadata).await?;
+                Ok(content_metadata.clone())
             }
-        };
-
-        Ok(pack)
+        }
     }
 
-    async fn get_pack_index_path(id: &str, file: &Path) -> crate::Result<PathBuf> {
+    pub async fn update_content_metadata(
+        id: &str,
+        content_metadata: &ContentMetadata,
+    ) -> crate::Result<()> {
         let state = LauncherState::get().await?;
-        Ok(file
-            .exists()
-            .then_some(file.to_path_buf())
-            .unwrap_or_else(|| {
-                let instance_pack_dir = state.locations.instance_pack_dir(id);
-                instance_pack_dir.join(file)
-            }))
+        let content_metadata_path = state.locations.instance_content_metadata(id);
+        content_metadata.write_file(&content_metadata_path).await
     }
 
-    pub async fn get_pack_index(id: &str) -> crate::Result<InstancePackIndex> {
-        let pack = Instance::get_pack(id).await?;
-
-        let index_path = Path::new(&pack.index.file);
-        let real_index_path = Self::get_pack_index_path(id, index_path).await?;
-
-        let pack_index = InstancePackIndex::from_file(&real_index_path).await?;
-
-        Ok(pack_index)
-    }
-
-    pub async fn set_pack(id: &str, pack: InstancePack) -> crate::Result<()> {
+    pub async fn get_content_metadata_file(
+        id: &str,
+        path: &str,
+    ) -> crate::Result<ContentMetadataFile> {
         let state = LauncherState::get().await?;
         let instance_pack_dir = state.locations.instance_pack_dir(id);
-        pack.write_path(&instance_pack_dir).await?;
-        Ok(())
+        let content_metadata_file_path = instance_pack_dir.join(path).with_extension(".toml");
+        println!("{:?}", content_metadata_file_path);
+        read_toml_async(&content_metadata_file_path).await
     }
 
-    pub async fn set_pack_index(id: &str, pack_index: InstancePackIndex) -> crate::Result<()> {
-        let mut pack = Instance::get_pack(id).await?;
+    pub async fn update_content_metadata_file(
+        id: &str,
+        path: &str,
+        entry: &ContentMetadataFile,
+    ) -> crate::Result<()> {
+        let state = LauncherState::get().await?;
+        let instance_pack_dir = state.locations.instance_pack_dir(id);
+        let content_metadata_file_path = instance_pack_dir.join(path).with_extension(".toml");
 
-        let index_bytes = toml::to_string(&pack_index)?.into_bytes();
-        let index_hash = sha1_async(bytes::Bytes::from(index_bytes)).await?;
+        if !content_metadata_file_path.exists() {
+            let mut content_metadata = Instance::get_content_metadata(id).await?;
+            content_metadata.files.push(ContentMetadataEntry {
+                file: path.to_string(),
+            });
+            Instance::update_content_metadata(id, &content_metadata).await?;
+        }
 
-        pack.index.hash = index_hash;
-
-        let index_path = Path::new(&pack.index.file);
-        let real_index_path = Self::get_pack_index_path(id, index_path).await?;
-
-        Instance::set_pack(id, pack).await?;
-        pack_index.write_file(&real_index_path).await?;
-        Ok(())
+        write_toml_async(&content_metadata_file_path, entry).await
     }
 }
