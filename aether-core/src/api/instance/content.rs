@@ -26,6 +26,16 @@ pub async fn remove_content(id: &str, content_path: &str) -> crate::Result<()> {
     Ok(())
 }
 
+pub async fn remove_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
+where
+    I: IntoIterator<Item = D>,
+    D: AsRef<str>,
+{
+    Instance::remove_contents(id, content_paths).await?;
+    emit_instance(id, InstancePayloadType::Edited).await?;
+    Ok(())
+}
+
 pub async fn toggle_disable_content(id: &str, content_path: &str) -> crate::Result<String> {
     let res = Instance::toggle_disable_content(id, content_path).await?;
     emit_instance(id, InstancePayloadType::Edited).await?;
@@ -92,7 +102,7 @@ pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate
         id,
         &instance_file.path,
         &ContentMetadataFile {
-            name: instance_file.file_name.clone(),
+            name: instance_file.name.clone(),
             file_name: instance_file.file_name.clone(),
             hash: instance_file.hash,
             download: None,

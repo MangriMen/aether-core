@@ -80,6 +80,7 @@ pub async fn install_content(
         })?;
 
         let instance_file = InstanceFile {
+            name: Some(version.name.to_owned()),
             hash: file_data.hashes.sha1,
             file_name: file_data.filename,
             size: file_data.size as u64,

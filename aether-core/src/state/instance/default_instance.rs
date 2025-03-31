@@ -75,6 +75,7 @@ pub struct Instance {
 #[serde(rename_all = "camelCase")]
 pub struct InstanceFile {
     pub hash: String,
+    pub name: Option<String>,
     pub file_name: String,
     pub size: u64,
     pub content_type: ContentType,
@@ -235,16 +236,17 @@ impl Instance {
                 if let Some(file_name) = subdirectory.file_name().and_then(|x| x.to_str()) {
                     let file_size = subdirectory.metadata().map_err(io::IOError::from)?.len();
 
+                    let original_path = PathBuf::from(&folder)
+                        .join(file_name)
+                        .to_slash_lossy()
+                        .to_string();
+
                     let path = PathBuf::from(&folder)
                         .join(file_name.trim_end_matches(".disabled"))
                         .to_slash_lossy()
                         .to_string();
 
-                    let metadata_entry = metadata_entry_by_path.get(&path);
-
-                    println!("{:?}", metadata_entry);
-
-                    let metadata = if let Some(metadata_entry) = metadata_entry {
+                    let metadata = if let Some(metadata_entry) = metadata_entry_by_path.get(&path) {
                         Self::get_content_metadata_file(&self.id, &metadata_entry.file)
                             .await
                             .ok()
@@ -252,17 +254,15 @@ impl Instance {
                         None
                     };
 
-                    println!("{:?}", metadata);
-
-                    let hash = if let Some(metadata) = &metadata {
-                        metadata.hash.to_owned()
+                    let (name, hash) = if let Some(metadata) = &metadata {
+                        (metadata.name.clone(), metadata.hash.to_owned())
                     } else {
                         let bytes = read_async(&subdirectory).await?;
                         let hash = sha1_async(bytes::Bytes::from(bytes)).await?;
 
                         let content_metadata_file = ContentMetadataFile {
                             file_name: file_name.to_string(),
-                            name: file_name.to_string(),
+                            name: None,
                             hash: hash.clone(),
                             download: None,
                             option: None,
@@ -278,18 +278,19 @@ impl Instance {
                         )
                         .await?;
 
-                        hash.clone()
+                        (None, hash.clone())
                     };
 
                     files.insert(
-                        path.clone(),
+                        original_path.clone(),
                         InstanceFile {
                             hash,
+                            name,
                             file_name: file_name.to_string(),
                             content_type,
                             size: file_size,
                             disabled: file_name.ends_with(".disabled"),
-                            path,
+                            path: original_path,
                             update: metadata.and_then(|it| it.update),
                         },
                     );
@@ -368,16 +369,35 @@ impl Instance {
         for content_path in content_paths {
             Instance::disable_content(id, content_path.as_ref()).await?;
         }
+
         Ok(())
     }
 
     pub async fn remove_content(id: &str, content_path: &str) -> crate::Result<()> {
-        let state = LauncherState::get().await?;
-        let pack_dir = state.locations.instance_pack_dir(id);
+        Instance::remove_contents(id, [content_path]).await
+    }
 
+    pub async fn remove_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
+    where
+        I: IntoIterator<Item = D>,
+        D: AsRef<str>,
+    {
         if let Ok(path) = crate::api::instance::get_dir(id).await {
-            io::remove_file(path.join(content_path)).await?;
-            io::remove_file(pack_dir.join(content_path)).await?;
+            let content_paths: Vec<String> = content_paths
+                .into_iter()
+                .map(|p| p.as_ref().to_string())
+                .collect();
+
+            for content_path in &content_paths {
+                io::remove_file(path.join(content_path)).await?;
+                Instance::remove_content_metadata_file(id, content_path).await?;
+            }
+
+            let mut content_metadata = Instance::get_content_metadata(id).await?;
+            content_metadata
+                .files
+                .retain(|entry| !content_paths.iter().any(|p| p == &entry.file));
+            Instance::update_content_metadata(id, &content_metadata).await?;
         }
 
         Ok(())
@@ -412,7 +432,7 @@ impl Instance {
     ) -> crate::Result<ContentMetadataFile> {
         let state = LauncherState::get().await?;
         let instance_pack_dir = state.locations.instance_pack_dir(id);
-        let content_metadata_file_path = instance_pack_dir.join(path).with_extension(".toml");
+        let content_metadata_file_path = instance_pack_dir.join(path).with_extension("toml");
         println!("{:?}", content_metadata_file_path);
         read_toml_async(&content_metadata_file_path).await
     }
@@ -424,7 +444,7 @@ impl Instance {
     ) -> crate::Result<()> {
         let state = LauncherState::get().await?;
         let instance_pack_dir = state.locations.instance_pack_dir(id);
-        let content_metadata_file_path = instance_pack_dir.join(path).with_extension(".toml");
+        let content_metadata_file_path = instance_pack_dir.join(path).with_extension("toml");
 
         if !content_metadata_file_path.exists() {
             let mut content_metadata = Instance::get_content_metadata(id).await?;
@@ -435,5 +455,13 @@ impl Instance {
         }
 
         write_toml_async(&content_metadata_file_path, entry).await
+    }
+
+    pub async fn remove_content_metadata_file(id: &str, path: &str) -> crate::Result<()> {
+        let state = LauncherState::get().await?;
+        let instance_pack_dir = state.locations.instance_pack_dir(id);
+        let content_metadata_file_path = instance_pack_dir.join(path).with_extension("toml");
+        io::remove_file(&content_metadata_file_path).await?;
+        Ok(())
     }
 }

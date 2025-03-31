@@ -20,7 +20,7 @@ pub struct ContentMetadataEntry {
 #[serde(rename_all = "kebab-case")]
 pub struct ContentMetadataFile {
     pub file_name: String,
-    pub name: String,
+    pub name: Option<String>,
     pub hash: String,
     pub download: Option<ContentMetadataFileDownload>,
     pub option: Option<ContentMetadataFileOption>,
