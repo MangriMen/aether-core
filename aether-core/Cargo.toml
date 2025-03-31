@@ -43,6 +43,7 @@ uuid = { version = "1.10", features = ["serde", "v4"] }
 
 bytes = "1.6"
 chrono = "0.4"
+sysinfo = "0.34.1"
 sys-info = "0.9"
 url = "2.5"
 
