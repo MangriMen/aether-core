@@ -1,4 +1,8 @@
-use std::{collections::HashMap, future::Future, path::PathBuf};
+use std::{
+    collections::HashMap,
+    future::Future,
+    path::{Path, PathBuf},
+};
 
 use chrono::{DateTime, Utc};
 use daedalus::{minecraft, modded};
@@ -390,15 +394,59 @@ impl Instance {
 
             for content_path in &content_paths {
                 io::remove_file(path.join(content_path)).await?;
-                Instance::remove_content_metadata_file(id, content_path).await?;
             }
 
-            let mut content_metadata = Instance::get_content_metadata(id).await?;
-            content_metadata
-                .files
-                .retain(|entry| !content_paths.iter().any(|p| p == &entry.file));
-            Instance::update_content_metadata(id, &content_metadata).await?;
+            Instance::remove_contents_from_pack(id, &content_paths).await?;
         }
+
+        Ok(())
+    }
+
+    async fn add_contents_to_pack(
+        id: &str,
+        content_paths: &[String],
+        content_metadata_files: &[ContentMetadataFile],
+    ) -> crate::Result<()> {
+        for (content_path, content_metadata_file) in
+            content_paths.iter().zip(content_metadata_files.iter())
+        {
+            Instance::update_content_metadata_file(id, content_path, content_metadata_file).await?;
+        }
+
+        let mut content_metadata = Instance::get_content_metadata(id).await?;
+        let content_metadata_entries: Vec<ContentMetadataEntry> = content_paths
+            .iter()
+            .map(|path| ContentMetadataEntry {
+                file: path.to_owned(),
+            })
+            .collect();
+
+        content_metadata
+            .files
+            .extend_from_slice(content_metadata_entries.as_slice());
+
+        content_metadata
+            .files
+            .dedup_by_key(|entry| entry.file.to_owned());
+
+        Instance::update_content_metadata(id, &content_metadata).await?;
+
+        Ok(())
+    }
+
+    async fn remove_contents_from_pack(id: &str, content_paths: &[String]) -> crate::Result<()> {
+        for content_path in content_paths {
+            Instance::remove_content_metadata_file(id, content_path).await?;
+        }
+
+        let mut content_metadata = Instance::get_content_metadata(id).await?;
+        content_metadata.files.retain(|entry| {
+            !content_paths
+                .iter()
+                .any(|p| p == &entry.file.replace("\\", "/"))
+        });
+
+        Instance::update_content_metadata(id, &content_metadata).await?;
 
         Ok(())
     }
@@ -428,28 +476,29 @@ impl Instance {
 
     pub async fn get_content_metadata_file(
         id: &str,
-        path: &str,
+        content_path: &str,
     ) -> crate::Result<ContentMetadataFile> {
         let state = LauncherState::get().await?;
         let instance_pack_dir = state.locations.instance_pack_dir(id);
-        let content_metadata_file_path = instance_pack_dir.join(path).with_extension("toml");
-        println!("{:?}", content_metadata_file_path);
+        let content_metadata_file_path =
+            instance_pack_dir.join(content_path).with_extension("toml");
         read_toml_async(&content_metadata_file_path).await
     }
 
     pub async fn update_content_metadata_file(
         id: &str,
-        path: &str,
+        content_path: &str,
         entry: &ContentMetadataFile,
     ) -> crate::Result<()> {
         let state = LauncherState::get().await?;
         let instance_pack_dir = state.locations.instance_pack_dir(id);
-        let content_metadata_file_path = instance_pack_dir.join(path).with_extension("toml");
+        let content_metadata_file_path =
+            instance_pack_dir.join(content_path).with_extension("toml");
 
         if !content_metadata_file_path.exists() {
             let mut content_metadata = Instance::get_content_metadata(id).await?;
             content_metadata.files.push(ContentMetadataEntry {
-                file: path.to_string(),
+                file: content_path.to_string(),
             });
             Instance::update_content_metadata(id, &content_metadata).await?;
         }
@@ -457,11 +506,95 @@ impl Instance {
         write_toml_async(&content_metadata_file_path, entry).await
     }
 
-    pub async fn remove_content_metadata_file(id: &str, path: &str) -> crate::Result<()> {
+    pub async fn remove_content_metadata_file(id: &str, content_path: &str) -> crate::Result<()> {
         let state = LauncherState::get().await?;
         let instance_pack_dir = state.locations.instance_pack_dir(id);
-        let content_metadata_file_path = instance_pack_dir.join(path).with_extension("toml");
+        let content_metadata_file_path =
+            instance_pack_dir.join(content_path).with_extension("toml");
         io::remove_file(&content_metadata_file_path).await?;
+        Ok(())
+    }
+
+    pub async fn get_import_content_data(
+        id: &str,
+        path: &Path,
+        content_type: ContentType,
+    ) -> crate::Result<(String, ContentMetadataFile)> {
+        let content_folder = content_type.get_folder();
+        let content_file_name = path
+            .file_name()
+            .ok_or(crate::ErrorKind::NoValueFor(format!(
+                "Can't get file name {:?}",
+                path
+            )))?
+            .to_string_lossy()
+            .to_string();
+
+        let content_path = Path::new(content_folder)
+            .join(&content_file_name)
+            .to_string_lossy()
+            .to_string();
+
+        let duplicate_error = crate::ErrorKind::ContentImportDuplicateError {
+            content_path: content_path.clone(),
+        };
+
+        let absolute_content_path = crate::api::instance::get_dir(id).await?.join(&content_path);
+
+        if absolute_content_path.exists() {
+            return Err(duplicate_error.as_error());
+        }
+
+        let content_metadata_file = Instance::get_content_metadata_file(id, &content_path).await;
+
+        let content_bytes = bytes::Bytes::from(std::fs::read(path)?);
+
+        let content_metadata_file = match content_metadata_file {
+            Ok(_) => Err(duplicate_error.as_error()),
+            Err(_) => {
+                let hash = sha1_async(content_bytes).await?;
+
+                Ok(ContentMetadataFile {
+                    file_name: content_file_name.clone(),
+                    name: None,
+                    hash,
+                    download: None,
+                    option: None,
+                    side: None,
+                    update_provider: None,
+                    update: None,
+                })
+            }
+        }?;
+
+        Ok((content_path, content_metadata_file))
+    }
+
+    pub async fn import_contents(
+        id: &str,
+        paths: Vec<&Path>,
+        content_type: ContentType,
+    ) -> crate::Result<()> {
+        let mut content_paths = Vec::new();
+        let mut content_metadata_files = Vec::new();
+
+        for path in &paths {
+            let (content_path, content_metadata_file) =
+                Instance::get_import_content_data(id, Path::new(&path), content_type).await?;
+
+            content_paths.push(content_path);
+            content_metadata_files.push(content_metadata_file);
+        }
+
+        Instance::add_contents_to_pack(id, &content_paths, &content_metadata_files).await?;
+
+        let instance_dir = crate::api::instance::get_dir(id).await?;
+
+        for (path, content_path) in paths.iter().zip(content_paths) {
+            let absolute_content_path = instance_dir.join(content_path);
+            tokio::fs::copy(path, absolute_content_path).await?;
+        }
+
         Ok(())
     }
 }

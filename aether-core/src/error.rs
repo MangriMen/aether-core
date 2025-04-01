@@ -122,6 +122,9 @@ pub enum ErrorKind {
 
     #[error("Content provider not found: {provider}")]
     ContentProviderNotFound { provider: String },
+
+    #[error("Content import duplicate error: {content_path}")]
+    ContentImportDuplicateError { content_path: String },
 }
 
 #[derive(Debug)]

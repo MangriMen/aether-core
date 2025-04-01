@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use dashmap::DashMap;
 
 use crate::{
     event::{emit::emit_instance, InstancePayloadType},
     state::{
-        content_provider, ContentMetadataFile, ContentRequest, ContentResponse,
+        content_provider, ContentMetadataFile, ContentRequest, ContentResponse, ContentType,
         InstallContentPayload, Instance, InstanceFile,
     },
 };
@@ -115,4 +115,12 @@ pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate
     .await?;
 
     Ok(())
+}
+
+pub async fn import_contents(
+    id: &str,
+    paths: Vec<&Path>,
+    content_type: ContentType,
+) -> crate::Result<()> {
+    Instance::import_contents(id, paths, content_type).await
 }
