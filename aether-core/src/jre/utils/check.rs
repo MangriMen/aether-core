@@ -22,7 +22,7 @@ pub const JAVA_BIN: &str = "java";
 // For example filepath 'path', attempt to resolve it and get a Java version at this path
 // If no such path exists, or no such valid java at this path exists, returns None
 #[tracing::instrument]
-pub async fn check_java_at_filepath(path: &Path) -> Option<Java> {
+pub async fn check_jre_at_filepath(path: &Path) -> Option<Java> {
     // Attempt to canonicalize the potential java filepath
     // If it fails, this path does not exist and None is returned (no Java here)
     let Ok(path) = crate::utils::io::canonicalize(path) else {

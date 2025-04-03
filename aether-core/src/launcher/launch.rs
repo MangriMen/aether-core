@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use daedalus::{minecraft, modded};
 
 use crate::{
@@ -96,38 +94,18 @@ pub async fn install_minecraft(
         )
         .await?;
 
-        let compatible_java_version = version_info
-            .java_version
-            .as_ref()
-            .map(|it| it.major_version)
-            .unwrap_or(8);
-
-        let (java_version, set_java) = if let Some(java_version) =
-            Instance::get_java_version_from_instance(instance, &version_info).await?
-        {
-            (PathBuf::from(java_version.path), false)
+        let java = if let Some(java) = Instance::get_java(instance).await.transpose() {
+            java
         } else {
-            let path = crate::jre::auto_install_java(compatible_java_version).await?;
-            (path, true)
-        };
-
-        let java_version = crate::api::jre::check_jre(java_version.clone())
-            .await?
-            .ok_or_else(|| {
-                crate::ErrorKind::LauncherError(format!(
-                    "Java path invalid or non-functional: {:?}",
-                    java_version
-                ))
-            })?;
-
-        if set_java {
-            java_version.update(&state).await?;
-        }
+            let compatible_java_version =
+                crate::utils::minecraft::get_compatible_java_version(&version_info);
+            crate::api::java::install(compatible_java_version).await
+        }?;
 
         download_minecraft(
             &state,
             &version_info,
-            &java_version.architecture,
+            &java.architecture,
             force,
             minecraft_updated,
             Some(&loading_bar),
@@ -139,7 +117,7 @@ pub async fn install_minecraft(
             version_jar,
             &instance_path,
             &mut version_info,
-            &java_version,
+            &java,
             Some(&loading_bar),
         )
         .await?;
@@ -261,21 +239,14 @@ pub async fn launch_minecraft(
     let version_info =
         download_version_info(&state, &version, loader_version.as_ref(), None, None).await?;
 
-    let java_version = instance
-        .get_java_version_from_instance(&version_info)
-        .await?
-        .ok_or_else(|| {
-            crate::ErrorKind::LauncherError("Missing correct java installation".to_string())
-        })?;
+    let java = if let Some(java) = instance.get_java().await.transpose() {
+        java
+    } else {
+        let compatible_java_version =
+            crate::utils::minecraft::get_compatible_java_version(&version_info);
 
-    let java_version = crate::api::jre::check_jre(java_version.path.clone().into())
-        .await?
-        .ok_or_else(|| {
-            crate::ErrorKind::LauncherError(format!(
-                "Java path invalid or non-functional: {}",
-                java_version.path
-            ))
-        })?;
+        crate::api::java::get(compatible_java_version).await
+    }?;
 
     let client_path = state
         .locations
@@ -288,9 +259,9 @@ pub async fn launch_minecraft(
 
     let mut command = match &launch_metadata.wrapper {
         Some(hook) => {
-            wrap_ref_builder!(it = tokio::process::Command::new(hook) => {it.arg(&java_version.path)})
+            wrap_ref_builder!(it = tokio::process::Command::new(hook) => {it.arg(&java.path)})
         }
-        None => tokio::process::Command::new(&java_version.path),
+        None => tokio::process::Command::new(&java.path),
     };
 
     // Check if profile has a running profile, and reject running the command if it does
@@ -315,7 +286,7 @@ pub async fn launch_minecraft(
         &natives_dir,
         &client_path,
         version_jar,
-        &java_version,
+        &java,
         launch_settings.memory,
         &launch_args.java_args,
         &args,
@@ -333,7 +304,7 @@ pub async fn launch_minecraft(
         &state.locations.assets_dir(),
         &version.type_,
         launch_settings.resolution,
-        &java_version.architecture,
+        &java.architecture,
     )?
     .into_iter()
     .collect::<Vec<_>>();

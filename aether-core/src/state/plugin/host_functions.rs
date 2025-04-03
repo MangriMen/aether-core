@@ -126,10 +126,21 @@ pub instance_create(
 });
 
 host_fn!(
-pub get_or_download_java(user_data: PluginContext; version: u32) -> extism::Result<String> {
+pub get_java(user_data: PluginContext; version: u32) -> extism::Result<String> {
     let res = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(
-            crate::api::jre::get_or_download_java(version)
+            crate::api::java::get(version)
+        )
+    })?;
+
+    Ok(res)
+});
+
+host_fn!(
+pub install_java(user_data: PluginContext; version: u32) -> extism::Result<String> {
+    let res = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(
+            crate::api::java::install(version)
         )
     })?;
 

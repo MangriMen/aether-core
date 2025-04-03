@@ -114,7 +114,7 @@ impl PluginState {
             [extism::PTR],
             [extism::ValType::I64],
             extism::UserData::new(context.clone()),
-            super::host_functions::get_or_download_java,
+            super::host_functions::get_java,
         );
 
         let run_command_fn = extism::Function::new(

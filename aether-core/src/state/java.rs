@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use extism::ToBytes;
 use extism_convert::Json;
 
@@ -11,6 +13,19 @@ pub struct Java {
 }
 
 impl Java {
+    #[tracing::instrument]
+    pub async fn from_path(path: &Path) -> crate::Result<Java> {
+        crate::jre::check_jre_at_filepath(path)
+            .await
+            .ok_or_else(|| {
+                crate::ErrorKind::LauncherError(format!(
+                    "Java path invalid or non-functional: {:?}",
+                    path
+                ))
+                .as_error()
+            })
+    }
+
     #[tracing::instrument]
     pub async fn get(
         state: &super::LauncherState,
@@ -46,7 +61,7 @@ impl Java {
     }
 
     #[tracing::instrument]
-    pub async fn update(&self, state: &super::LauncherState) -> crate::Result<()> {
+    pub async fn upsert(&self, state: &super::LauncherState) -> crate::Result<()> {
         log::info!("Reading java versions file");
 
         let java_directory = state.locations.java_dir().join("versions.json");

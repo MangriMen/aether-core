@@ -5,7 +5,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use daedalus::{minecraft, modded};
+use daedalus::modded;
 use dashmap::DashMap;
 use extism::{FromBytes, ToBytes};
 use extism_convert::{encoding, Json};
@@ -101,32 +101,12 @@ impl Instance {
         Ok(full_path)
     }
 
-    pub async fn get_java_version_from_instance(
-        &self,
-        version_info: &minecraft::VersionInfo,
-    ) -> crate::Result<Option<Java>> {
-        if let Some(java) = self.java_path.as_ref() {
-            let java = crate::api::jre::check_jre(std::path::PathBuf::from(java))
-                .await
-                .ok()
-                .flatten();
-
-            if let Some(java) = java {
-                return Ok(Some(java));
-            }
+    pub async fn get_java(&self) -> crate::Result<Option<Java>> {
+        if let Some(java_path) = self.java_path.as_ref() {
+            Ok(Some(Java::from_path(Path::new(java_path)).await?))
+        } else {
+            Ok(None)
         }
-
-        let compatible_version = version_info
-            .java_version
-            .as_ref()
-            .map(|it| it.major_version)
-            .unwrap_or(8);
-
-        let state = LauncherState::get().await?;
-
-        let java_version = Java::get(&state, compatible_version).await?;
-
-        Ok(java_version)
     }
 
     pub async fn get_loader_version(
