@@ -119,6 +119,12 @@ pub enum ErrorKind {
 
     #[error("Deserialization error (TOML): {0}")]
     TomlDeserializationError(#[from] toml::de::Error),
+
+    #[error("Content provider not found: {provider}")]
+    ContentProviderNotFound { provider: String },
+
+    #[error("Content import duplicate error: {content_path}")]
+    ContentImportDuplicateError { content_path: String },
 }
 
 #[derive(Debug)]

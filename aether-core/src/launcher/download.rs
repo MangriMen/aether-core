@@ -213,7 +213,7 @@ pub async fn download_asset(
         "{MINECRAFT_RESOURCES_BASE_URL}{sub_hash}/{hash}",
         sub_hash = &hash[..2]
     );
-    log::debug!("Downloading asset \"{}\"\n\tfrom {}", name, url);
+    log::trace!("Downloading asset \"{}\"\n\tfrom {}", name, url);
 
     let asset_path = state.locations.object_dir(hash);
 
@@ -357,7 +357,7 @@ pub async fn download_java_library(
             return Ok::<(), crate::Error>(());
         }
     }
-    println!(
+    log::debug!(
         "Library {}, part {}",
         library
             .url
@@ -376,7 +376,7 @@ pub async fn download_java_library(
     ]
     .concat();
 
-    println!("Library url {}", url);
+    log::debug!("Library url {}", url);
 
     let bytes = utils::fetch::fetch_advanced(
         Method::GET,
@@ -490,7 +490,7 @@ pub async fn download_library(
 
 // TODO: reduce arguments count
 #[allow(clippy::too_many_arguments)]
-#[tracing::instrument(skip(state, libraries))]
+#[tracing::instrument(skip_all)]
 pub async fn download_libraries(
     state: &LauncherState,
     libraries: &[minecraft::Library],
