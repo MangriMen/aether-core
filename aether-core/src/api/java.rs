@@ -7,7 +7,7 @@ use crate::state::{Java, LauncherState};
 pub async fn install(version: u32) -> crate::Result<Java> {
     let state = LauncherState::get().await?;
 
-    let path = crate::jre::install_jre(version).await?;
+    let path = crate::features::java::install_jre(version).await?;
     let java = Java::from_path(&path).await;
 
     if let Ok(java) = &java {

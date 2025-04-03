@@ -99,7 +99,13 @@ pub async fn install_minecraft(
         } else {
             let compatible_java_version =
                 crate::utils::minecraft::get_compatible_java_version(&version_info);
-            crate::api::java::install(compatible_java_version).await
+
+            let java = crate::api::java::get(compatible_java_version).await;
+
+            match java {
+                Ok(java) => Ok(java),
+                Err(_) => crate::api::java::install(compatible_java_version).await,
+            }
         }?;
 
         download_minecraft(

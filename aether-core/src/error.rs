@@ -76,7 +76,7 @@ pub enum ErrorKind {
     NoCredentialsError,
 
     #[error("JRE error: {0}")]
-    JREError(#[from] crate::jre::JREError),
+    JREError(#[from] crate::features::java::JREError),
 
     #[error("Error parsing date: {0}")]
     ChronoParseError(#[from] chrono::ParseError),

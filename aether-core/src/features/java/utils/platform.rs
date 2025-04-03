@@ -1,6 +1,6 @@
 use crate::utils::platform::OsExt;
 
-pub fn classpath_separator(java_arch: &str) -> &'static str {
+pub fn get_classpath_separator(java_arch: &str) -> &'static str {
     use daedalus::minecraft::Os;
 
     match Os::native_arch(java_arch) {

@@ -15,7 +15,7 @@ pub struct Java {
 impl Java {
     #[tracing::instrument]
     pub async fn from_path(path: &Path) -> crate::Result<Java> {
-        crate::jre::check_jre_at_filepath(path)
+        crate::features::java::check_jre_at_filepath(path)
             .await
             .ok_or_else(|| {
                 crate::ErrorKind::LauncherError(format!(

@@ -23,6 +23,6 @@ pub enum JREError {
     #[error("No stored tag for Minecraft Version {0}")]
     NoMinecraftVersionFound(String),
 
-    #[error("Error getting launcher sttae")]
+    #[error("Error getting launcher state")]
     StateError,
 }

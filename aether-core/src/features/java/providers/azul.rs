@@ -8,6 +8,7 @@ use crate::{
         emit::{emit_loading, init_loading},
         LoadingBarId, LoadingBarType,
     },
+    features::java::constants::JAVA_WINDOW_BIN,
     state::LauncherState,
     utils::fetch::{fetch_advanced, fetch_json},
 };
@@ -120,7 +121,7 @@ async fn unpack_jre(
 
     #[cfg(not(target_os = "macos"))]
     {
-        base_path = base_path.join("bin").join(crate::jre::JAVA_BIN)
+        base_path = base_path.join("bin").join(JAVA_WINDOW_BIN)
     }
 
     Ok(base_path)

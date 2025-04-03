@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::Path};
 use daedalus::minecraft;
 
 use crate::{
-    jre::classpath_separator, launcher::library::parse_rules, state::MemorySettings,
+    features::java::get_classpath_separator, launcher::library::parse_rules, state::MemorySettings,
     utils::io::canonicalize,
 };
 
@@ -97,7 +97,7 @@ fn parse_jvm_argument(
                 })?
                 .to_string_lossy(),
         )
-        .replace("${classpath_separator}", classpath_separator(java_arch))
+        .replace("${classpath_separator}", get_classpath_separator(java_arch))
         .replace("${launcher_name}", "theseus")
         .replace("${launcher_version}", env!("CARGO_PKG_VERSION"))
         .replace("${version_name}", version_name)
@@ -144,7 +144,7 @@ pub fn get_class_paths(
     Ok(cps
         .into_iter()
         .collect::<Vec<_>>()
-        .join(classpath_separator(java_arch)))
+        .join(get_classpath_separator(java_arch)))
 }
 
 pub fn get_class_paths_jar<T: AsRef<str>>(
@@ -157,7 +157,7 @@ pub fn get_class_paths_jar<T: AsRef<str>>(
         .map(|library| get_lib_path(libraries_path, library.as_ref(), false))
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(cps.join(classpath_separator(java_arch)))
+    Ok(cps.join(get_classpath_separator(java_arch)))
 }
 
 pub fn get_lib_path(
