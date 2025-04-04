@@ -89,7 +89,7 @@ fn get_java_version_and_arch_from_executable(path: &Path) -> (Option<String>, Op
 /// Examples:
 /// - "1.8.0_361" -> (1, 8)
 /// - "20" -> (1, 20)
-fn extract_java_major_minor_version(version: &str) -> Result<(u32, u32), JREError> {
+pub(super) fn extract_java_major_minor_version(version: &str) -> Result<(u32, u32), JREError> {
     let mut split = version.split('.');
 
     let major_str = split
