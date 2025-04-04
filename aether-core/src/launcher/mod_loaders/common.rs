@@ -2,10 +2,7 @@ use std::path::PathBuf;
 
 use daedalus::minecraft::VersionInfo;
 
-use crate::{
-    event::LoadingBarId,
-    state::{Instance, Java},
-};
+use crate::{event::LoadingBarId, features::java::Java, state::Instance};
 
 use super::process_forge_processors;
 

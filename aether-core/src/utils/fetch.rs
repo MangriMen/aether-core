@@ -66,9 +66,8 @@ pub async fn fetch_advanced(
                     let mut stream = res.bytes_stream();
                     let mut bytes = Vec::new();
                     while let Some(item) = stream.next().await {
-                        let chunk = item.or(Err(crate::error::ErrorKind::NoValueFor(
-                            "fetch bytes".to_string(),
-                        )))?;
+                        let chunk =
+                            item.or(Err(crate::ErrorKind::NoValueFor("fetch bytes".to_string())))?;
 
                         bytes.append(&mut chunk.to_vec());
 

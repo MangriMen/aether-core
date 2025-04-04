@@ -14,7 +14,8 @@ use tokio::fs::remove_dir_all;
 
 use crate::{
     event::emit::emit_instance,
-    state::{Hooks, Java, LauncherState, MemorySettings, WindowSize},
+    features::java::{FsJavaStorage, Java, JavaStorage},
+    state::{Hooks, LauncherState, MemorySettings, WindowSize},
     utils::{
         file::sha1_async,
         io::{self, read_async, read_toml_async, write_toml_async},
@@ -103,7 +104,9 @@ impl Instance {
 
     pub async fn get_java(&self) -> crate::Result<Option<Java>> {
         if let Some(java_path) = self.java_path.as_ref() {
-            Ok(Some(Java::from_path(Path::new(java_path)).await?))
+            Ok(Some(
+                FsJavaStorage.create_from_path(Path::new(java_path)).await?,
+            ))
         } else {
             Ok(None)
         }

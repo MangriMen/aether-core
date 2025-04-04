@@ -11,9 +11,10 @@ use tokio::process::Command;
 
 use crate::{
     event::{emit::emit_loading, LoadingBarId},
+    features::java::Java,
     launcher::args,
     processor_rules,
-    state::{Instance, Java, LauncherState},
+    state::{Instance, LauncherState},
     utils::io::IOError,
     wrap_ref_builder,
 };

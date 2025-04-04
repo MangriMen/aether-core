@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{features::java::providers, state::LauncherState};
+use crate::{features::java::azul_provider, state::LauncherState};
 
 pub enum JreProvider {
     Azul,
@@ -17,6 +17,6 @@ pub async fn install_jre_with_provider(
     let state = LauncherState::get().await?;
 
     match provider {
-        JreProvider::Azul => providers::azul::install_jre(&state, version).await,
+        JreProvider::Azul => azul_provider::install_jre(&state, version).await,
     }
 }

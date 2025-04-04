@@ -1,17 +1,14 @@
 use std::{path::Path, process::Command};
 
-use crate::{
-    features::java::{
-        application::constants::{JAVA_BIN, JAVA_WINDOW_BIN},
-        JREError,
-    },
-    state::Java,
+use crate::features::java::{
+    application::constants::{JAVA_BIN, JAVA_WINDOW_BIN},
+    JREError, Java,
 };
 
 // For example filepath 'path', attempt to resolve it and get a Java version at this path
 // If no such path exists, or no such valid java at this path exists, returns None
 #[tracing::instrument]
-pub async fn check_jre_at_filepath(path: &Path) -> Option<Java> {
+pub async fn construct_java_from_jre(path: &Path) -> Option<Java> {
     // Attempt to canonicalize the potential Java filepath
     // If it fails, return None (Java is not here)
     let path = crate::utils::io::canonicalize(path).ok()?;
@@ -33,7 +30,7 @@ pub async fn check_jre_at_filepath(path: &Path) -> Option<Java> {
     let java_bin_path = java_window_bin_path.with_file_name(JAVA_BIN);
 
     // Get the Java version and architecture
-    let (java_version, java_arch) = get_java_version_and_arch_from_executable(&java_bin_path);
+    let (java_version, java_arch) = get_java_version_and_arch_from_jre(&java_bin_path);
 
     // Extract version and architecture information
     if let (Some(java_version), Some(java_arch)) = (java_version, java_arch) {
@@ -50,7 +47,7 @@ pub async fn check_jre_at_filepath(path: &Path) -> Option<Java> {
     }
 }
 
-fn get_java_version_and_arch_from_executable(path: &Path) -> (Option<String>, Option<String>) {
+fn get_java_version_and_arch_from_jre(path: &Path) -> (Option<String>, Option<String>) {
     let output = Command::new(path)
         .arg("-XshowSettings:properties")
         .arg("-version")
