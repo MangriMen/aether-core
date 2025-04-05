@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 
 use crate::{
+    core::LauncherState,
     features::settings::{Settings, SettingsStorage},
-    state::LauncherState,
     utils::io::{read_json_async, write_json_async},
 };
 

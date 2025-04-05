@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::utils::io::{read_json_async, write_json_async};
-
-use super::LauncherState;
+use crate::{
+    core::LauncherState,
+    utils::io::{read_json_async, write_json_async},
+};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

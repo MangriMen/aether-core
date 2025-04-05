@@ -1,7 +1,7 @@
-use crate::state::ImportConfig;
+use crate::{core::LauncherState, state::ImportConfig};
 
 pub async fn get_import_configs() -> crate::Result<Vec<ImportConfig>> {
-    let state = crate::state::LauncherState::get().await?;
+    let state = LauncherState::get().await?;
     let plugin_manager = state.plugin_manager.read().await;
 
     let mut import_handlers: Vec<ImportConfig> = Vec::new();
@@ -21,7 +21,7 @@ pub async fn get_import_configs() -> crate::Result<Vec<ImportConfig>> {
 }
 
 pub async fn import(pack_type: &str, path_or_url: &str) -> crate::Result<()> {
-    let state = crate::state::LauncherState::get().await?;
+    let state = LauncherState::get().await?;
     let plugin_manager = state.plugin_manager.read().await;
 
     if let Ok(plugin) = plugin_manager.get_plugin(pack_type) {

@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+    core::LauncherState,
     features::settings::{FsSettingsStorage, SettingsStorage},
-    state::{LauncherState, PluginMetadata, PluginSettings},
+    state::{PluginMetadata, PluginSettings},
 };
 
 #[tracing::instrument]

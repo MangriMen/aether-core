@@ -4,12 +4,12 @@ use bytes::Bytes;
 use reqwest::Method;
 
 use crate::{
+    core::LauncherState,
     event::{
         emit::{emit_loading, init_loading},
         LoadingBarId, LoadingBarType,
     },
     features::java::constants::JAVA_WINDOW_BIN,
-    state::LauncherState,
     utils::fetch::{fetch_advanced, fetch_json},
 };
 

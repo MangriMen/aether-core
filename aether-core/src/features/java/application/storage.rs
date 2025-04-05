@@ -2,7 +2,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 
-use crate::{features::java::Java, state::LauncherState};
+use crate::{core::LauncherState, features::java::Java};
 
 #[async_trait]
 pub trait JavaStorage {

@@ -1,8 +1,8 @@
 use sysinfo::System;
 
 use crate::{
+    core::LauncherState,
     features::settings::{FsSettingsStorage, Settings, SettingsStorage},
-    state::LauncherState,
 };
 
 pub async fn get() -> crate::Result<Settings> {

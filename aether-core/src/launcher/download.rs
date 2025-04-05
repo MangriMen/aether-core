@@ -1,6 +1,6 @@
 use crate::{
+    core::LauncherState,
     event::{emit::emit_loading, loading_try_for_each_concurrent, LoadingBarId},
-    state::LauncherState,
     utils::{self, io::write_async},
 };
 use bytes::Bytes;

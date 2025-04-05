@@ -1,6 +1,6 @@
 use daedalus::{minecraft, modded};
 
-use crate::state::LauncherState;
+use crate::core::LauncherState;
 
 #[tracing::instrument]
 pub async fn get_versions_manifest() -> crate::Result<minecraft::VersionManifest> {

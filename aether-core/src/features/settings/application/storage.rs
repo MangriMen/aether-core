@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::{features::settings::Settings, state::LauncherState};
+use crate::{core::LauncherState, features::settings::Settings};
 
 #[async_trait]
 pub trait SettingsStorage {

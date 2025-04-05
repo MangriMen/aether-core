@@ -2,9 +2,11 @@ use std::{path::PathBuf, sync::Arc};
 
 use tokio::sync::{OnceCell, RwLock, Semaphore};
 
-use crate::{features::settings::Settings, state::fs_watcher, utils::fetch::FetchSemaphore};
-
-use super::{FsWatcher, LocationInfo, PluginManager, ProcessManager};
+use crate::{
+    features::settings::Settings,
+    state::{fs_watcher, FsWatcher, LocationInfo, PluginManager, ProcessManager},
+    utils::fetch::FetchSemaphore,
+};
 
 // Global state
 // RwLock on state only has concurrent reads, except for config dir change which takes control of the State
@@ -32,7 +34,7 @@ pub struct LauncherState {
 impl LauncherState {
     pub async fn init(settings: &Settings) -> crate::Result<()> {
         LAUNCHER_STATE
-            .get_or_try_init(|| Self::initialize_state(settings))
+            .get_or_try_init(|| Self::initialize(settings))
             .await?;
 
         Ok(())
@@ -61,7 +63,7 @@ impl LauncherState {
     }
 
     #[tracing::instrument]
-    async fn initialize_state(settings: &Settings) -> crate::Result<Arc<Self>> {
+    async fn initialize(settings: &Settings) -> crate::Result<Arc<Self>> {
         log::info!("Initializing state");
 
         log::info!("Initialize locations");

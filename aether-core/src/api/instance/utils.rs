@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use tokio::process::Command;
 
 use crate::{
+    core::LauncherState,
     features::settings::Settings,
     launcher::{InstanceLaunchArgs, InstanceLaunchMetadata, InstanceLaunchSettings},
-    state::{Instance, LauncherState},
+    state::Instance,
     utils::io::IOError,
 };
 

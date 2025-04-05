@@ -7,7 +7,7 @@ use bytes::Bytes;
 use extism::{Manifest, PluginBuilder, Wasm};
 use tokio::sync::Mutex;
 
-use crate::{state::LauncherState, utils::file::sha1_async};
+use crate::{core::LauncherState, utils::file::sha1_async};
 
 use super::{LauncherPlugin, PluginMetadata, PluginSettings, WasmCache, WasmCacheConfig};
 

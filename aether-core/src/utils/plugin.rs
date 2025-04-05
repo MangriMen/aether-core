@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use crate::state::{get_default_allowed_paths, SerializableCommand};
+use crate::{
+    core::LauncherState,
+    state::{get_default_allowed_paths, SerializableCommand},
+};
 
 pub fn plugin_path_to_relative<I, T>(
     id: &str,
@@ -40,7 +43,7 @@ pub fn plugin_path_to_host(id: &str, path: &str) -> crate::Result<PathBuf> {
     }
 
     let state = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(crate::state::LauncherState::get())
+        tokio::runtime::Handle::current().block_on(LauncherState::get())
     })?;
 
     let cleaned_path_str = path.strip_prefix('#').unwrap_or(path);

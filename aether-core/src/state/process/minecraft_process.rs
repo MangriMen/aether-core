@@ -5,8 +5,9 @@ use tokio::process::{Child, Command};
 use uuid::Uuid;
 
 use crate::{
+    core::LauncherState,
     event::{emit_process, ProcessPayloadType},
-    state::{Instance, LauncherState},
+    state::Instance,
     utils::io::IOError,
 };
 

@@ -1,7 +1,8 @@
 use crate::{
     api,
+    core::LauncherState,
     features::settings::{FsSettingsStorage, SettingsStorage},
-    state::{self, Credentials, LauncherState, MinecraftProcessMetadata},
+    state::{self, Credentials, MinecraftProcessMetadata},
 };
 
 #[tracing::instrument]

@@ -4,7 +4,8 @@ use path_slash::PathExt;
 use reqwest::Method;
 
 use crate::{
-    state::{ContentRequest, ContentResponse, InstallContentPayload, InstanceFile, LauncherState},
+    core::LauncherState,
+    state::{ContentRequest, ContentResponse, InstallContentPayload, InstanceFile},
     utils::{fetch::fetch_advanced, io::write_async},
 };
 

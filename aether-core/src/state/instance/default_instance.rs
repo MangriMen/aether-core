@@ -13,12 +13,13 @@ use path_slash::PathBufExt;
 use tokio::fs::remove_dir_all;
 
 use crate::{
+    core::LauncherState,
     event::emit::emit_instance,
     features::{
         java::{FsJavaStorage, Java, JavaStorage},
         settings::{MemorySettings, WindowSize},
     },
-    state::{Hooks, LauncherState},
+    state::Hooks,
     utils::{
         file::sha1_async,
         io::{self, read_async, read_toml_async, write_toml_async},

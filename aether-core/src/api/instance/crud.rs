@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+    core::LauncherState,
     event::emit::emit_instance,
     features::settings::{MemorySettings, WindowSize},
-    state::{Instance, LauncherState, PackInfo},
+    state::{Instance, PackInfo},
     utils::io::read_json_async,
 };
 
@@ -136,7 +137,7 @@ pub async fn install(id: &str, force: bool) -> crate::Result<()> {
 pub async fn update(id: &str) -> crate::Result<()> {
     if let Ok(instance) = get(id).await {
         if let Some(pack_info) = instance.pack_info {
-            let state = crate::state::LauncherState::get().await?;
+            let state = LauncherState::get().await?;
             let plugin_manager = state.plugin_manager.read().await;
 
             if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {

@@ -5,7 +5,8 @@ use path_slash::PathBufExt;
 use reqwest::Method;
 
 use crate::{
-    state::{LauncherState, ModLoader, PackInfo, SerializableCommand, SerializableOutput},
+    core::LauncherState,
+    state::{ModLoader, PackInfo, SerializableCommand, SerializableOutput},
     utils::plugin::log_level_from_u32,
 };
 
@@ -63,7 +64,7 @@ host_fn!(
 pub instance_get_dir(user_data: PluginContext; id: String) -> extism::Result<String> {
    let res = tokio::task::block_in_place(|| -> crate::Result<PathBuf> {
         let state = tokio::runtime::Handle::current().block_on(
-            crate::state::LauncherState::get()
+            LauncherState::get()
         )?;
 
        let dir = tokio::runtime::Handle::current().block_on(
@@ -83,7 +84,7 @@ pub instance_plugin_get_dir(user_data: PluginContext; instance_id: String) -> ex
 
     let state = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(
-            crate::state::LauncherState::get()
+            LauncherState::get()
         )})?;
 
     let dir = state.locations.instance_plugin_dir(&instance_id, &id);
