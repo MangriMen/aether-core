@@ -1,11 +1,10 @@
 pub mod api;
 pub mod config;
 pub mod core;
-pub mod error;
 pub mod event;
 pub mod features;
 pub mod launcher;
 pub mod state;
 pub mod utils;
 
-pub use error::*;
+pub use core::error::*;
