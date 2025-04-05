@@ -2,9 +2,9 @@ use std::{path::PathBuf, sync::Arc};
 
 use tokio::sync::{OnceCell, RwLock, Semaphore};
 
-use crate::{state::fs_watcher, utils::fetch::FetchSemaphore};
+use crate::{features::settings::Settings, state::fs_watcher, utils::fetch::FetchSemaphore};
 
-use super::{FsWatcher, LocationInfo, PluginManager, ProcessManager, Settings};
+use super::{FsWatcher, LocationInfo, PluginManager, ProcessManager};
 
 // Global state
 // RwLock on state only has concurrent reads, except for config dir change which takes control of the State

@@ -4,6 +4,7 @@ use daedalus::minecraft;
 use uuid::Uuid;
 
 use crate::{
+    features::settings::WindowSize,
     state::{self},
     utils::io::canonicalize,
 };
@@ -23,7 +24,7 @@ pub fn get_minecraft_arguments(
     game_directory: &Path,
     assets_directory: &Path,
     version_type: &minecraft::VersionType,
-    resolution: state::WindowSize,
+    resolution: WindowSize,
     java_arch: &str,
 ) -> crate::Result<Vec<String>> {
     if let Some(arguments) = arguments {
@@ -83,7 +84,7 @@ fn parse_minecraft_argument(
     game_directory: &Path,
     assets_directory: &Path,
     version_type: &minecraft::VersionType,
-    resolution: state::WindowSize,
+    resolution: WindowSize,
 ) -> crate::Result<String> {
     Ok(argument
         .replace("${accessToken}", access_token)

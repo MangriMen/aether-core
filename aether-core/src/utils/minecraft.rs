@@ -3,9 +3,9 @@ use std::{collections::HashMap, path::Path};
 use daedalus::minecraft::{self, Version};
 
 use crate::{
-    features::java::Java,
+    features::{java::Java, settings::MemorySettings},
     launcher::args,
-    state::{Instance, LauncherState, MemorySettings},
+    state::{Instance, LauncherState},
 };
 
 pub fn is_minecraft_updated(

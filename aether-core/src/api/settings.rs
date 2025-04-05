@@ -1,11 +1,14 @@
 use sysinfo::System;
 
-use crate::state::{LauncherState, Settings};
+use crate::{
+    features::settings::{FsSettingsStorage, Settings, SettingsStorage},
+    state::LauncherState,
+};
 
 pub async fn get() -> crate::Result<Settings> {
     let state = LauncherState::get().await?;
 
-    Settings::get(&state).await
+    FsSettingsStorage.get(&state).await
 }
 
 pub fn get_max_ram() -> u64 {

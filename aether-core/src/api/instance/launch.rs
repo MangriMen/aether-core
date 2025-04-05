@@ -1,6 +1,7 @@
 use crate::{
     api,
-    state::{self, Credentials, LauncherState, MinecraftProcessMetadata, Settings},
+    features::settings::{FsSettingsStorage, SettingsStorage},
+    state::{self, Credentials, LauncherState, MinecraftProcessMetadata},
 };
 
 #[tracing::instrument]
@@ -21,7 +22,7 @@ pub async fn run_credentials(
 ) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
     // TODO: add io semaphore
-    let settings = Settings::get(&state).await?;
+    let settings = FsSettingsStorage.get(&state).await?;
 
     let instance = api::instance::get(id).await?;
 

@@ -6,6 +6,7 @@ use crate::{
         emit::{emit_loading, init_or_edit_loading},
         LoadingBarId, LoadingBarType,
     },
+    features::settings::{MemorySettings, WindowSize},
     launcher::mod_loader_post_install,
     state::{
         self, plugin_event::PluginEvent, Instance, InstanceInstallStage, LauncherState,
@@ -170,8 +171,8 @@ pub struct InstanceLaunchArgs {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct InstanceLaunchSettings {
-    pub memory: state::MemorySettings,
-    pub resolution: state::WindowSize,
+    pub memory: MemorySettings,
+    pub resolution: WindowSize,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]

@@ -10,7 +10,6 @@ pub mod minecraft_auth;
 pub mod output;
 pub mod plugin;
 pub mod process;
-pub mod settings;
 
 pub use account::*;
 pub use command::*;
@@ -24,4 +23,3 @@ pub use minecraft_auth::*;
 pub use output::*;
 pub use plugin::*;
 pub use process::*;
-pub use settings::*;
