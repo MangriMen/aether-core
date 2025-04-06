@@ -4,4 +4,3 @@ pub mod file;
 pub mod io;
 pub mod minecraft;
 pub mod platform;
-pub mod plugin;
