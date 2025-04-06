@@ -4,8 +4,7 @@ use daedalus::minecraft;
 use uuid::Uuid;
 
 use crate::{
-    features::settings::WindowSize,
-    state::{self},
+    features::{auth::Credentials, settings::WindowSize},
     utils::io::canonicalize,
 };
 
@@ -18,7 +17,7 @@ const TEMPORARY_REPLACE_CHAR: &str = "\n";
 pub fn get_minecraft_arguments(
     arguments: Option<&[minecraft::Argument]>,
     legacy_arguments: Option<&str>,
-    credentials: &state::Credentials,
+    credentials: &Credentials,
     version: &str,
     asset_index_name: &str,
     game_directory: &Path,

@@ -8,11 +8,12 @@ use crate::{
         LoadingBarId, LoadingBarType,
     },
     features::{
+        auth::Credentials,
         plugins::PluginEvent,
         settings::{MemorySettings, WindowSize},
     },
     launcher::mod_loader_post_install,
-    state::{self, Instance, InstanceInstallStage, MinecraftProcessMetadata, ModLoader},
+    state::{Instance, InstanceInstallStage, MinecraftProcessMetadata, ModLoader},
     utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
     wrap_ref_builder,
 };
@@ -189,7 +190,7 @@ pub async fn launch_minecraft(
     launch_args: &InstanceLaunchArgs,
     launch_settings: &InstanceLaunchSettings,
     launch_metadata: &InstanceLaunchMetadata,
-    credentials: &state::Credentials,
+    credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata> {
     if instance.install_stage == InstanceInstallStage::PackInstalling
         || instance.install_stage == InstanceInstallStage::Installing

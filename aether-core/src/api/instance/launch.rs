@@ -1,15 +1,19 @@
 use crate::{
     api,
     core::LauncherState,
-    features::settings::{FsSettingsStorage, SettingsStorage},
-    state::{self, Credentials, MinecraftProcessMetadata},
+    features::{
+        auth::{credentials_storage::CredentialsStorage, Credentials, FsCredentialsStorage},
+        settings::{FsSettingsStorage, SettingsStorage},
+    },
+    state::MinecraftProcessMetadata,
 };
 
 #[tracing::instrument]
 pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
 
-    let default_account = Credentials::get_active(&state)
+    let default_account = FsCredentialsStorage
+        .get_active(&state)
         .await?
         .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
 
@@ -19,7 +23,7 @@ pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
 #[tracing::instrument]
 pub async fn run_credentials(
     id: &str,
-    credentials: &state::Credentials,
+    credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
     // TODO: add io semaphore
