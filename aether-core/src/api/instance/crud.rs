@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     core::LauncherState,
     event::emit::emit_instance,
-    features::settings::{MemorySettings, WindowSize},
+    features::settings::{Hooks, MemorySettings, WindowSize},
     state::{Instance, PackInfo},
     utils::io::read_json_async,
 };
@@ -16,7 +16,7 @@ use tokio::fs;
 
 use crate::{
     api::instance::get_instance_path_without_duplicate,
-    state::{Hooks, InstanceInstallStage, ModLoader},
+    state::{InstanceInstallStage, ModLoader},
 };
 
 #[tracing::instrument]
