@@ -7,12 +7,12 @@ use crate::{
         emit::{emit_loading, init_or_edit_loading},
         LoadingBarId, LoadingBarType,
     },
-    features::settings::{MemorySettings, WindowSize},
-    launcher::mod_loader_post_install,
-    state::{
-        self, plugin_event::PluginEvent, Instance, InstanceInstallStage, MinecraftProcessMetadata,
-        ModLoader,
+    features::{
+        plugins::PluginEvent,
+        settings::{MemorySettings, WindowSize},
     },
+    launcher::mod_loader_post_install,
+    state::{self, Instance, InstanceInstallStage, MinecraftProcessMetadata, ModLoader},
     utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
     wrap_ref_builder,
 };

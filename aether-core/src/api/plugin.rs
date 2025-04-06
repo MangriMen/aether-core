@@ -1,9 +1,12 @@
-use std::path::{Path, PathBuf};
-
 use crate::{
     core::LauncherState,
-    features::settings::{FsSettingsStorage, SettingsStorage},
-    state::{PluginMetadata, PluginSettings},
+    features::{
+        plugins::{
+            merge_plugin_settings, FsPluginSettingsStorage, PluginMetadata, PluginSettings,
+            PluginSettingsStorage,
+        },
+        settings::{FsSettingsStorage, SettingsStorage},
+    },
 };
 
 #[tracing::instrument]
@@ -97,36 +100,18 @@ pub async fn call(id: &str, data: &str) -> crate::Result<()> {
 #[tracing::instrument]
 pub async fn get_settings(id: &str) -> crate::Result<PluginSettings> {
     let state = LauncherState::get().await?;
+    let storage = FsPluginSettingsStorage;
 
-    if !state.locations.plugin_settings(id).exists() {
-        return Ok(PluginSettings::default());
-    }
-
-    crate::utils::io::read_toml_async(state.locations.plugin_settings(id)).await
+    Ok(storage.get(&state, id).await?.unwrap_or_default())
 }
 
 #[tracing::instrument]
-pub async fn edit_settings(id: &str, settings: &PluginSettings) -> crate::Result<()> {
+pub async fn edit_settings(id: &str, new_settings: &PluginSettings) -> crate::Result<()> {
     let state = LauncherState::get().await?;
+    let storage = FsPluginSettingsStorage;
 
-    let mut current_settings: PluginSettings = get_settings(id).await?;
+    let current = storage.get(&state, id).await?.unwrap_or_default();
+    let merged = merge_plugin_settings(current, new_settings);
 
-    if let Some(allowed_hosts) = &settings.allowed_hosts {
-        current_settings.allowed_hosts = Some(allowed_hosts.to_vec());
-    }
-
-    if let Some(allowed_paths) = &settings.allowed_paths {
-        current_settings.allowed_paths = Some(
-            allowed_paths
-                .iter()
-                .filter(|(from, _)| Path::new(from).exists())
-                .cloned()
-                .collect::<Vec<(String, PathBuf)>>(),
-        );
-    }
-
-    crate::utils::io::write_toml_async(state.locations.plugin_settings(id), &current_settings)
-        .await?;
-
-    Ok(())
+    storage.upsert(&state, id, &merged).await
 }

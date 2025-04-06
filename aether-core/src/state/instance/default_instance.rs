@@ -17,9 +17,8 @@ use crate::{
     event::emit::emit_instance,
     features::{
         java::{FsJavaStorage, Java, JavaStorage},
-        settings::{MemorySettings, WindowSize},
+        settings::{Hooks, MemorySettings, WindowSize},
     },
-    state::Hooks,
     utils::{
         file::sha1_async,
         io::{self, read_async, read_toml_async, write_toml_async},

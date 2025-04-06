@@ -1,19 +1,19 @@
-use crate::state::ImportConfig;
+use crate::{features::plugins::PluginError, state::ImportConfig};
 
-use super::plugin_event::PluginEvent;
+use super::{PluginApi, PluginEvent};
 
 #[derive(Debug)]
-pub struct LauncherPlugin {
-    pub inner: extism::Plugin,
+pub struct LauncherPlugin<P: PluginApi = extism::Plugin> {
+    pub inner: P,
     pub public_id: String,
 }
 
-impl LauncherPlugin {
-    fn get_error(&self, e: extism::Error) -> crate::Error {
+impl<P: PluginApi> LauncherPlugin<P> {
+    fn get_error(&self, e: PluginError) -> crate::Error {
         crate::ErrorKind::PluginCallError(self.public_id.to_string(), e).as_error()
     }
 
-    pub fn from_plugin(plugin: extism::Plugin, id: &str) -> crate::Result<Self> {
+    pub fn from_plugin(plugin: P, id: &str) -> crate::Result<Self> {
         if !plugin.function_exists("on_load") || !plugin.function_exists("on_unload") {
             return Err(crate::ErrorKind::PluginLoadError(format!(
                 "Plugin {} is missing required functions",
@@ -28,12 +28,12 @@ impl LauncherPlugin {
         })
     }
 
-    pub(super) fn on_load(&mut self) -> crate::Result<()> {
+    pub fn on_load(&mut self) -> crate::Result<()> {
         self.inner
             .call::<(), ()>("on_load", ())
             .map_err(|e| self.get_error(e))
     }
-    pub(super) fn on_unload(&mut self) -> crate::Result<()> {
+    pub fn on_unload(&mut self) -> crate::Result<()> {
         self.inner
             .call::<(), ()>("on_unload", ())
             .map_err(|e| self.get_error(e))

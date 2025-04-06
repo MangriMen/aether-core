@@ -7,9 +7,16 @@ use bytes::Bytes;
 use extism::{Manifest, PluginBuilder, Wasm};
 use tokio::sync::Mutex;
 
-use crate::{core::LauncherState, utils::file::sha1_async};
+use crate::{
+    core::LauncherState,
+    features::plugins::{
+        extism_host_functions, FsPluginSettingsStorage, LauncherPlugin, PluginSettings,
+        PluginSettingsStorage, WasmCache, WasmCacheConfig,
+    },
+    utils::file::sha1_async,
+};
 
-use super::{LauncherPlugin, PluginMetadata, PluginSettings, WasmCache, WasmCacheConfig};
+use super::PluginMetadata;
 
 pub fn get_default_allowed_paths(
     state: &LauncherState,
@@ -66,7 +73,7 @@ impl PluginState {
             [extism::ValType::I64, extism::PTR],
             [],
             extism::UserData::new(context.clone()),
-            super::host_functions::log,
+            extism_host_functions::log,
         );
 
         let get_id_fn = extism::Function::new(
@@ -74,7 +81,7 @@ impl PluginState {
             [],
             [extism::PTR],
             extism::UserData::new(context.clone()),
-            super::host_functions::get_id,
+            extism_host_functions::get_id,
         );
 
         let instance_get_dir_fn = extism::Function::new(
@@ -82,7 +89,7 @@ impl PluginState {
             [extism::PTR],
             [extism::PTR],
             extism::UserData::new(context.clone()),
-            super::host_functions::instance_get_dir,
+            extism_host_functions::instance_get_dir,
         );
 
         let instance_plugin_get_dir_fn = extism::Function::new(
@@ -90,7 +97,7 @@ impl PluginState {
             [extism::PTR],
             [extism::PTR],
             extism::UserData::new(context.clone()),
-            super::host_functions::instance_plugin_get_dir,
+            extism_host_functions::instance_plugin_get_dir,
         );
 
         let instance_create_fn = extism::Function::new(
@@ -106,7 +113,7 @@ impl PluginState {
             ],
             [extism::PTR],
             extism::UserData::new(context.clone()),
-            super::host_functions::instance_create,
+            extism_host_functions::instance_create,
         );
 
         let get_or_download_java_fn = extism::Function::new(
@@ -114,7 +121,7 @@ impl PluginState {
             [extism::PTR],
             [extism::ValType::I64],
             extism::UserData::new(context.clone()),
-            super::host_functions::get_java,
+            extism_host_functions::get_java,
         );
 
         let run_command_fn = extism::Function::new(
@@ -122,7 +129,7 @@ impl PluginState {
             [extism::PTR],
             [extism::PTR],
             extism::UserData::new(context.clone()),
-            super::host_functions::run_command,
+            extism_host_functions::run_command,
         );
 
         vec![
@@ -210,9 +217,8 @@ impl PluginState {
 
         let state = LauncherState::get().await?;
 
-        let plugin_settings =
-            PluginSettings::from_path(&state.locations.plugin_settings(&self.metadata.plugin.id))
-                .await?;
+        let plugin_storage = FsPluginSettingsStorage;
+        let plugin_settings = plugin_storage.get(&state, &self.metadata.plugin.id).await?;
 
         let default_allowed_paths = get_default_allowed_paths(&state, &self.metadata.plugin.id);
 

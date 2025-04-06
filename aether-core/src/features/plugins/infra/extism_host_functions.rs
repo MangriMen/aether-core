@@ -6,18 +6,18 @@ use reqwest::Method;
 
 use crate::{
     core::LauncherState,
+    features::plugins::{plugin_utils, PluginContext},
     state::{ModLoader, PackInfo, SerializableCommand, SerializableOutput},
-    utils::plugin::log_level_from_u32,
 };
 
-use super::PluginContext;
+use super::plugin_utils::plugin_path_to_host;
 
 host_fn!(
 pub log(user_data: PluginContext; level: u32, msg: String) -> extism::Result<()> {
     let context = user_data.get()?;
     let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
 
-    log::log!(target: "plugin", log_level_from_u32(level), "[{}]: {}", id, msg);
+    log::log!(target: "plugin", plugin_utils::log_level_from_u32(level), "[{}]: {}", id, msg);
     Ok(())
 });
 
@@ -38,7 +38,7 @@ pub download_file(user_data: PluginContext; url: String, path: String) -> extism
         let state = tokio::runtime::Handle::current()
             .block_on(LauncherState::get())?;
 
-        let validated_path = crate::utils::plugin::plugin_path_to_host(&id, &path)?;
+        let validated_path = plugin_path_to_host(&id, &path)?;
 
         let response = tokio::runtime::Handle::current()
             .block_on(crate::utils::fetch::fetch_advanced(
@@ -156,7 +156,7 @@ pub run_command(user_data: PluginContext; command: SerializableCommand) -> extis
     log::debug!("Processing command from plugin: {:?}", command);
 
     let output = tokio::task::block_in_place(|| -> crate::Result<Output> {
-        let host_command = crate::utils::plugin::plugin_command_to_host(&id, &command)?;
+        let host_command = plugin_utils::plugin_command_to_host(&id, &command)?;
         let mut cmd = host_command.to_tokio_command();
 
         log::debug!("Running command: {:?}", host_command);
