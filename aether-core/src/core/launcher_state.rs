@@ -3,8 +3,8 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{OnceCell, RwLock, Semaphore};
 
 use crate::{
-    features::{plugins::PluginManager, settings::Settings},
-    state::{fs_watcher, FsWatcher, LocationInfo, ProcessManager},
+    features::{plugins::PluginManager, process::ProcessManager, settings::Settings},
+    state::{fs_watcher, FsWatcher, LocationInfo},
     utils::fetch::FetchSemaphore,
 };
 

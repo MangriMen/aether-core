@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     event::{emit_process, ProcessPayloadType},
+    features::process::manage_minecraft_process,
     utils::io::IOError,
 };
 
@@ -37,7 +38,7 @@ impl ProcessManager {
 
         let metadata = process.metadata.clone();
 
-        tokio::spawn(MinecraftProcess::sequential_process_manager(
+        tokio::spawn(manage_minecraft_process(
             profile_path.to_string(),
             post_exit_command,
             metadata.uuid,

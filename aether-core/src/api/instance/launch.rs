@@ -3,9 +3,9 @@ use crate::{
     core::LauncherState,
     features::{
         auth::{credentials_storage::CredentialsStorage, Credentials, FsCredentialsStorage},
+        process::MinecraftProcessMetadata,
         settings::{FsSettingsStorage, SettingsStorage},
     },
-    state::MinecraftProcessMetadata,
 };
 
 #[tracing::instrument]

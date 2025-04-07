@@ -10,10 +10,11 @@ use crate::{
     features::{
         auth::Credentials,
         plugins::PluginEvent,
+        process::MinecraftProcessMetadata,
         settings::{MemorySettings, WindowSize},
     },
     launcher::mod_loader_post_install,
-    state::{Instance, InstanceInstallStage, MinecraftProcessMetadata, ModLoader},
+    state::{Instance, InstanceInstallStage, ModLoader},
     utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
     wrap_ref_builder,
 };

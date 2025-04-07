@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{core::LauncherState, state::MinecraftProcessMetadata};
+use crate::{core::LauncherState, features::process::MinecraftProcessMetadata};
 
 // Gets the Profile paths of each *running* stored process in the state
 #[tracing::instrument]
