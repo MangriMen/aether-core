@@ -6,8 +6,8 @@ use reqwest::Method;
 
 use crate::{
     core::LauncherState,
-    features::plugins::{plugin_utils, PluginContext},
-    state::{ModLoader, PackInfo, SerializableCommand, SerializableOutput},
+    features::plugins::{plugin_utils, PluginContext, SerializableCommand, SerializableOutput},
+    state::{ModLoader, PackInfo},
 };
 
 use super::plugin_utils::plugin_path_to_host;

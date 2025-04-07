@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    core::LauncherState, features::plugins::plugin_state::get_default_allowed_paths,
-    state::SerializableCommand,
+    core::LauncherState,
+    features::plugins::{plugin_state::get_default_allowed_paths, SerializableCommand},
 };
 
 pub fn plugin_path_to_relative<I, T>(
