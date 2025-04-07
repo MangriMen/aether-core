@@ -7,12 +7,15 @@ use tokio::sync::RwLock;
 
 use futures::{channel::mpsc::channel, SinkExt, StreamExt};
 
-use crate::event::{
-    emit::{emit_instance, emit_warning},
-    InstancePayloadType,
+use crate::{
+    event::{
+        emit::{emit_instance, emit_warning},
+        InstancePayloadType,
+    },
+    features::settings::{location_info::INSTANCES_FOLDER_NAME, LocationInfo},
 };
 
-use super::{ContentType, InstanceInstallStage, LocationInfo};
+use super::{ContentType, InstanceInstallStage};
 
 pub type FsWatcher = RwLock<Debouncer<RecommendedWatcher>>;
 
@@ -22,7 +25,7 @@ fn extract_instance_path(path: &std::path::Path) -> Option<String> {
         if found {
             return Some(component.as_os_str().to_string_lossy().to_string());
         }
-        if component.as_os_str() == crate::state::location_info::INSTANCES_FOLDER_NAME {
+        if component.as_os_str() == INSTANCES_FOLDER_NAME {
             found = true;
         }
     }

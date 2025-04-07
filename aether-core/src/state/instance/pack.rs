@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::state::CONTENT_METADATA_FILE_NAME;
+use crate::features::settings::location_info::CONTENT_METADATA_FILE_NAME;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "kebab-case")]
