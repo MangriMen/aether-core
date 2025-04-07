@@ -4,9 +4,8 @@ use tokio::process::Command;
 
 use crate::{
     core::LauncherState,
-    features::settings::Settings,
+    features::{instance::Instance, settings::Settings},
     launcher::{InstanceLaunchArgs, InstanceLaunchMetadata, InstanceLaunchSettings},
-    state::Instance,
     utils::io::IOError,
 };
 

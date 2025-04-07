@@ -1,4 +1,4 @@
-use crate::{features::plugins::PluginError, state::ImportConfig};
+use crate::features::{instance::ImportConfig, plugins::PluginError};
 
 use super::{PluginApi, PluginEvent};
 

@@ -1,4 +1,4 @@
-use crate::{core::LauncherState, state::ImportConfig};
+use crate::{core::LauncherState, features::instance::ImportConfig};
 
 pub async fn get_import_configs() -> crate::Result<Vec<ImportConfig>> {
     let state = LauncherState::get().await?;

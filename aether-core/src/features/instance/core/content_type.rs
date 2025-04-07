@@ -2,7 +2,7 @@ use std::path::Path;
 
 use lazy_static::lazy_static;
 
-use super::ModLoader;
+use crate::features::instance::ModLoader;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -14,7 +14,7 @@ pub enum ContentType {
 }
 
 lazy_static! {
-    static ref MOD_LOADERS_NAMES: [&'static str; 4] = [
+    static ref MOD_LOADER_NAMES: [&'static str; 4] = [
         ModLoader::Fabric,
         ModLoader::Forge,
         ModLoader::Quilt,
@@ -81,7 +81,7 @@ impl ContentType {
 
     pub fn get_loaders(&self) -> &'static [&'static str] {
         match self {
-            ContentType::Mod => &*MOD_LOADERS_NAMES,
+            ContentType::Mod => &*MOD_LOADER_NAMES,
             ContentType::DataPack => &["datapack"],
             ContentType::ResourcePack => &["vanilla", "canvas", "minecraft"],
             ContentType::ShaderPack => &["iris", "optifine"],

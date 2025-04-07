@@ -2,7 +2,7 @@ use reqwest::Method;
 
 use crate::{
     core::LauncherState,
-    state::{ContentRequest, ContentType, ModLoader},
+    features::instance::{ContentRequest, ContentType, ModLoader},
     utils::fetch::{fetch_json, FetchSemaphore},
 };
 

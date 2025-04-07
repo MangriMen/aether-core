@@ -12,10 +12,11 @@ use crate::{
         emit::{emit_instance, emit_warning},
         InstancePayloadType,
     },
-    features::settings::{location_info::INSTANCES_FOLDER_NAME, LocationInfo},
+    features::{
+        instance::{ContentType, InstanceInstallStage},
+        settings::{location_info::INSTANCES_FOLDER_NAME, LocationInfo},
+    },
 };
-
-use super::{ContentType, InstanceInstallStage};
 
 pub type FsWatcher = RwLock<Debouncer<RecommendedWatcher>>;
 

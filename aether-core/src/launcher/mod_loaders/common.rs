@@ -2,7 +2,13 @@ use std::path::PathBuf;
 
 use daedalus::minecraft::VersionInfo;
 
-use crate::{event::LoadingBarId, features::java::Java, state::Instance};
+use crate::{
+    event::LoadingBarId,
+    features::{
+        instance::{Instance, ModLoader},
+        java::Java,
+    },
+};
 
 use super::process_forge_processors;
 
@@ -15,8 +21,8 @@ pub async fn mod_loader_post_install(
     loading_bar: Option<&LoadingBarId>,
 ) -> crate::Result<()> {
     match instance.loader {
-        crate::state::ModLoader::Vanilla => Ok(()),
-        crate::state::ModLoader::Forge => {
+        ModLoader::Vanilla => Ok(()),
+        ModLoader::Forge => {
             process_forge_processors(
                 instance,
                 version_jar,
@@ -27,8 +33,8 @@ pub async fn mod_loader_post_install(
             )
             .await
         }
-        crate::state::ModLoader::Fabric => Ok(()),
-        crate::state::ModLoader::Quilt => Ok(()),
-        crate::state::ModLoader::NeoForge => Ok(()),
+        ModLoader::Fabric => Ok(()),
+        ModLoader::Quilt => Ok(()),
+        ModLoader::NeoForge => Ok(()),
     }
 }

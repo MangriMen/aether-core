@@ -1,4 +1,4 @@
-use crate::state::{ContentItem, ContentRequest, ContentResponse, ContentType};
+use crate::features::instance::{ContentItem, ContentRequest, ContentResponse, ContentType};
 
 use super::{Hit, ModrinthProviderData, SearchProjectsResponse};
 

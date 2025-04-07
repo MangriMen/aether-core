@@ -4,7 +4,7 @@ use dashmap::DashMap;
 
 use crate::{
     event::{emit::emit_instance, InstancePayloadType},
-    state::{
+    features::instance::{
         content_provider, ContentMetadataFile, ContentRequest, ContentResponse, ContentType,
         InstallContentPayload, Instance, InstanceFile,
     },

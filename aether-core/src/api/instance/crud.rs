@@ -1,10 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+    api::instance::get_instance_path_without_duplicate,
     core::LauncherState,
     event::emit::emit_instance,
-    features::settings::{Hooks, MemorySettings, WindowSize},
-    state::{Instance, PackInfo},
+    features::{
+        instance::{instance::PackInfo, Instance, InstanceInstallStage, ModLoader},
+        settings::{Hooks, MemorySettings, WindowSize},
+    },
     utils::io::read_json_async,
 };
 
@@ -13,11 +16,6 @@ use std::fs::canonicalize;
 use chrono::Utc;
 use log::info;
 use tokio::fs;
-
-use crate::{
-    api::instance::get_instance_path_without_duplicate,
-    state::{InstanceInstallStage, ModLoader},
-};
 
 #[tracing::instrument]
 pub async fn create(
