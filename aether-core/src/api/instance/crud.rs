@@ -5,7 +5,7 @@ use crate::{
     core::LauncherState,
     features::{
         events::{emit::emit_instance, InstancePayloadType},
-        instance::{instance::PackInfo, Instance, InstanceInstallStage, ModLoader},
+        instance::{self, instance::PackInfo, Instance, InstanceInstallStage, ModLoader},
         settings::{Hooks, MemorySettings, WindowSize},
     },
     utils::io::read_json_async,
@@ -81,7 +81,7 @@ pub async fn create(
     let result = async {
         instance.save().await?;
 
-        crate::state::watch_instance(&instance.id, &state.file_watcher, &state.locations).await;
+        instance::watch_instance(&instance.id, &state.file_watcher, &state.locations).await;
 
         emit_instance(&instance.id, InstancePayloadType::Created).await?;
 

@@ -4,11 +4,11 @@ use tokio::sync::{OnceCell, RwLock, Semaphore};
 
 use crate::{
     features::{
+        instance::{fs_watcher, FsWatcher},
         plugins::PluginManager,
         process::ProcessManager,
         settings::{LocationInfo, Settings},
     },
-    state::{fs_watcher, FsWatcher},
     utils::fetch::FetchSemaphore,
 };
 
