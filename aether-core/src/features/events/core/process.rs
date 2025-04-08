@@ -1,9 +1,7 @@
 use tauri::Emitter;
 use uuid::Uuid;
 
-use crate::state::{EventError, EventState};
-
-use super::LauncherEvent;
+use super::{EventError, EventState, LauncherEvent};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

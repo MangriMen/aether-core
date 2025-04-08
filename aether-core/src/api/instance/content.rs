@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path};
 use dashmap::DashMap;
 
 use crate::{
-    event::{emit::emit_instance, InstancePayloadType},
+    features::events::{emit::emit_instance, InstancePayloadType},
     features::instance::{
         content_provider, ContentMetadataFile, ContentRequest, ContentResponse, ContentType,
         InstallContentPayload, Instance, InstanceFile,

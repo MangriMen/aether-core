@@ -3,7 +3,7 @@ use daedalus::{minecraft, modded};
 use crate::{
     api,
     core::LauncherState,
-    event::{
+    features::events::{
         emit::{emit_loading, init_or_edit_loading},
         LoadingBarId, LoadingBarType,
     },

@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
-use crate::state::{EventError, EventState};
 use tauri::Emitter;
 use uuid::Uuid;
 
-use super::LauncherEvent;
+use super::{EventError, EventState, LauncherEvent};
 
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

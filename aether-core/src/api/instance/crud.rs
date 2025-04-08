@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use crate::{
     api::instance::get_instance_path_without_duplicate,
     core::LauncherState,
-    event::emit::emit_instance,
     features::{
+        events::{emit::emit_instance, InstancePayloadType},
         instance::{instance::PackInfo, Instance, InstanceInstallStage, ModLoader},
         settings::{Hooks, MemorySettings, WindowSize},
     },
@@ -83,7 +83,7 @@ pub async fn create(
 
         crate::state::watch_instance(&instance.id, &state.file_watcher, &state.locations).await;
 
-        emit_instance(&instance.id, crate::event::InstancePayloadType::Created).await?;
+        emit_instance(&instance.id, InstancePayloadType::Created).await?;
 
         if !skip_install_instance.unwrap_or(false) {
             crate::launcher::install_minecraft(&instance, None, false).await?;
@@ -262,7 +262,7 @@ pub async fn remove(id: &str) -> crate::Result<()> {
     let instance = get(id).await?;
     instance.remove().await?;
 
-    emit_instance(id, crate::event::InstancePayloadType::Removed).await?;
+    emit_instance(id, InstancePayloadType::Removed).await?;
 
     Ok(())
 }

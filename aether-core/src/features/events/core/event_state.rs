@@ -4,19 +4,7 @@ use dashmap::DashMap;
 use tokio::sync::OnceCell;
 use uuid::Uuid;
 
-use crate::event::LoadingBar;
-
-#[derive(Debug, thiserror::Error)]
-pub enum EventError {
-    #[error("Event state was not properly initialized")]
-    NotInitialized,
-
-    #[error("Non-existent loading bar of key: {0}")]
-    NoLoadingBar(Uuid),
-
-    #[error("Failed to sent event")]
-    SerializeError(anyhow::Error),
-}
+use super::{EventError, LoadingBar};
 
 static EVENT_STATE: OnceCell<Arc<EventState>> = OnceCell::const_new();
 pub struct EventState {

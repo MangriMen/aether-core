@@ -6,8 +6,10 @@ use tokio::process::Command;
 use uuid::Uuid;
 
 use crate::{
-    event::{emit_process, ProcessPayloadType},
-    features::process::manage_minecraft_process,
+    features::{
+        events::{emit_process, ProcessPayloadType},
+        process::manage_minecraft_process,
+    },
     utils::io::IOError,
 };
 

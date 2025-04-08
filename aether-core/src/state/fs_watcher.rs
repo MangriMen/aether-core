@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use futures::{channel::mpsc::channel, SinkExt, StreamExt};
 
 use crate::{
-    event::{
+    features::events::{
         emit::{emit_instance, emit_warning},
         InstancePayloadType,
     },

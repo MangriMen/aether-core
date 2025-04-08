@@ -1,5 +1,7 @@
 use tracing_error::InstrumentError;
 
+use crate::features::events::EventError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum ErrorKind {
     #[error("Filesystem error: {0}")]
@@ -82,7 +84,7 @@ pub enum ErrorKind {
     ChronoParseError(#[from] chrono::ParseError),
 
     #[error("Event error: {0}")]
-    EventError(#[from] crate::state::EventError),
+    EventError(#[from] EventError),
 
     #[error("Zip error: {0}")]
     ZipError(#[from] async_zip::error::ZipError),

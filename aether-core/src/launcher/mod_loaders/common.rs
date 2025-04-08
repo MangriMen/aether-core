@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use daedalus::minecraft::VersionInfo;
 
 use crate::{
-    event::LoadingBarId,
+    features::events::LoadingBarId,
     features::{
         instance::{Instance, ModLoader},
         java::Java,

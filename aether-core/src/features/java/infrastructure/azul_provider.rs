@@ -5,7 +5,7 @@ use reqwest::Method;
 
 use crate::{
     core::LauncherState,
-    event::{
+    features::events::{
         emit::{emit_loading, init_loading},
         LoadingBarId, LoadingBarType,
     },

@@ -1,11 +1,12 @@
 use tauri::Emitter;
 use uuid::Uuid;
 
+use crate::features::events::WarningPayload;
+
 use super::{
-    InstancePayload, InstancePayloadType, LauncherEvent, LoadingBar, LoadingBarId, LoadingBarType,
-    LoadingPayload, ProcessPayload, ProcessPayloadType, WarningPayload,
+    EventError, EventState, InstancePayload, InstancePayloadType, LauncherEvent, LoadingBar,
+    LoadingBarId, LoadingBarType, LoadingPayload, ProcessPayload, ProcessPayloadType,
 };
-use crate::state::{EventError, EventState};
 
 pub async fn init_loading_unsafe(
     bar_type: LoadingBarType,

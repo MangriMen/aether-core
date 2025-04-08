@@ -14,8 +14,8 @@ use tokio::fs::remove_dir_all;
 
 use crate::{
     core::LauncherState,
-    event::emit::emit_instance,
     features::{
+        events::{emit::emit_instance, InstancePayloadType},
         java::{FsJavaStorage, Java, JavaStorage},
         settings::{Hooks, MemorySettings, WindowSize},
     },
@@ -184,7 +184,7 @@ impl Instance {
 
                 profile.save().await?;
 
-                emit_instance(id, crate::event::InstancePayloadType::Edited).await?;
+                emit_instance(id, InstancePayloadType::Edited).await?;
 
                 Ok(())
             }

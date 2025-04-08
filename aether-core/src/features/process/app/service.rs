@@ -6,8 +6,10 @@ use uuid::Uuid;
 
 use crate::{
     core::LauncherState,
-    event::{emit_process, ProcessPayloadType},
-    features::instance::Instance,
+    features::{
+        events::{emit_process, ProcessPayloadType},
+        instance::Instance,
+    },
     utils::io::IOError,
 };
 
