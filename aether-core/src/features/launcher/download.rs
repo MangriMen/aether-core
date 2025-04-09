@@ -11,10 +11,9 @@ use daedalus::{
 use futures::{stream, StreamExt};
 use reqwest::Method;
 
-use crate::config::META_URL;
-
 use super::library::parse_rules;
 
+const META_URL: &str = "https://launcher-meta.modrinth.com/";
 const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net/";
 const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
 

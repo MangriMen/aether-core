@@ -3,6 +3,7 @@ use crate::{
     core::LauncherState,
     features::{
         auth::{credentials_storage::CredentialsStorage, Credentials, FsCredentialsStorage},
+        launcher::launch_minecraft,
         process::MinecraftProcessMetadata,
         settings::{FsSettingsStorage, SettingsStorage},
     },
@@ -37,7 +38,7 @@ pub async fn run_credentials(
 
     api::instance::utils::run_pre_launch_command(&instance, &settings).await?;
 
-    crate::launcher::launch_minecraft(
+    launch_minecraft(
         &instance,
         &launch_args,
         &launch_settings,

@@ -1,6 +1,6 @@
 use daedalus::minecraft;
 
-use crate::launcher::library::parse_rules;
+use crate::features::launcher::parse_rules;
 
 const TEMPORARY_REPLACE_CHAR: &str = "\n";
 

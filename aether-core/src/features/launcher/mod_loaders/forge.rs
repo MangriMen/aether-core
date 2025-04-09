@@ -15,8 +15,10 @@ use crate::{
         events::{emit_loading, LoadingBarId},
         instance::Instance,
         java::Java,
+        launcher::{
+            get_class_paths_jar, get_lib_path, get_processor_arguments, get_processor_main_class,
+        },
     },
-    launcher::args,
     processor_rules,
     utils::io::IOError,
     wrap_ref_builder,
@@ -108,10 +110,10 @@ pub async fn process_forge_processor(
     });
 
     let class_path_arg =
-        args::get_class_paths_jar(libraries_dir, &class_path, &java_version.architecture)?;
+        get_class_paths_jar(libraries_dir, &class_path, &java_version.architecture)?;
 
     let processor_main_class =
-        args::get_processor_main_class(args::get_lib_path(libraries_dir, &processor.jar, false)?)
+        get_processor_main_class(get_lib_path(libraries_dir, &processor.jar, false)?)
             .await?
             .ok_or_else(|| {
                 crate::ErrorKind::LauncherError(format!(
@@ -120,7 +122,7 @@ pub async fn process_forge_processor(
                 ))
             })?;
 
-    let processor_args = args::get_processor_arguments(libraries_dir, &processor.args, data)?;
+    let processor_args = get_processor_arguments(libraries_dir, &processor.args, data)?;
 
     let child = Command::new(&java_version.path)
         .arg("-cp")

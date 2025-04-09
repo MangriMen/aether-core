@@ -6,6 +6,7 @@ use crate::{
     features::{
         events::{emit::emit_instance, InstancePayloadType},
         instance::{self, instance::PackInfo, Instance, InstanceInstallStage, ModLoader},
+        launcher::install_minecraft,
         settings::{Hooks, MemorySettings, WindowSize},
     },
     utils::io::read_json_async,
@@ -86,7 +87,7 @@ pub async fn create(
         emit_instance(&instance.id, InstancePayloadType::Created).await?;
 
         if !skip_install_instance.unwrap_or(false) {
-            crate::launcher::install_minecraft(&instance, None, false).await?;
+            install_minecraft(&instance, None, false).await?;
         }
 
         Ok(instance.id.clone())
@@ -113,7 +114,7 @@ pub async fn create(
 #[tracing::instrument]
 pub async fn install(id: &str, force: bool) -> crate::Result<()> {
     if let Ok(instance) = get(id).await {
-        let result = crate::launcher::install_minecraft(&instance, None, force).await;
+        let result = install_minecraft(&instance, None, force).await;
 
         if result.is_err() && instance.install_stage != InstanceInstallStage::Installed {
             Instance::edit(id, |instance| {

@@ -3,8 +3,7 @@ use std::{collections::HashSet, path::Path};
 use daedalus::minecraft;
 
 use crate::{
-    features::{java::get_classpath_separator, settings::MemorySettings},
-    launcher::library::parse_rules,
+    features::{java::get_classpath_separator, launcher::parse_rules, settings::MemorySettings},
     utils::io::canonicalize,
 };
 

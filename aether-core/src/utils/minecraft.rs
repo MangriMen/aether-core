@@ -4,8 +4,12 @@ use daedalus::minecraft::{self, Version};
 
 use crate::{
     core::LauncherState,
-    features::{instance::Instance, java::Java, settings::MemorySettings},
-    launcher::args,
+    features::{
+        instance::Instance,
+        java::Java,
+        launcher::{get_class_paths, get_jvm_arguments},
+        settings::MemorySettings,
+    },
 };
 
 pub fn is_minecraft_updated(
@@ -53,12 +57,12 @@ pub fn get_minecraft_jvm_arguments(
     args: &HashMap<minecraft::ArgumentType, Vec<minecraft::Argument>>,
     minecraft_updated: bool,
 ) -> crate::Result<Vec<String>> {
-    Ok(args::get_jvm_arguments(
+    Ok(get_jvm_arguments(
         args.get(&minecraft::ArgumentType::Jvm)
             .map(|x| x.as_slice()),
         natives_dir,
         &state.locations.libraries_dir(),
-        &args::get_class_paths(
+        &get_class_paths(
             &state.locations.libraries_dir(),
             version_info.libraries.as_slice(),
             client_path,
