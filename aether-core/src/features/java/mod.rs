@@ -1,9 +1,9 @@
-pub mod application;
+pub mod app;
 pub mod domain;
-pub mod infrastructure;
+pub mod infra;
 pub mod utils;
 
-pub use application::*;
+pub use app::*;
 pub use domain::*;
-pub use infrastructure::*;
+pub use infra::*;
 pub use utils::*;

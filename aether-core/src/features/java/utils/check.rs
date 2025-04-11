@@ -1,7 +1,7 @@
 use std::{path::Path, process::Command};
 
 use crate::features::java::{
-    application::constants::{JAVA_BIN, JAVA_WINDOW_BIN},
+    app::constants::{JAVA_BIN, JAVA_WINDOW_BIN},
     JREError, Java,
 };
 

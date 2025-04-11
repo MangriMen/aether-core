@@ -1,5 +1,5 @@
-pub mod core;
+pub mod domain;
 pub mod infra;
 
-pub use core::*;
+pub use domain::*;
 pub use infra::*;
