@@ -1,5 +1,7 @@
 pub mod java;
 pub mod jre_error;
+pub mod storage;
 
-pub use java::Java;
-pub use jre_error::JREError;
+pub use java::*;
+pub use jre_error::*;
+pub use storage::*;

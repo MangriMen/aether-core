@@ -1,4 +1,4 @@
-use crate::features::java::check::extract_java_major_minor_version;
+use crate::features::java::utils::extract_java_major_minor_version;
 
 #[test]
 fn check_java_8() -> crate::Result<()> {

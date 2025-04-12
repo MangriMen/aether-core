@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     core::LauncherState,
-    features::java::{FsJavaStorage, Java, JavaStorage},
+    features::java::{infra::FsJavaStorage, Java, JavaStorage},
 };
 
 // Install JRE

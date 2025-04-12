@@ -1,6 +1,6 @@
 use crate::{
     core::LauncherState,
-    features::java::{app::storage::JavaStorage, construct_java_from_jre, domain::Java},
+    features::java::{construct_java_from_jre, Java, JavaStorage},
     utils::io::{read_json_async, write_json_async},
 };
 use async_trait::async_trait;

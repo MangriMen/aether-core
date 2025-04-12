@@ -1,8 +1,6 @@
-pub mod check;
-pub mod platform;
+pub mod java;
 
 #[cfg(test)]
 pub mod __tests__;
 
-pub use check::construct_java_from_jre;
-pub use platform::get_classpath_separator;
+pub use java::*;

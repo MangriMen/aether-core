@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{core::LauncherState, features::java::azul_provider};
+use crate::{core::LauncherState, features::java::infra::azul_provider};
 
 pub enum JreProvider {
     Azul,

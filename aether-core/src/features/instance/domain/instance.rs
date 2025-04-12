@@ -16,7 +16,7 @@ use crate::{
     core::LauncherState,
     features::{
         events::{emit::emit_instance, InstancePayloadType},
-        java::{FsJavaStorage, Java, JavaStorage},
+        java::{infra::FsJavaStorage, Java, JavaStorage},
         settings::{Hooks, MemorySettings, WindowSize},
     },
     utils::{
