@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     core::LauncherState,
-    features::auth::{credentials_storage::CredentialsStorage, Credentials},
+    features::auth::{Credentials, CredentialsStorage},
     shared::{read_json_async, write_json_async},
     ErrorKind,
 };
@@ -99,7 +99,11 @@ impl CredentialsStorage for FsCredentialsStorage {
         Self::read_file_contents(state).await
     }
 
-    async fn upsert(&self, state: &LauncherState, credentials: &Credentials) -> crate::Result<()> {
+    async fn upsert(
+        &self,
+        state: &LauncherState,
+        credentials: &Credentials,
+    ) -> crate::Result<Uuid> {
         let mut credentials_list = Self::read_file_contents(state).await?;
         let index = credentials_list
             .iter()
@@ -116,7 +120,9 @@ impl CredentialsStorage for FsCredentialsStorage {
             credentials_list[index] = credentials.clone();
         }
 
-        Self::write_file_contents(state, credentials_list).await
+        Self::write_file_contents(state, credentials_list).await?;
+
+        Ok(credentials.id)
     }
 
     async fn set_active(&self, state: &LauncherState, id: &Uuid) -> crate::Result<()> {

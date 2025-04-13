@@ -1,6 +1,7 @@
 pub mod account;
 pub mod credentials;
-pub mod credentials_storage;
+pub mod storage;
 
-pub use account::Account;
-pub use credentials::Credentials;
+pub use account::*;
+pub use credentials::*;
+pub use storage::*;

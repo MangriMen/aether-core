@@ -2,7 +2,7 @@ use crate::{
     api,
     core::LauncherState,
     features::{
-        auth::{credentials_storage::CredentialsStorage, Credentials, FsCredentialsStorage},
+        auth::{storage::CredentialsStorage, Credentials, FsCredentialsStorage},
         launcher::launch_minecraft,
         process::MinecraftProcessMetadata,
         settings::{FsSettingsStorage, SettingsStorage},

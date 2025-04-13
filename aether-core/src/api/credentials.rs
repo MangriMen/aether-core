@@ -2,35 +2,29 @@ use uuid::Uuid;
 
 use crate::{
     core::LauncherState,
-    features::{
-        self,
-        auth::{credentials_storage::CredentialsStorage, Account, FsCredentialsStorage},
-    },
+    features::auth::{self, Account, FsCredentialsStorage},
 };
 
 #[tracing::instrument]
 pub async fn get_accounts() -> crate::Result<Vec<Account>> {
     let state = LauncherState::get().await?;
-    let credentials = FsCredentialsStorage.get_all(&state).await?;
-    Ok(credentials.into_iter().map(Account::from).collect())
+    auth::get_accounts(&state, &FsCredentialsStorage).await
 }
 
 #[tracing::instrument]
-pub async fn create_offline_account(username: &str) -> crate::Result<()> {
+pub async fn create_offline_account(username: &str) -> crate::Result<Uuid> {
     let state = LauncherState::get().await?;
-    features::auth::create_offline_account(&state, username).await
+    auth::create_offline_account(&state, &FsCredentialsStorage, username).await
 }
 
 #[tracing::instrument]
 pub async fn change_account(id: &Uuid) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    FsCredentialsStorage.set_active(&state, id).await?;
-    Ok(())
+    auth::set_active_account(&state, &FsCredentialsStorage, id).await
 }
 
 #[tracing::instrument]
 pub async fn logout(id: &Uuid) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    FsCredentialsStorage.remove(&state, id).await?;
-    Ok(())
+    auth::logout(&state, &FsCredentialsStorage, id).await
 }

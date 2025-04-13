@@ -11,7 +11,8 @@ pub trait CredentialsStorage {
     async fn get_active(&self, state: &LauncherState) -> crate::Result<Option<Credentials>>;
     async fn get_all(&self, state: &LauncherState) -> crate::Result<Vec<Credentials>>;
 
-    async fn upsert(&self, state: &LauncherState, credentials: &Credentials) -> crate::Result<()>;
+    async fn upsert(&self, state: &LauncherState, credentials: &Credentials)
+        -> crate::Result<Uuid>;
     async fn set_active(&self, state: &LauncherState, id: &Uuid) -> crate::Result<()>;
     async fn upsert_all(
         &self,
