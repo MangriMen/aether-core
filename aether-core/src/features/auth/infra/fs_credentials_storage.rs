@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     core::LauncherState,
     features::auth::{credentials_storage::CredentialsStorage, Credentials},
-    utils::io::{read_json_async, write_json_async},
+    shared::{read_json_async, write_json_async},
     ErrorKind,
 };
 

@@ -1,6 +1,6 @@
 use daedalus::modded;
 
-use crate::utils::io::IOError;
+use crate::shared::IOError;
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader},

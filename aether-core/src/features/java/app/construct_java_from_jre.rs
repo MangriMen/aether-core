@@ -13,7 +13,7 @@ use super::constants::{JAVA_BIN, JAVA_WINDOW_BIN};
 pub async fn construct_java_from_jre(path: &Path) -> Option<Java> {
     // Attempt to canonicalize the potential Java filepath
     // If it fails, return None (Java is not here)
-    let path = crate::utils::io::canonicalize(path).ok()?;
+    let path = crate::shared::canonicalize(path).ok()?;
 
     // Check if JAVA_WINDOW_BIN is present at the end of the path,
     // if not, append it

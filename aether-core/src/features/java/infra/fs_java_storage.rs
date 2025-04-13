@@ -1,7 +1,7 @@
 use crate::{
     core::LauncherState,
     features::java::{construct_java_from_jre, Java, JavaStorage},
-    utils::io::{read_json_async, write_json_async},
+    shared::{read_json_async, write_json_async},
 };
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};

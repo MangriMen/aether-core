@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     features::{auth::Credentials, settings::WindowSize},
-    utils::io::canonicalize,
+    shared::canonicalize,
 };
 
 use super::parse_arguments;

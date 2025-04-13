@@ -10,7 +10,7 @@ use crate::{
         events::{emit_process, ProcessPayloadType},
         process::manage_minecraft_process,
     },
-    utils::io::IOError,
+    shared::IOError,
 };
 
 use super::{MinecraftProcess, MinecraftProcessMetadata};

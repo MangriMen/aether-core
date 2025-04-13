@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::{
     core::LauncherState,
     features::plugins::{PluginSettings, PluginSettingsStorage},
-    utils::io::{read_toml_async, write_toml_async},
+    shared::{read_toml_async, write_toml_async},
 };
 
 pub struct FsPluginSettingsStorage;

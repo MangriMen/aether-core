@@ -50,7 +50,7 @@ impl ContentMetadata {
     }
 
     pub async fn from_file(file: &Path) -> crate::Result<ContentMetadata> {
-        crate::utils::io::read_toml_async(file).await
+        crate::shared::read_toml_async(file).await
     }
 
     pub async fn write_path(&self, path: &Path) -> crate::Result<()> {
@@ -59,6 +59,6 @@ impl ContentMetadata {
     }
 
     pub async fn write_file(&self, file: &Path) -> crate::Result<()> {
-        crate::utils::io::write_toml_async(file, self).await
+        crate::shared::write_toml_async(file, self).await
     }
 }

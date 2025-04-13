@@ -10,7 +10,7 @@ use crate::{
         events::{emit_process, ProcessPayloadType},
         instance::Instance,
     },
-    utils::io::IOError,
+    shared::IOError,
 };
 
 pub async fn manage_minecraft_process(

@@ -7,9 +7,10 @@ use reqwest_retry::policies::ExponentialBackoff;
 use serde::de::DeserializeOwned;
 use tokio::sync::Semaphore;
 
-use crate::features::events::{emit_loading, LoadingBarId};
-
-use super::file::sha1_async;
+use crate::{
+    features::events::{emit_loading, LoadingBarId},
+    shared::sha1_async,
+};
 
 const FETCH_ATTEMPTS: u32 = 5;
 

@@ -10,6 +10,7 @@ use crate::{
         instance::{instance::PackInfo, ModLoader},
         plugins::{plugin_utils, PluginContext, SerializableCommand, SerializableOutput},
     },
+    shared::fetch_advanced,
 };
 
 use super::plugin_utils::plugin_path_to_host;
@@ -43,7 +44,7 @@ pub download_file(user_data: PluginContext; url: String, path: String) -> extism
         let validated_path = plugin_path_to_host(&id, &path)?;
 
         let response = tokio::runtime::Handle::current()
-            .block_on(crate::utils::fetch::fetch_advanced(
+            .block_on(fetch_advanced(
                 Method::GET,
                 &url,
                 None,
@@ -54,7 +55,7 @@ pub download_file(user_data: PluginContext; url: String, path: String) -> extism
             ))?;
 
         tokio::runtime::Handle::current()
-            .block_on(crate::utils::io::write_async(&validated_path, response))?;
+            .block_on(crate::shared::write_async(&validated_path, response))?;
 
         Ok(())
     })?;

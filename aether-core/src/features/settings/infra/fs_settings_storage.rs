@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::{
     core::LauncherState,
     features::settings::{Settings, SettingsStorage},
-    utils::io::{read_json_async, write_json_async},
+    shared::{read_json_async, write_json_async},
 };
 
 pub struct FsSettingsStorage;

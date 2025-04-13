@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! wrap_ref_builder {
+macro_rules! with_mut_ref {
     ($id:ident = $init:expr => $transform:block) => {{
         let mut it = $init;
         {

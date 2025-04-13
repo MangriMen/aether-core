@@ -5,12 +5,14 @@ use reqwest::Method;
 
 use crate::{
     core::LauncherState,
-    features::events::{
-        emit::{emit_loading, init_loading},
-        LoadingBarId, LoadingBarType,
+    features::{
+        events::{
+            emit::{emit_loading, init_loading},
+            LoadingBarId, LoadingBarType,
+        },
+        java::constants::JAVA_WINDOW_BIN,
     },
-    features::java::constants::JAVA_WINDOW_BIN,
-    utils::fetch::{fetch_advanced, fetch_json},
+    shared::{fetch_advanced, fetch_json},
 };
 
 #[derive(serde::Deserialize, Clone)]

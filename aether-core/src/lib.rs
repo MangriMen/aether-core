@@ -1,6 +1,6 @@
 pub mod api;
 pub mod core;
 pub mod features;
-pub mod utils;
+pub mod shared;
 
-pub use core::error::*;
+pub use core::{Error, ErrorKind, Result};

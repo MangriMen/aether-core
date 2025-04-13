@@ -19,9 +19,9 @@ use crate::{
         java::{infra::FsJavaStorage, Java, JavaStorage},
         settings::{Hooks, MemorySettings, WindowSize},
     },
-    utils::{
-        file::sha1_async,
-        io::{self, read_async, read_toml_async, write_toml_async},
+    shared::{
+        read_async, read_toml_async, remove_file, rename, sha1_async, write_async,
+        write_toml_async, IOError,
     },
 };
 
@@ -100,7 +100,7 @@ impl Instance {
 
         let profiles_dir = state.locations.instances_dir();
 
-        let full_path = crate::utils::io::canonicalize(profiles_dir.join(id))?;
+        let full_path = crate::shared::canonicalize(profiles_dir.join(id))?;
 
         Ok(full_path)
     }
@@ -163,7 +163,7 @@ impl Instance {
 
     pub async fn save_path(instance: &Instance, path: &PathBuf) -> crate::Result<()> {
         let data = serde_json::to_vec(instance)?;
-        io::write_async(path, &data).await?;
+        write_async(path, &data).await?;
         Ok(())
     }
 
@@ -215,16 +215,16 @@ impl Instance {
             }
 
             for subdirectory in
-                std::fs::read_dir(&path).map_err(|e| io::IOError::with_path(e, &path))?
+                std::fs::read_dir(&path).map_err(|e| IOError::with_path(e, &path))?
             {
-                let subdirectory = subdirectory.map_err(io::IOError::from)?.path();
+                let subdirectory = subdirectory.map_err(IOError::from)?.path();
 
                 if !subdirectory.is_file() {
                     continue;
                 }
 
                 if let Some(file_name) = subdirectory.file_name().and_then(|x| x.to_str()) {
-                    let file_size = subdirectory.metadata().map_err(io::IOError::from)?.len();
+                    let file_size = subdirectory.metadata().map_err(IOError::from)?.len();
 
                     let original_path = PathBuf::from(&folder)
                         .join(file_name)
@@ -247,8 +247,8 @@ impl Instance {
                     let (name, hash) = if let Some(metadata) = &metadata {
                         (metadata.name.clone(), metadata.hash.to_owned())
                     } else {
-                        let bytes = read_async(&subdirectory).await?;
-                        let hash = sha1_async(bytes::Bytes::from(bytes)).await?;
+                        let file_content = read_async(&subdirectory).await?;
+                        let hash = sha1_async(file_content).await?;
 
                         let content_metadata_file = ContentMetadataFile {
                             file_name: file_name.to_string(),
@@ -313,7 +313,7 @@ impl Instance {
         let new_path = content_path.trim_end_matches(".disabled").to_string();
 
         let instance_path = crate::api::instance::get_dir(id).await?;
-        io::rename(
+        rename(
             &instance_path.join(content_path),
             &instance_path.join(&new_path),
         )
@@ -331,7 +331,7 @@ impl Instance {
 
         let new_path = format!("{content_path}.disabled");
 
-        io::rename(
+        rename(
             &instance_path.join(content_path),
             &instance_path.join(&new_path),
         )
@@ -379,7 +379,7 @@ impl Instance {
                 .collect();
 
             for content_path in &content_paths {
-                io::remove_file(path.join(content_path)).await?;
+                remove_file(path.join(content_path)).await?;
             }
 
             Instance::remove_contents_from_pack(id, &content_paths).await?;
@@ -497,7 +497,7 @@ impl Instance {
         let instance_pack_dir = state.locations.instance_pack_dir(id);
         let content_metadata_file_path =
             instance_pack_dir.join(content_path).with_extension("toml");
-        io::remove_file(&content_metadata_file_path).await?;
+        remove_file(&content_metadata_file_path).await?;
         Ok(())
     }
 

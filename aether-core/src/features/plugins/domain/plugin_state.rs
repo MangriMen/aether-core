@@ -3,7 +3,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use bytes::Bytes;
 use extism::{Manifest, PluginBuilder, Wasm};
 use tokio::sync::Mutex;
 
@@ -13,7 +12,7 @@ use crate::{
         extism_host_functions, FsPluginSettingsStorage, LauncherPlugin, PluginSettings,
         PluginSettingsStorage, WasmCache, WasmCacheConfig,
     },
-    utils::file::sha1_async,
+    shared::sha1_async,
 };
 
 use super::PluginMetadata;
@@ -48,12 +47,11 @@ impl PluginState {
     pub async fn from_dir(dir: &Path) -> crate::Result<Self> {
         let plugin_metadata_path = dir.join("plugin.toml");
         let metadata_string = std::fs::read_to_string(&plugin_metadata_path)
-            .map_err(|e| crate::utils::io::IOError::with_path(e, &plugin_metadata_path))?;
+            .map_err(|e| crate::shared::IOError::with_path(e, &plugin_metadata_path))?;
         let metadata = toml::from_str::<PluginMetadata>(&metadata_string)?;
 
-        let plugin_file = crate::utils::io::read_async(dir.join(&metadata.wasm.file)).await?;
-        let plugin_file_bytes: Bytes = bytes::Bytes::from(plugin_file);
-        let plugin_hash = sha1_async(plugin_file_bytes).await?;
+        let plugin_file = crate::shared::read_async(dir.join(&metadata.wasm.file)).await?;
+        let plugin_hash = sha1_async(plugin_file).await?;
 
         Ok(Self {
             dir: dir.to_path_buf(),
@@ -238,7 +236,7 @@ impl PluginState {
             };
             let config = WasmCacheConfig { cache };
 
-            crate::utils::io::write_toml_async(&cache_config, config).await?;
+            crate::shared::write_toml_async(&cache_config, config).await?;
             tokio::fs::create_dir_all(&cache_dir).await?;
         }
 

@@ -9,7 +9,7 @@ use crate::{
         launcher::{InstanceLaunchArgs, InstanceLaunchMetadata, InstanceLaunchSettings},
         settings::Settings,
     },
-    utils::io::IOError,
+    shared::IOError,
 };
 
 pub fn sanitize_instance_name(name: &str) -> String {

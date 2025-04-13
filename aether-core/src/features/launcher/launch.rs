@@ -15,11 +15,13 @@ use crate::{
         process::MinecraftProcessMetadata,
         settings::{MemorySettings, WindowSize},
     },
-    utils::minecraft::{get_minecraft_jvm_arguments, get_minecraft_version},
-    wrap_ref_builder,
+    with_mut_ref,
 };
 
-use super::{args, download_minecraft, download_version_info, download_version_manifest};
+use super::{
+    args, download_minecraft, download_version_info, download_version_manifest,
+    get_compatible_java_version, get_minecraft_jvm_arguments, get_minecraft_version,
+};
 
 #[tracing::instrument]
 pub async fn install_minecraft(
@@ -101,8 +103,7 @@ pub async fn install_minecraft(
         let java = if let Some(java) = Instance::get_java(instance).await.transpose() {
             java
         } else {
-            let compatible_java_version =
-                crate::utils::minecraft::get_compatible_java_version(&version_info);
+            let compatible_java_version = get_compatible_java_version(&version_info);
 
             let java = crate::api::java::get(compatible_java_version).await;
 
@@ -252,8 +253,7 @@ pub async fn launch_minecraft(
     let java = if let Some(java) = instance.get_java().await.transpose() {
         java
     } else {
-        let compatible_java_version =
-            crate::utils::minecraft::get_compatible_java_version(&version_info);
+        let compatible_java_version = get_compatible_java_version(&version_info);
 
         crate::api::java::get(compatible_java_version).await
     }?;
@@ -269,7 +269,7 @@ pub async fn launch_minecraft(
 
     let mut command = match &launch_metadata.wrapper {
         Some(hook) => {
-            wrap_ref_builder!(it = tokio::process::Command::new(hook) => {it.arg(&java.path)})
+            with_mut_ref!(it = tokio::process::Command::new(hook) => {it.arg(&java.path)})
         }
         None => tokio::process::Command::new(&java.path),
     };

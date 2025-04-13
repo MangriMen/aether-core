@@ -52,7 +52,7 @@ pub fn parse_os_rule(
     // Minecraft updated over 1.18.2 (supports MacOS Natively)
     minecraft_updated: bool,
 ) -> bool {
-    use crate::utils::platform::OsExt;
+    use crate::shared::OsExt;
     use minecraft::Os;
 
     let mut rule_match = true;

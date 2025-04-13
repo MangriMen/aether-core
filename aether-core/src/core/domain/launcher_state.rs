@@ -9,7 +9,7 @@ use crate::{
         process::ProcessManager,
         settings::{LocationInfo, Settings},
     },
-    utils::fetch::FetchSemaphore,
+    shared::FetchSemaphore,
 };
 
 // Global state

@@ -1,4 +1,3 @@
-pub mod error;
-pub mod launcher_state;
+pub mod domain;
 
-pub use launcher_state::LauncherState;
+pub use domain::{Error, ErrorKind, LauncherState, Result};

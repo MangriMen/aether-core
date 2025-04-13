@@ -6,7 +6,8 @@ use reqwest::Method;
 use crate::{
     core::LauncherState,
     features::instance::{ContentRequest, ContentResponse, InstallContentPayload, InstanceFile},
-    utils::{fetch::fetch_advanced, io::write_async},
+    shared::fetch_advanced,
+    shared::write_async,
 };
 
 use super::{

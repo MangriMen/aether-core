@@ -28,7 +28,7 @@ pub enum ErrorKind {
     // #[error("Minecraft authentication error: {0}")]
     // MinecraftAuthenticationError(#[from] crate::state::MinecraftAuthenticationError),
     #[error("I/O error: {0}")]
-    IOError(#[from] crate::utils::io::IOError),
+    IOError(#[from] crate::shared::IOError),
 
     #[error("I/O (std) error: {0}")]
     StdIOError(#[from] std::io::Error),

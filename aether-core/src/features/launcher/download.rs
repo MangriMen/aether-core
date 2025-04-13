@@ -1,7 +1,7 @@
 use crate::{
     core::LauncherState,
     features::events::{emit::emit_loading, loading_try_for_each_concurrent, LoadingBarId},
-    utils::{self, io::write_async},
+    shared::{self, fetch_advanced, fetch_json, write_async},
 };
 use bytes::Bytes;
 use daedalus::{
@@ -71,9 +71,9 @@ pub async fn download_assets_index(
         .join(format!("{}.json", &version_info.asset_index.id));
 
     let res = if path.exists() && !force {
-        utils::io::read_json_async(path).await
+        shared::read_json_async(path).await
     } else {
-        let assets_index = utils::fetch::fetch_json(
+        let assets_index = fetch_json(
             Method::GET,
             &version_info.asset_index.url,
             None,
@@ -83,7 +83,7 @@ pub async fn download_assets_index(
         )
         .await?;
 
-        utils::io::write_async(&path, &serde_json::to_vec(&assets_index)?).await?;
+        shared::write_async(&path, &serde_json::to_vec(&assets_index)?).await?;
 
         Ok(assets_index)
     }?;
@@ -111,9 +111,9 @@ pub async fn download_version_info(
         .join(format!("{version_id}.json"));
 
     let res = if path.exists() && !force.unwrap_or(false) {
-        utils::io::read_json_async(path).await
+        shared::read_json_async(path).await
     } else {
-        let mut version_info = utils::fetch::fetch_json(
+        let mut version_info = fetch_json(
             Method::GET,
             &version.url,
             None,
@@ -124,7 +124,7 @@ pub async fn download_version_info(
         .await?;
 
         if let Some(loader) = loader {
-            let modded_info = utils::fetch::fetch_json(
+            let modded_info = fetch_json(
                 Method::GET,
                 &loader.url,
                 None,
@@ -138,7 +138,7 @@ pub async fn download_version_info(
 
         version_info.id.clone_from(&version_id);
 
-        utils::io::write_async(&path, &serde_json::to_vec(&version_info)?).await?;
+        shared::write_async(&path, &serde_json::to_vec(&version_info)?).await?;
 
         Ok(version_info)
     }?;
@@ -177,7 +177,7 @@ pub async fn download_client(
         .join(format!("{version_id}.jar"));
 
     if !path.exists() || force {
-        let bytes = utils::fetch::fetch_advanced(
+        let bytes = fetch_advanced(
             Method::GET,
             &client_download.url,
             None,
@@ -223,7 +223,7 @@ pub async fn download_asset(
         async  {
             if !asset_path.exists() || force {
                 let asset_resource = fetch_cell.get_or_try_init(|| {
-                    utils::fetch::fetch_advanced(
+                    fetch_advanced(
                         Method::GET,
                         &url,
                         None,
@@ -234,7 +234,7 @@ pub async fn download_asset(
                     )
                 }).await?;
 
-                utils::io::write_async(&asset_path, &asset_resource).await?;
+                shared::write_async(&asset_path, &asset_resource).await?;
             }
 
             Ok::<(), crate::Error>(())
@@ -245,7 +245,7 @@ pub async fn download_asset(
 
             if with_legacy && !legacy_path.exists() || force {
                 let asset_resource = fetch_cell.get_or_try_init(|| {
-                    utils::fetch::fetch_advanced(
+                    fetch_advanced(
                         Method::GET,
                         &url,
                         None,
@@ -256,7 +256,7 @@ pub async fn download_asset(
                     )
                 }).await?;
 
-                utils::io::write_async(&legacy_path, &asset_resource).await?;
+                shared::write_async(&legacy_path, &asset_resource).await?;
             }
 
             Ok::<(), crate::Error>(())
@@ -342,7 +342,7 @@ pub async fn download_java_library(
     }) = library.downloads
     {
         if !artifact.url.is_empty() {
-            let bytes = utils::fetch::fetch_advanced(
+            let bytes = fetch_advanced(
                 Method::GET,
                 &artifact.url,
                 None,
@@ -377,7 +377,7 @@ pub async fn download_java_library(
 
     log::debug!("Library url {}", url);
 
-    let bytes = utils::fetch::fetch_advanced(
+    let bytes = fetch_advanced(
         Method::GET,
         &url,
         None,
@@ -409,7 +409,7 @@ pub async fn download_native_library_files(
     java_arch: &str,
     _force: bool,
 ) -> crate::Result<()> {
-    use crate::utils::platform::OsExt;
+    use crate::shared::OsExt;
     use minecraft::Os;
 
     log::debug!("Downloading native library \"{}\"", &library.name);
@@ -420,10 +420,10 @@ pub async fn download_native_library_files(
             library.downloads.as_ref()?.classifiers.as_ref()?,
         ))
     }) {
-        let parsed_key = os_key.replace("${arch}", crate::utils::platform::ARCH_WIDTH);
+        let parsed_key = os_key.replace("${arch}", crate::shared::ARCH_WIDTH);
 
         if let Some(native) = classifiers.get(&parsed_key) {
-            let bytes = utils::fetch::fetch_advanced(
+            let bytes = fetch_advanced(
                 Method::GET,
                 &native.url,
                 None,
@@ -546,9 +546,9 @@ pub async fn download_version_manifest(
     let path = state.locations.versions_dir().join("manifest.json");
 
     let res = if path.exists() && !force {
-        utils::io::read_json_async(path).await
+        shared::read_json_async(path).await
     } else {
-        let version_manifest = utils::fetch::fetch_json(
+        let version_manifest = fetch_json(
             Method::GET,
             minecraft::VERSION_MANIFEST_URL,
             None,
@@ -558,7 +558,7 @@ pub async fn download_version_manifest(
         )
         .await?;
 
-        utils::io::write_json_async(&path, &version_manifest).await?;
+        shared::write_json_async(&path, &version_manifest).await?;
 
         Ok(version_manifest)
     }?;
@@ -581,9 +581,9 @@ pub async fn download_loaders_manifests(
     let loaders_manifest_url = format!("{META_URL}{}/v0/manifest.json", loader);
 
     let res = if path.exists() && !force {
-        utils::io::read_json_async(path).await
+        shared::read_json_async(path).await
     } else {
-        let loaders_manifest = utils::fetch::fetch_json::<modded::Manifest>(
+        let loaders_manifest = fetch_json::<modded::Manifest>(
             Method::GET,
             &loaders_manifest_url,
             None,
@@ -593,7 +593,7 @@ pub async fn download_loaders_manifests(
         )
         .await?;
 
-        utils::io::write_json_async(path, &loaders_manifest).await?;
+        shared::write_json_async(path, &loaders_manifest).await?;
 
         Ok(loaders_manifest)
     }?;

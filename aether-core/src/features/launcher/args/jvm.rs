@@ -4,7 +4,8 @@ use daedalus::minecraft;
 
 use crate::{
     features::{launcher::parse_rules, settings::MemorySettings},
-    utils::{io::canonicalize, platform::get_classpath_separator},
+    shared::canonicalize,
+    shared::utils::get_classpath_separator,
 };
 
 use super::parse_arguments;

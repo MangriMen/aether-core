@@ -9,7 +9,7 @@ use crate::{
         launcher::install_minecraft,
         settings::{Hooks, MemorySettings, WindowSize},
     },
-    utils::io::read_json_async,
+    shared::read_json_async,
 };
 
 use std::fs::canonicalize;

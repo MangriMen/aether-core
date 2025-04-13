@@ -67,8 +67,8 @@ pub fn plugin_path_to_host(id: &str, path: &str) -> crate::Result<PathBuf> {
     let stripped_path = plugin_path_to_relative(id, cleaned_path_str, allowed_paths.keys())?;
     let host_path = base_dir.join(stripped_path);
 
-    let canonical_base = crate::utils::io::canonicalize(base_dir)?;
-    let canonical_host = crate::utils::io::canonicalize(&host_path)?;
+    let canonical_base = crate::shared::canonicalize(base_dir)?;
+    let canonical_host = crate::shared::canonicalize(&host_path)?;
 
     if !canonical_host.starts_with(&canonical_base) {
         return Err(crate::ErrorKind::PluginNotAllowedPathError(

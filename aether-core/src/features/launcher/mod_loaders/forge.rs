@@ -20,8 +20,8 @@ use crate::{
         },
     },
     processor_rules,
-    utils::io::IOError,
-    wrap_ref_builder,
+    shared::IOError,
+    with_mut_ref,
 };
 
 #[tracing::instrument]
@@ -105,7 +105,7 @@ pub async fn process_forge_processor(
 ) -> crate::Result<()> {
     log::debug!("Running forge processor {}", processor.jar);
 
-    let class_path: Vec<String> = wrap_ref_builder!(cp = processor.classpath.clone() => {
+    let class_path: Vec<String> = with_mut_ref!(cp = processor.classpath.clone() => {
         cp.push(processor.jar.clone())
     });
 
