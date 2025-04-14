@@ -13,8 +13,8 @@ use crate::{
 pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
 
-    let default_account = FsCredentialsStorage
-        .get_active(&state)
+    let default_account = FsCredentialsStorage::new(state)
+        .get_active()
         .await?
         .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
 

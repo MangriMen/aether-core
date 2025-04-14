@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
-use crate::{core::LauncherState, features::auth::CredentialsStorage};
+use crate::features::auth::CredentialsStorage;
 
-pub async fn logout<S>(state: &LauncherState, storage: &S, id: &Uuid) -> crate::Result<()>
+pub async fn logout<S>(storage: &S, id: &Uuid) -> crate::Result<()>
 where
     S: CredentialsStorage + ?Sized,
 {
-    storage.remove(state, id).await
+    storage.remove(id).await
 }

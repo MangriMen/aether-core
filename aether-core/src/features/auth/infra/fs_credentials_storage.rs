@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -10,11 +13,17 @@ use crate::{
     ErrorKind,
 };
 
-pub struct FsCredentialsStorage;
+pub struct FsCredentialsStorage {
+    state: Arc<LauncherState>,
+}
 
 impl FsCredentialsStorage {
-    fn get_credentials_file_path(state: &LauncherState) -> PathBuf {
-        state.locations.settings_dir.join("credentials.json")
+    pub fn new(state: Arc<LauncherState>) -> Self {
+        Self { state }
+    }
+
+    fn get_credentials_file_path(&self) -> PathBuf {
+        self.state.locations.settings_dir.join("credentials.json")
     }
 
     async fn ensure_credentials_file_exists(path: &Path) -> crate::Result<()> {
@@ -28,27 +37,18 @@ impl FsCredentialsStorage {
         Ok(())
     }
 
-    async fn read_file_contents(state: &LauncherState) -> crate::Result<Vec<Credentials>> {
-        let path = Self::get_credentials_file_path(state);
+    async fn read_file_contents(&self) -> crate::Result<Vec<Credentials>> {
+        let path = self.get_credentials_file_path();
         Self::ensure_credentials_file_exists(&path).await?;
-
-        let credentials = read_json_async::<Vec<Credentials>>(&path).await?;
-
-        Ok(credentials)
+        read_json_async(&path).await
     }
 
-    async fn write_file_contents(
-        state: &LauncherState,
-        credentials: Vec<Credentials>,
-    ) -> crate::Result<()> {
-        let path = Self::get_credentials_file_path(state);
+    async fn write_file_contents(&self, credentials: Vec<Credentials>) -> crate::Result<()> {
+        let path = self.get_credentials_file_path();
         write_json_async(&path, credentials).await
     }
 
-    async fn update_active(
-        credentials_list: &mut Vec<Credentials>,
-        id: &Uuid,
-    ) -> crate::Result<()> {
+    async fn update_active(credentials_list: &mut [Credentials], id: &Uuid) -> crate::Result<()> {
         if credentials_list.is_empty() {
             return Err(ErrorKind::NoCredentialsError.as_error());
         }
@@ -56,7 +56,7 @@ impl FsCredentialsStorage {
         let mut prev_active = None;
         let mut new_active = None;
 
-        for credential in credentials_list {
+        for credential in credentials_list.iter_mut() {
             if credential.active {
                 prev_active = Some(credential);
             } else if credential.id == *id {
@@ -78,81 +78,71 @@ impl FsCredentialsStorage {
 
 #[async_trait]
 impl CredentialsStorage for FsCredentialsStorage {
-    async fn get(&self, state: &LauncherState, id: &Uuid) -> crate::Result<Credentials> {
-        let credentials = Self::read_file_contents(state).await?;
-
-        let found = credentials.iter().find(|x| x.id == *id);
-
-        if let Some(credentials) = found {
-            Ok(credentials.clone())
-        } else {
-            Err(ErrorKind::NoCredentialsError.as_error())
-        }
-    }
-
-    async fn get_active(&self, state: &LauncherState) -> crate::Result<Option<Credentials>> {
-        let credentials = Self::read_file_contents(state).await?;
-        Ok(credentials.iter().find(|x| x.active).cloned())
-    }
-
-    async fn get_all(&self, state: &LauncherState) -> crate::Result<Vec<Credentials>> {
-        Self::read_file_contents(state).await
-    }
-
-    async fn upsert(
-        &self,
-        state: &LauncherState,
-        credentials: &Credentials,
-    ) -> crate::Result<Uuid> {
-        let mut credentials_list = Self::read_file_contents(state).await?;
-        let index = credentials_list
+    async fn get(&self, id: &Uuid) -> crate::Result<Credentials> {
+        self.read_file_contents()
+            .await?
             .iter()
-            .position(|x| x.id == credentials.id)
-            .ok_or_else(|| ErrorKind::NoCredentialsError.as_error())?;
+            .find(|x| x.id == *id)
+            .cloned()
+            .ok_or_else(|| ErrorKind::NoCredentialsError.as_error())
+    }
 
-        if credentials.active {
-            credentials_list[index] = Credentials {
-                active: false,
-                ..credentials.clone()
-            };
-            Self::update_active(&mut credentials_list, &credentials.id).await?
+    async fn get_active(&self) -> crate::Result<Option<Credentials>> {
+        Ok(self
+            .read_file_contents()
+            .await?
+            .iter()
+            .find(|x| x.active)
+            .cloned())
+    }
+
+    async fn get_all(&self) -> crate::Result<Vec<Credentials>> {
+        self.read_file_contents().await
+    }
+
+    async fn upsert(&self, credentials: &Credentials) -> crate::Result<Uuid> {
+        let mut credentials_list = self.read_file_contents().await?;
+        let index = credentials_list.iter().position(|x| x.id == credentials.id);
+
+        if let Some(index) = index {
+            if credentials.active {
+                credentials_list[index] = Credentials {
+                    active: false,
+                    ..credentials.clone()
+                };
+                Self::update_active(&mut credentials_list, &credentials.id).await?
+            } else {
+                credentials_list[index] = credentials.clone();
+            }
         } else {
-            credentials_list[index] = credentials.clone();
+            credentials_list.push(credentials.clone());
         }
 
-        Self::write_file_contents(state, credentials_list).await?;
-
+        self.write_file_contents(credentials_list).await?;
         Ok(credentials.id)
     }
 
-    async fn set_active(&self, state: &LauncherState, id: &Uuid) -> crate::Result<()> {
-        let mut credentials_list = Self::read_file_contents(state).await?;
-
+    async fn set_active(&self, id: &Uuid) -> crate::Result<()> {
+        let mut credentials_list = self.read_file_contents().await?;
         Self::update_active(&mut credentials_list, id).await?;
-
-        Self::write_file_contents(state, credentials_list).await
+        self.write_file_contents(credentials_list).await
     }
 
-    async fn upsert_all(
-        &self,
-        state: &LauncherState,
-        credentials_list: Vec<Credentials>,
-    ) -> crate::Result<()> {
-        Self::write_file_contents(state, credentials_list).await
+    async fn upsert_all(&self, credentials_list: Vec<Credentials>) -> crate::Result<()> {
+        self.write_file_contents(credentials_list).await
     }
 
-    async fn remove(&self, state: &LauncherState, id: &Uuid) -> crate::Result<()> {
-        let mut credentials_list = Self::read_file_contents(state).await?;
+    async fn remove(&self, id: &Uuid) -> crate::Result<()> {
+        let mut credentials_list = self.read_file_contents().await?;
 
         let mut need_to_set_active = false;
         credentials_list.retain(|x| {
-            let need_retain = x.id != *id;
-
-            if !need_retain && x.active {
-                need_to_set_active = true
+            if x.id == *id && x.active {
+                need_to_set_active = true;
+                return false;
             }
 
-            need_retain
+            true
         });
 
         if need_to_set_active {
@@ -161,6 +151,6 @@ impl CredentialsStorage for FsCredentialsStorage {
             };
         }
 
-        Self::write_file_contents(state, credentials_list).await
+        self.write_file_contents(credentials_list).await
     }
 }

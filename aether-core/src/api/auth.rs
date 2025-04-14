@@ -7,24 +7,24 @@ use crate::{
 
 #[tracing::instrument]
 pub async fn get_accounts() -> crate::Result<Vec<Account>> {
-    let state = LauncherState::get().await?;
-    auth::get_accounts(&state, &FsCredentialsStorage).await
+    auth::get_accounts(&FsCredentialsStorage::new(LauncherState::get().await?)).await
 }
 
 #[tracing::instrument]
 pub async fn create_offline_account(username: &str) -> crate::Result<Uuid> {
-    let state = LauncherState::get().await?;
-    auth::create_offline_account(&state, &FsCredentialsStorage, username).await
+    auth::create_offline_account(
+        &FsCredentialsStorage::new(LauncherState::get().await?),
+        username,
+    )
+    .await
 }
 
 #[tracing::instrument]
 pub async fn change_account(id: &Uuid) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    auth::set_active_account(&state, &FsCredentialsStorage, id).await
+    auth::set_active_account(&FsCredentialsStorage::new(LauncherState::get().await?), id).await
 }
 
 #[tracing::instrument]
 pub async fn logout(id: &Uuid) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    auth::logout(&state, &FsCredentialsStorage, id).await
+    auth::logout(&FsCredentialsStorage::new(LauncherState::get().await?), id).await
 }
