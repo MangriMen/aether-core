@@ -3,16 +3,16 @@ use daedalus::{minecraft, modded};
 use crate::{
     api,
     core::LauncherState,
-    features::events::{
-        emit::{emit_loading, init_or_edit_loading},
-        LoadingBarId, LoadingBarType,
-    },
     features::{
         auth::Credentials,
+        events::{
+            emit::{emit_loading, init_or_edit_loading},
+            LoadingBarId, LoadingBarType,
+        },
         instance::{Instance, InstanceInstallStage, ModLoader},
         launcher::mod_loaders::mod_loader_post_install,
         plugins::PluginEvent,
-        process::MinecraftProcessMetadata,
+        process::{MinecraftProcessMetadata, ProcessManager},
         settings::{MemorySettings, WindowSize},
     },
     with_mut_ref,

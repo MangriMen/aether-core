@@ -9,6 +9,7 @@ use crate::{
     features::{
         events::{emit_process, ProcessPayloadType},
         instance::Instance,
+        process::ProcessManager,
     },
     shared::IOError,
 };
@@ -20,12 +21,12 @@ pub async fn manage_minecraft_process(
 ) -> crate::Result<()> {
     let state = LauncherState::get().await?;
     let mut last_updated_playtime = Utc::now();
-    let mc_exit_status = wait_for_process(&state, uuid, &id, &mut last_updated_playtime).await;
+
+    let mc_exit_status =
+        track_instance_process(&state, uuid, &id, &mut last_updated_playtime).await;
 
     state.process_manager.remove(uuid);
     emit_process(&id, uuid, ProcessPayloadType::Finished, "Exited process").await?;
-
-    update_playtime_if_needed(&mut last_updated_playtime, &id, true).await;
 
     if mc_exit_status.success() {
         execute_post_exit_command(&id, post_exit_command).await?;
@@ -34,54 +35,70 @@ pub async fn manage_minecraft_process(
     Ok(())
 }
 
-async fn update_playtime_if_needed(last_updated: &mut DateTime<Utc>, id: &str, force: bool) {
+async fn update_playtime(last_updated: &mut DateTime<Utc>, id: &str, force: bool) {
     let elapsed_seconds = Utc::now()
         .signed_duration_since(*last_updated)
         .num_seconds();
 
     if elapsed_seconds >= 60 || force {
-        if let Err(e) = Instance::edit(id, |profile| {
+        let result = Instance::edit(id, |profile| {
             profile.time_played += elapsed_seconds as u64;
             async { Ok(()) }
         })
-        .await
-        {
+        .await;
+
+        if let Err(e) = result {
             tracing::warn!("Failed to update playtime for profile {}: {}", id, e);
         }
+
         *last_updated = Utc::now();
     }
 }
 
-async fn wait_for_process(
+async fn track_instance_process(
     state: &LauncherState,
     uuid: Uuid,
     id: &str,
     last_updated: &mut DateTime<Utc>,
 ) -> ExitStatus {
+    let check_threshold = tokio::time::Duration::from_millis(50);
+
     loop {
-        if let Some(process) = state.process_manager.try_wait(uuid).unwrap_or(None) {
-            if let Some(exit_status) = process {
+        match state.process_manager.try_wait(uuid) {
+            Ok(Some(Some(exit_status))) => {
+                // Process exited successfully
+                update_playtime(last_updated, id, true).await;
                 return exit_status;
             }
-        } else {
-            return ExitStatus::default();
+            Ok(Some(None)) => {} // Still running
+            Ok(None) | Err(_) => {
+                update_playtime(last_updated, id, true).await;
+                return ExitStatus::default();
+            }
         }
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-        update_playtime_if_needed(last_updated, id, false).await;
+        tokio::time::sleep(check_threshold).await;
+        update_playtime(last_updated, id, false).await;
     }
 }
 
 async fn execute_post_exit_command(id: &str, command: Option<String>) -> crate::Result<()> {
-    if let Some(hook) = command {
-        let mut parts = hook.split_whitespace();
-        if let Some(cmd) = parts.next() {
-            let mut command = Command::new(cmd);
-            command
-                .args(parts.collect::<Vec<&str>>())
-                .current_dir(Instance::get_full_path(id).await?);
-            command.spawn().map_err(IOError::from)?;
-        }
-    }
+    let Some(command) = command else {
+        return Ok(());
+    };
+
+    let mut split = command.split_whitespace();
+    let Some(program) = split.next() else {
+        return Ok(());
+    };
+
+    let working_dir = Instance::get_full_path(id).await?;
+
+    Command::new(program)
+        .args(split)
+        .current_dir(working_dir)
+        .spawn()
+        .map_err(IOError::from)?;
+
     Ok(())
 }

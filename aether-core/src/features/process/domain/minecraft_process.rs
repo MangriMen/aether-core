@@ -9,6 +9,19 @@ pub struct MinecraftProcess {
     pub child: Child,
 }
 
+impl MinecraftProcess {
+    pub fn from_child(instance_id: &str, child: Child) -> Self {
+        Self {
+            metadata: MinecraftProcessMetadata {
+                uuid: Uuid::new_v4(),
+                start_time: Utc::now(),
+                id: instance_id.to_string(),
+            },
+            child,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MinecraftProcessMetadata {
     pub uuid: Uuid,

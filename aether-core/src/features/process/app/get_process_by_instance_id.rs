@@ -1,9 +1,9 @@
 use crate::features::process::{MinecraftProcessMetadata, ProcessManager};
 
-pub fn get_process_by_instance_id(
-    process_manager: &ProcessManager,
-    id: &str,
-) -> Vec<MinecraftProcessMetadata> {
+pub fn get_process_by_instance_id<M>(process_manager: &M, id: &str) -> Vec<MinecraftProcessMetadata>
+where
+    M: ProcessManager + ?Sized,
+{
     process_manager
         .list()
         .iter()
