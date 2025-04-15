@@ -1,19 +1,24 @@
 use crate::{
     features::java::{Java, JavaStorage},
-    shared::infra::AsyncFsDb,
+    shared::infra::{AsyncFileDb, AsyncJsonDb},
 };
 use async_trait::async_trait;
 use std::path::Path;
 
 pub struct FsJavaStorage {
-    db: AsyncFsDb<Vec<Java>>,
+    db: AsyncJsonDb<Vec<Java>>,
 }
 
 impl FsJavaStorage {
     pub fn new(java_dir: &Path) -> Self {
         Self {
-            db: AsyncFsDb::new(java_dir.to_path_buf()),
+            db: AsyncJsonDb::new(java_dir.to_path_buf()),
         }
+    }
+
+    #[inline]
+    fn get_default() -> Vec<Java> {
+        Vec::default()
     }
 }
 
@@ -22,7 +27,7 @@ impl JavaStorage for FsJavaStorage {
     async fn get(&self, version: u32) -> crate::Result<Option<Java>> {
         Ok(self
             .db
-            .read_file_contents()
+            .ensure_read(Self::get_default)
             .await?
             .iter()
             .find(|x| x.major_version == version)
@@ -30,7 +35,7 @@ impl JavaStorage for FsJavaStorage {
     }
 
     async fn upsert(&self, java: &Java) -> crate::Result<()> {
-        let mut java_versions = self.db.read_file_contents().await?;
+        let mut java_versions = self.db.ensure_read(Self::get_default).await?;
 
         match java_versions
             .iter_mut()
@@ -46,6 +51,6 @@ impl JavaStorage for FsJavaStorage {
             }
         }
 
-        self.db.write_file_contents(java_versions).await
+        self.db.write(&java_versions).await
     }
 }
