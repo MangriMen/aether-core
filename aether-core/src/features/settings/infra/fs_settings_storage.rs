@@ -1,32 +1,31 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
 use crate::{
-    core::LauncherState,
     features::settings::{Settings, SettingsStorage},
     shared::{read_json_async, write_json_async},
 };
 
-pub struct FsSettingsStorage;
+pub struct FsSettingsStorage {
+    path: PathBuf,
+}
 
 impl FsSettingsStorage {
-    fn get_settings_file_path(state: &LauncherState) -> PathBuf {
-        state.locations.settings_dir.join("settings.json")
+    pub fn new(path: &Path) -> Self {
+        Self {
+            path: path.to_path_buf(),
+        }
     }
 }
 
 #[async_trait]
 impl SettingsStorage for FsSettingsStorage {
-    async fn get(&self, state: &LauncherState) -> crate::Result<Settings> {
-        let path = Self::get_settings_file_path(state);
-        let settings = read_json_async::<Settings>(path).await?;
-        Ok(settings)
+    async fn get(&self) -> crate::Result<Settings> {
+        read_json_async::<Settings>(&self.path).await
     }
 
-    async fn upsert(&self, state: &LauncherState, settings: &Settings) -> crate::Result<()> {
-        let path = Self::get_settings_file_path(state);
-        write_json_async(path, settings).await?;
-        Ok(())
+    async fn upsert(&self, settings: &Settings) -> crate::Result<()> {
+        write_json_async(&self.path, settings).await
     }
 }

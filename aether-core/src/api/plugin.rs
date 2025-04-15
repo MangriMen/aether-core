@@ -9,6 +9,10 @@ use crate::{
     },
 };
 
+fn get_settings_storage(state: &LauncherState) -> FsSettingsStorage {
+    FsSettingsStorage::new(&state.locations.settings_dir)
+}
+
 #[tracing::instrument]
 pub async fn scan() -> crate::Result<()> {
     let state = LauncherState::get().await?;
@@ -57,11 +61,12 @@ pub async fn enable(id: &str) -> crate::Result<()> {
 
     plugin_manager.load_plugin(id).await?;
 
-    let settings_storage = FsSettingsStorage;
-    let mut settings = settings_storage.get(&state).await?;
+    let settings_storage = get_settings_storage(&state);
+
+    let mut settings = settings_storage.get().await?;
     if !settings.enabled_plugins.contains(id) {
         settings.enabled_plugins.insert(id.to_owned());
-        settings_storage.upsert(&state, &settings).await?;
+        settings_storage.upsert(&settings).await?;
     }
 
     Ok(())
@@ -74,11 +79,12 @@ pub async fn disable(id: &str) -> crate::Result<()> {
 
     plugin_manager.unload_plugin(id).await?;
 
-    let settings_storage = FsSettingsStorage;
-    let mut settings = settings_storage.get(&state).await?;
+    let settings_storage = get_settings_storage(&state);
+
+    let mut settings = settings_storage.get().await?;
     if !settings.enabled_plugins.contains(id) {
         settings.enabled_plugins.remove(id);
-        settings_storage.upsert(&state, &settings).await?;
+        settings_storage.upsert(&settings).await?;
     }
 
     Ok(())

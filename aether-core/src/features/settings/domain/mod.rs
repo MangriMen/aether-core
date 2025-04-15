@@ -1,5 +1,7 @@
 pub mod location_info;
 pub mod settings;
+pub mod storage;
 
-pub use location_info::LocationInfo;
-pub use settings::{Hooks, MemorySettings, Settings, WindowSize};
+pub use location_info::*;
+pub use settings::*;
+pub use storage::*;

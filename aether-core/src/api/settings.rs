@@ -1,18 +1,22 @@
-use sysinfo::System;
-
 use crate::{
     core::LauncherState,
-    features::settings::{FsSettingsStorage, Settings, SettingsStorage},
+    features::settings::{self, FsSettingsStorage, Settings},
 };
 
-pub async fn get() -> crate::Result<Settings> {
-    let state = LauncherState::get().await?;
+async fn get_storage() -> crate::Result<FsSettingsStorage> {
+    Ok(FsSettingsStorage::new(
+        &LauncherState::get().await?.locations.settings_dir,
+    ))
+}
 
-    FsSettingsStorage.get(&state).await
+pub async fn get() -> crate::Result<Settings> {
+    settings::get_settings(&get_storage().await?).await
+}
+
+pub async fn upsert(settings: &Settings) -> crate::Result<()> {
+    settings::upsert_settings(&get_storage().await?, settings).await
 }
 
 pub fn get_max_ram() -> u64 {
-    let sys = System::new_all();
-
-    sys.total_memory()
+    settings::get_max_ram()
 }

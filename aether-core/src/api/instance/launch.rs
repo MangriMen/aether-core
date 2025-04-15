@@ -5,7 +5,6 @@ use crate::{
         auth::{storage::CredentialsStorage, Credentials, FsCredentialsStorage},
         launcher::launch_minecraft,
         process::MinecraftProcessMetadata,
-        settings::{FsSettingsStorage, SettingsStorage},
     },
 };
 
@@ -26,9 +25,8 @@ pub async fn run_credentials(
     id: &str,
     credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata> {
-    let state = LauncherState::get().await?;
     // TODO: add io semaphore
-    let settings = FsSettingsStorage.get(&state).await?;
+    let settings = crate::api::settings::get().await?;
 
     let instance = api::instance::get(id).await?;
 
