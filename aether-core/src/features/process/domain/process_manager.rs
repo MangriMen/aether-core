@@ -59,15 +59,15 @@ impl ProcessManager {
         Ok(metadata)
     }
 
-    pub fn get(&self, id: Uuid) -> Option<MinecraftProcessMetadata> {
-        self.processes.get(&id).map(|x| x.metadata.clone())
-    }
-
-    pub fn get_all(&self) -> Vec<MinecraftProcessMetadata> {
+    pub fn list(&self) -> Vec<MinecraftProcessMetadata> {
         self.processes
             .iter()
             .map(|x| x.value().metadata.clone())
             .collect()
+    }
+
+    pub fn get(&self, id: Uuid) -> Option<MinecraftProcessMetadata> {
+        self.processes.get(&id).map(|x| x.metadata.clone())
     }
 
     pub fn try_wait(&self, id: Uuid) -> crate::Result<Option<Option<ExitStatus>>> {
