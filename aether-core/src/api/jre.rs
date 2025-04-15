@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
-// Install JRE
+use crate::{core::LauncherState, features::java};
+
 #[tracing::instrument]
 pub async fn install(version: u32) -> crate::Result<PathBuf> {
-    crate::features::java::install_jre(version).await
+    let state = LauncherState::get().await?;
+    java::install_jre(version, &state.locations.java_dir(), &state.fetch_semaphore).await
 }

@@ -1,29 +1,23 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::features::java::{
-    utils::{extract_java_major_minor_version, get_java_version_and_arch_from_jre},
-    Java,
+use crate::{
+    features::java::{
+        utils::{extract_java_major_minor_version, get_java_version_and_arch_from_jre},
+        Java, JAVA_BIN, JAVA_WINDOW_BIN,
+    },
+    shared,
 };
 
-use super::constants::{JAVA_BIN, JAVA_WINDOW_BIN};
-
-// For example filepath 'path', attempt to resolve it and get a Java version at this path
-// If no such path exists, or no such valid java at this path exists, returns None
+/// Attempts to resolve the given file path and retrieve the Java version located at this path.
+///
+/// Returns `None` if the path does not exist or if a valid Java installation is not found at the specified path.
 #[tracing::instrument]
 pub async fn construct_java_from_jre(path: &Path) -> Option<Java> {
     // Attempt to canonicalize the potential Java filepath
     // If it fails, return None (Java is not here)
-    let path = crate::shared::canonicalize(path).ok()?;
+    let canonical_path = shared::canonicalize(path).ok()?;
 
-    // Check if JAVA_WINDOW_BIN is present at the end of the path,
-    // if not, append it
-    let java_window_bin_path = if path.file_name()?.to_str()? != JAVA_WINDOW_BIN {
-        path.join(JAVA_WINDOW_BIN)
-    } else {
-        path
-    };
-
-    // If the path does not exist, return None
+    let java_window_bin_path = get_java_window_bin_path(&canonical_path)?;
     if !java_window_bin_path.exists() {
         return None;
     }
@@ -47,4 +41,17 @@ pub async fn construct_java_from_jre(path: &Path) -> Option<Java> {
     } else {
         None
     }
+}
+
+/// Ensures that the given path ends with `JAVA_WINDOW_BIN`.
+///
+/// If the provided path does not already end with `JAVA_WINDOW_BIN`,
+/// this function appends it to the path. Otherwise, it returns the path unchanged.
+fn get_java_window_bin_path(path: &Path) -> Option<PathBuf> {
+    let java_window_bin_path = if path.file_name()?.to_str()? != JAVA_WINDOW_BIN {
+        path.join(JAVA_WINDOW_BIN)
+    } else {
+        path.to_path_buf()
+    };
+    Some(java_window_bin_path)
 }

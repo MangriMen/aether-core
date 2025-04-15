@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, path::PathBuf};
 
 #[derive(thiserror::Error, Debug)]
 pub enum JREError {
@@ -8,8 +8,11 @@ pub enum JREError {
     #[error("Env error: {0}")]
     EnvError(#[from] env::VarError),
 
-    #[error("No JRE found for required version: {0}")]
-    NoJREFound(String),
+    #[error("No JRE found for required version: {version}")]
+    NoJREFound { version: u32 },
+
+    #[error("No JRE found at path: {path:?}")]
+    NoJREFoundAtPath { path: PathBuf },
 
     #[error("Invalid JRE version string: {0}")]
     InvalidJREVersion(String),

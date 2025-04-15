@@ -16,7 +16,7 @@ use crate::{
     core::LauncherState,
     features::{
         events::{emit::emit_instance, InstancePayloadType},
-        java::{infra::FsJavaStorage, Java, JavaStorage},
+        java::Java,
         settings::{Hooks, MemorySettings, WindowSize},
     },
     shared::{
@@ -108,7 +108,7 @@ impl Instance {
     pub async fn get_java(&self) -> crate::Result<Option<Java>> {
         if let Some(java_path) = self.java_path.as_ref() {
             Ok(Some(
-                FsJavaStorage.create_from_path(Path::new(java_path)).await?,
+                crate::features::java::get_java_from_path(Path::new(java_path)).await?,
             ))
         } else {
             Ok(None)

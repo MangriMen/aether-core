@@ -4,7 +4,6 @@ use bytes::Bytes;
 use reqwest::Method;
 
 use crate::{
-    core::LauncherState,
     features::{
         events::{
             emit::{emit_loading, init_loading},
@@ -12,7 +11,7 @@ use crate::{
         },
         java::constants::JAVA_WINDOW_BIN,
     },
-    shared::{fetch_advanced, fetch_json},
+    shared::{fetch_advanced, fetch_json, FetchSemaphore},
 };
 
 #[derive(serde::Deserialize, Clone)]
@@ -22,8 +21,8 @@ struct Package {
 }
 
 async fn download_jre(
-    state: &LauncherState,
     version: u32,
+    fetch_semaphore: &FetchSemaphore,
     loading_bar_id: &LoadingBarId,
 ) -> crate::Result<(Package, Bytes)> {
     emit_loading(loading_bar_id, 0.0, Some("Fetching java version")).await?;
@@ -39,7 +38,7 @@ async fn download_jre(
         None,
         None,
         None,
-        &state.fetch_semaphore,
+        fetch_semaphore,
     )
     .await?;
 
@@ -52,7 +51,7 @@ async fn download_jre(
             None,
             None,
             None,
-            &state.fetch_semaphore,
+            fetch_semaphore,
             Some((loading_bar_id, 80.0)),
         )
         .await?;
@@ -129,7 +128,11 @@ async fn unpack_jre(
     Ok(base_path)
 }
 
-pub async fn install_jre(state: &LauncherState, version: u32) -> crate::Result<PathBuf> {
+pub async fn install_jre(
+    version: u32,
+    install_dir: &Path,
+    fetch_semaphore: &FetchSemaphore,
+) -> crate::Result<PathBuf> {
     let loading_bar_id = init_loading(
         LoadingBarType::JavaDownload { version },
         100.0,
@@ -137,10 +140,8 @@ pub async fn install_jre(state: &LauncherState, version: u32) -> crate::Result<P
     )
     .await?;
 
-    let (package, file) = download_jre(state, version, &loading_bar_id).await?;
-
-    let path = state.locations.java_dir();
-    let base_path = unpack_jre(&package, file, &path, &loading_bar_id).await?;
+    let (package, file) = download_jre(version, fetch_semaphore, &loading_bar_id).await?;
+    let base_path = unpack_jre(&package, file, install_dir, &loading_bar_id).await?;
 
     Ok(base_path)
 }
