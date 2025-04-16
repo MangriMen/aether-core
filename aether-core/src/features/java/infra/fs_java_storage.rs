@@ -12,7 +12,7 @@ pub struct FsJavaStorage {
 impl FsJavaStorage {
     pub fn new(java_dir: &Path) -> Self {
         Self {
-            db: AsyncJsonDb::new(java_dir.to_path_buf()),
+            db: AsyncJsonDb::new(java_dir.to_path_buf().join("java_versions.json")),
         }
     }
 

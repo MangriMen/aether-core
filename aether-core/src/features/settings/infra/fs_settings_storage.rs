@@ -14,7 +14,7 @@ pub struct FsSettingsStorage {
 impl FsSettingsStorage {
     pub fn new(path: &Path) -> Self {
         Self {
-            db: AsyncJsonDb::new(path.to_path_buf()),
+            db: AsyncJsonDb::new(path.join("settings.json")),
         }
     }
 }
