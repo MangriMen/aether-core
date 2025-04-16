@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
 };
 
@@ -15,9 +16,7 @@ use crate::{
         events::{emit_loading, LoadingBarId},
         instance::Instance,
         java::Java,
-        launcher::{
-            get_class_paths_jar, get_lib_path, get_processor_arguments, get_processor_main_class,
-        },
+        minecraft,
     },
     processor_rules,
     shared::IOError,
@@ -25,7 +24,7 @@ use crate::{
 };
 
 #[tracing::instrument]
-pub async fn process_forge_processors(
+pub async fn run_forge_processors(
     instance: &Instance,
     version_jar: String,
     instance_path: &PathBuf,
@@ -77,7 +76,7 @@ pub async fn process_forge_processors(
                     }
                 }
 
-                process_forge_processor(processor, data, &libraries_dir, java_version).await?;
+                run_forge_processor(processor, data, &libraries_dir, java_version).await?;
 
                 if let Some(loading_bar) = loading_bar {
                     emit_loading(
@@ -97,7 +96,7 @@ pub async fn process_forge_processors(
     Ok(())
 }
 
-pub async fn process_forge_processor(
+pub async fn run_forge_processor(
     processor: &modded::Processor,
     data: &HashMap<String, modded::SidedDataEntry>,
     libraries_dir: &Path,
@@ -110,17 +109,20 @@ pub async fn process_forge_processor(
     });
 
     let class_path_arg =
-        get_class_paths_jar(libraries_dir, &class_path, &java_version.architecture)?;
+        minecraft::get_class_paths_jar(libraries_dir, &class_path, &java_version.architecture)?;
 
-    let processor_main_class =
-        get_processor_main_class(get_lib_path(libraries_dir, &processor.jar, false)?)
-            .await?
-            .ok_or_else(|| {
-                crate::ErrorKind::LauncherError(format!(
-                    "Could not find processor main class for {}",
-                    processor.jar
-                ))
-            })?;
+    let processor_main_class = get_processor_main_class(minecraft::get_lib_path(
+        libraries_dir,
+        &processor.jar,
+        false,
+    )?)
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::LauncherError(format!(
+            "Could not find processor main class for {}",
+            processor.jar
+        ))
+    })?;
 
     let processor_args = get_processor_arguments(libraries_dir, &processor.args, data)?;
 
@@ -145,4 +147,67 @@ pub async fn process_forge_processor(
     }
 
     Ok(())
+}
+
+pub fn get_processor_arguments<T: AsRef<str>>(
+    libraries_path: &Path,
+    arguments: &[T],
+    data: &HashMap<String, modded::SidedDataEntry>,
+) -> crate::Result<Vec<String>> {
+    let mut new_arguments = Vec::new();
+
+    for argument in arguments {
+        let trimmed_arg = &argument.as_ref()[1..argument.as_ref().len() - 1];
+        if argument.as_ref().starts_with('{') {
+            if let Some(entry) = data.get(trimmed_arg) {
+                new_arguments.push(if entry.client.starts_with('[') {
+                    minecraft::get_lib_path(
+                        libraries_path,
+                        &entry.client[1..entry.client.len() - 1],
+                        true,
+                    )?
+                } else {
+                    entry.client.clone()
+                })
+            }
+        } else if argument.as_ref().starts_with('[') {
+            new_arguments.push(minecraft::get_lib_path(libraries_path, trimmed_arg, true)?)
+        } else {
+            new_arguments.push(argument.as_ref().to_string())
+        }
+    }
+
+    Ok(new_arguments)
+}
+
+pub async fn get_processor_main_class(path: String) -> crate::Result<Option<String>> {
+    let main_class = tokio::task::spawn_blocking(move || {
+        let zip_file = std::fs::File::open(&path).map_err(|e| IOError::with_path(e, &path))?;
+        let mut archive = zip::ZipArchive::new(zip_file).map_err(|_| {
+            crate::ErrorKind::LauncherError(format!("Cannot read processor at {}", path)).as_error()
+        })?;
+
+        let file = archive.by_name("META-INF/MANIFEST.MF").map_err(|_| {
+            crate::ErrorKind::LauncherError(format!("Cannot read processor manifest at {}", path))
+                .as_error()
+        })?;
+
+        let reader = BufReader::new(file);
+
+        for line in reader.lines() {
+            let mut line = line.map_err(IOError::from)?;
+            line.retain(|c| !c.is_whitespace());
+
+            if line.starts_with("Main-Class:") {
+                if let Some(class) = line.split(':').nth(1) {
+                    return Ok(Some(class.to_string()));
+                }
+            }
+        }
+
+        Ok::<Option<String>, crate::Error>(None)
+    })
+    .await??;
+
+    Ok(main_class)
 }

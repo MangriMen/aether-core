@@ -2,7 +2,7 @@ use daedalus::{minecraft, modded};
 
 use crate::{
     core::LauncherState,
-    features::launcher::{download_loaders_manifests, download_version_manifest},
+    features::minecraft::{download_loaders_manifests, download_version_manifest},
 };
 
 #[tracing::instrument]

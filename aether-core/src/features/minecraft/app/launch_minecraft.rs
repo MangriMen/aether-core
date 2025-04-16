@@ -1,16 +1,10 @@
-use daedalus::{minecraft, modded};
-
 use crate::{
     api,
     core::LauncherState,
     features::{
         auth::Credentials,
-        events::{
-            emit::{emit_loading, init_or_edit_loading},
-            LoadingBarId, LoadingBarType,
-        },
         instance::{Instance, InstanceInstallStage, ModLoader},
-        launcher::mod_loaders::mod_loader_post_install,
+        minecraft::{self},
         plugins::PluginEvent,
         process::{MinecraftProcessMetadata, ProcessManager},
         settings::{MemorySettings, WindowSize},
@@ -18,154 +12,7 @@ use crate::{
     with_mut_ref,
 };
 
-use super::{
-    args, download_minecraft, download_version_info, download_version_manifest,
-    get_compatible_java_version, get_minecraft_jvm_arguments, get_minecraft_version,
-};
-
-#[tracing::instrument]
-pub async fn install_minecraft(
-    instance: &Instance,
-    loading_bar: Option<LoadingBarId>,
-    force: bool,
-) -> crate::Result<()> {
-    log::info!(
-        "Installing instance: \"{}\" (minecraft: \"{}\", modloader: \"{}\")",
-        instance.name,
-        instance.game_version,
-        instance.loader_version.clone().unwrap_or_default()
-    );
-
-    let loading_bar = init_or_edit_loading(
-        loading_bar,
-        LoadingBarType::MinecraftDownload {
-            instance_path: instance.id.clone(),
-            instance_name: instance.name.clone(),
-        },
-        100.0,
-        "Downloading Minecraft",
-    )
-    .await?;
-
-    Instance::edit(&instance.id, |instance| {
-        instance.install_stage = InstanceInstallStage::Installing;
-        async { Ok(()) }
-    })
-    .await?;
-
-    let result = async {
-        let state = LauncherState::get().await?;
-
-        let instance_path = Instance::get_full_path(&instance.id).await?;
-
-        let version_manifest = download_version_manifest(&state, false).await?;
-
-        let (version, minecraft_updated) = get_minecraft_version(instance, version_manifest)?;
-
-        let mut loader_version = Instance::get_loader_version(
-            &instance.game_version,
-            instance.loader,
-            instance.loader_version.as_deref(),
-        )
-        .await?;
-
-        // If no loader version is selected, try to select the stable version!
-        if instance.loader != ModLoader::Vanilla && loader_version.is_none() {
-            loader_version = Instance::get_loader_version(
-                &instance.game_version,
-                instance.loader,
-                Some("stable"),
-            )
-            .await?;
-
-            let loader_version_id = loader_version.clone();
-
-            Instance::edit(&instance.id, |instance| {
-                instance.loader_version = loader_version_id.clone().map(|x| x.id.clone());
-                async { Ok(()) }
-            })
-            .await?;
-        }
-
-        let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
-            format!("{}-{}", version.id.clone(), it.id.clone())
-        });
-
-        let mut version_info = download_version_info(
-            &state,
-            &version,
-            loader_version.as_ref(),
-            Some(force),
-            Some(&loading_bar),
-        )
-        .await?;
-
-        let java = if let Some(java) = Instance::get_java(instance).await.transpose() {
-            java
-        } else {
-            let compatible_java_version = get_compatible_java_version(&version_info);
-
-            let java = crate::api::java::get(compatible_java_version).await;
-
-            match java {
-                Ok(java) => Ok(java),
-                Err(_) => crate::api::java::install(compatible_java_version).await,
-            }
-        }?;
-
-        download_minecraft(
-            &state,
-            &version_info,
-            &java.architecture,
-            force,
-            minecraft_updated,
-            Some(&loading_bar),
-        )
-        .await?;
-
-        mod_loader_post_install(
-            instance,
-            version_jar,
-            &instance_path,
-            &mut version_info,
-            &java,
-            Some(&loading_bar),
-        )
-        .await?;
-
-        Instance::edit(&instance.id, |prof| {
-            prof.install_stage = InstanceInstallStage::Installed;
-            async { Ok(()) }
-        })
-        .await?;
-
-        emit_loading(&loading_bar, 1.000_000_000_01, Some("Finished installing")).await?;
-
-        Ok(())
-    }
-    .await;
-
-    match result {
-        Ok(_) => {
-            log::info!(
-                "Installed instance: \"{}\" (minecraft: \"{}\", modloader: \"{}\")",
-                instance.name,
-                instance.game_version,
-                instance.loader_version.clone().unwrap_or_default()
-            );
-            Ok(())
-        }
-        Err(e) => {
-            Instance::edit(&instance.id, |prof| {
-                prof.install_stage = InstanceInstallStage::NotInstalled;
-                async { Ok(()) }
-            })
-            .await?;
-
-            Err(e)
-        }
-    }
-}
+use super::install_minecraft;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct InstanceLaunchArgs {
@@ -224,11 +71,12 @@ pub async fn launch_minecraft(
 
     let instance_path = Instance::get_full_path(&instance.id).await?;
 
-    let version_manifest = download_version_manifest(&state, false).await?;
+    let version_manifest = minecraft::download_version_manifest(&state, false).await?;
 
-    let (version, minecraft_updated) = get_minecraft_version(instance, version_manifest)?;
+    let (version, minecraft_updated) =
+        minecraft::resolve_minecraft_version(&instance.game_version, version_manifest)?;
 
-    let loader_version: Option<modded::LoaderVersion> = Instance::get_loader_version(
+    let loader_version: Option<daedalus::modded::LoaderVersion> = Instance::get_loader_version(
         &instance.game_version,
         instance.loader,
         instance.loader_version.as_deref(),
@@ -248,12 +96,13 @@ pub async fn launch_minecraft(
     });
 
     let version_info =
-        download_version_info(&state, &version, loader_version.as_ref(), None, None).await?;
+        minecraft::download_version_info(&state, &version, loader_version.as_ref(), None, None)
+            .await?;
 
     let java = if let Some(java) = instance.get_java().await.transpose() {
         java
     } else {
-        let compatible_java_version = get_compatible_java_version(&version_info);
+        let compatible_java_version = minecraft::get_compatible_java_version(&version_info);
 
         crate::api::java::get(compatible_java_version).await
     }?;
@@ -290,8 +139,10 @@ pub async fn launch_minecraft(
         tokio::fs::create_dir_all(&natives_dir).await?;
     }
 
-    let jvm_arguments = get_minecraft_jvm_arguments(
-        &state,
+    let jvm_arguments = minecraft::get_minecraft_jvm_arguments(
+        args.get(&daedalus::minecraft::ArgumentType::Jvm)
+            .map(|x| x.as_slice()),
+        &state.locations.libraries_dir(),
         &version_info,
         &natives_dir,
         &client_path,
@@ -299,12 +150,11 @@ pub async fn launch_minecraft(
         &java,
         launch_settings.memory,
         &launch_args.java_args,
-        &args,
         minecraft_updated,
     )?;
 
-    let minecraft_arguments = args::get_minecraft_arguments(
-        args.get(&minecraft::ArgumentType::Game)
+    let minecraft_arguments = minecraft::get_minecraft_arguments(
+        args.get(&daedalus::minecraft::ArgumentType::Game)
             .map(|x| x.as_slice()),
         version_info.minecraft_arguments.as_deref(),
         credentials,

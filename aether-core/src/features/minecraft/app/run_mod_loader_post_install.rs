@@ -10,9 +10,9 @@ use crate::{
     },
 };
 
-use super::process_forge_processors;
+use super::processors::run_forge_processors;
 
-pub async fn mod_loader_post_install(
+pub async fn run_mod_loader_post_install(
     instance: &Instance,
     version_jar: String,
     instance_path: &PathBuf,
@@ -23,7 +23,7 @@ pub async fn mod_loader_post_install(
     match instance.loader {
         ModLoader::Vanilla => Ok(()),
         ModLoader::Forge => {
-            process_forge_processors(
+            run_forge_processors(
                 instance,
                 version_jar,
                 instance_path,

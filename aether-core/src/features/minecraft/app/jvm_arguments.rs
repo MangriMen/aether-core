@@ -3,9 +3,8 @@ use std::{collections::HashSet, path::Path};
 use daedalus::minecraft;
 
 use crate::{
-    features::{launcher::parse_rules, settings::MemorySettings},
-    shared::canonicalize,
-    shared::utils::get_classpath_separator,
+    features::{minecraft::parse_rules, settings::MemorySettings},
+    shared::{canonicalize, utils::get_classpath_separator},
 };
 
 use super::parse_arguments;
@@ -19,7 +18,7 @@ pub fn get_jvm_arguments(
     class_paths: &str,
     version_name: &str,
     memory: MemorySettings,
-    custom_args: Vec<String>,
+    custom_args: &[String],
     java_arch: &str,
 ) -> crate::Result<Vec<String>> {
     let mut parsed_arguments = Vec::new();
@@ -57,7 +56,7 @@ pub fn get_jvm_arguments(
     parsed_arguments.push(format!("-Xmx{}M", memory.maximum));
     for arg in custom_args {
         if !arg.is_empty() {
-            parsed_arguments.push(arg);
+            parsed_arguments.push(arg.clone());
         }
     }
 

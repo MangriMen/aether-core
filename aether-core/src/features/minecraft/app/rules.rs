@@ -86,14 +86,14 @@ pub fn parse_os_rule(
 
 #[macro_export]
 macro_rules! processor_rules {
-    ($dest:expr; $($name:literal : client => $client:expr, server => $server:expr;)+) => {
-        $(std::collections::HashMap::insert(
-            $dest,
-            String::from($name),
-            daedalus::modded::SidedDataEntry {
-                client: String::from($client),
-                server: String::from($server),
-            },
-        );)+
-    }
+  ($dest:expr; $($name:literal : client => $client:expr, server => $server:expr;)+) => {
+      $(std::collections::HashMap::insert(
+          $dest,
+          String::from($name),
+          daedalus::modded::SidedDataEntry {
+              client: String::from($client),
+              server: String::from($server),
+          },
+      );)+
+  }
 }

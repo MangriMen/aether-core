@@ -6,7 +6,7 @@ use crate::{
     core::LauncherState,
     features::{
         instance::Instance,
-        launcher::{InstanceLaunchArgs, InstanceLaunchMetadata, InstanceLaunchSettings},
+        minecraft::{InstanceLaunchArgs, InstanceLaunchMetadata, InstanceLaunchSettings},
         settings::Settings,
     },
     shared::IOError,

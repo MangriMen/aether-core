@@ -33,7 +33,7 @@ pub fn get_minecraft_arguments(
             arguments,
             &mut parsed_arguments,
             |arg| {
-                parse_minecraft_argument(
+                replace_placeholders_in_argument_string(
                     arg,
                     &credentials.access_token,
                     &credentials.username,
@@ -53,7 +53,7 @@ pub fn get_minecraft_arguments(
     } else if let Some(legacy_arguments) = legacy_arguments {
         let mut parsed_arguments = Vec::new();
         for x in legacy_arguments.split(' ') {
-            parsed_arguments.push(parse_minecraft_argument(
+            parsed_arguments.push(replace_placeholders_in_argument_string(
                 &x.replace(' ', TEMPORARY_REPLACE_CHAR),
                 &credentials.access_token,
                 &credentials.username,
@@ -73,7 +73,7 @@ pub fn get_minecraft_arguments(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn parse_minecraft_argument(
+fn replace_placeholders_in_argument_string(
     argument: &str,
     access_token: &str,
     username: &str,
@@ -85,57 +85,43 @@ fn parse_minecraft_argument(
     version_type: &minecraft::VersionType,
     resolution: WindowSize,
 ) -> crate::Result<String> {
+    fn resolve_path(path: &Path, name: &str) -> crate::Result<String> {
+        Ok(canonicalize(path)
+            .map_err(|_| {
+                crate::ErrorKind::LauncherError(format!(
+                    "Specified {} directory {} does not exist",
+                    name,
+                    path.to_string_lossy()
+                ))
+                .as_error()
+            })?
+            .to_string_lossy()
+            .to_string())
+    }
+
+    let uuid_str = uuid.simple().to_string();
+    let game_dir_str = resolve_path(game_directory, "game")?;
+    let assets_dir_str = resolve_path(assets_directory, "assets")?;
+    let resolution_width = resolution.0.to_string();
+    let resolution_height = resolution.1.to_string();
+
     Ok(argument
         .replace("${accessToken}", access_token)
         .replace("${auth_access_token}", access_token)
         .replace("${auth_session}", access_token)
         .replace("${auth_player_name}", username)
-        // TODO: add auth xuid eventually
         .replace("${auth_xuid}", "0")
-        .replace("${auth_uuid}", &uuid.simple().to_string())
-        .replace("${uuid}", &uuid.simple().to_string())
+        .replace("${auth_uuid}", &uuid_str)
+        .replace("${uuid}", &uuid_str)
         .replace("${clientid}", "c4502edb-87c6-40cb-b595-64a280cf8906")
         .replace("${user_properties}", "{}")
         .replace("${user_type}", "msa")
         .replace("${version_name}", version)
         .replace("${assets_index_name}", asset_index_name)
-        .replace(
-            "${game_directory}",
-            &canonicalize(game_directory)
-                .map_err(|_| {
-                    crate::ErrorKind::LauncherError(format!(
-                        "Specified game directory {} does not exist",
-                        game_directory.to_string_lossy()
-                    ))
-                    .as_error()
-                })?
-                .to_string_lossy(),
-        )
-        .replace(
-            "${assets_root}",
-            &canonicalize(assets_directory)
-                .map_err(|_| {
-                    crate::ErrorKind::LauncherError(format!(
-                        "Specified assets directory {} does not exist",
-                        assets_directory.to_string_lossy()
-                    ))
-                    .as_error()
-                })?
-                .to_string_lossy(),
-        )
-        .replace(
-            "${game_assets}",
-            &canonicalize(assets_directory)
-                .map_err(|_| {
-                    crate::ErrorKind::LauncherError(format!(
-                        "Specified assets directory {} does not exist",
-                        assets_directory.to_string_lossy()
-                    ))
-                    .as_error()
-                })?
-                .to_string_lossy(),
-        )
+        .replace("${game_directory}", &game_dir_str)
+        .replace("${assets_root}", &assets_dir_str)
+        .replace("${game_assets}", &assets_dir_str)
         .replace("${version_type}", version_type.as_str())
-        .replace("${resolution_width}", &resolution.0.to_string())
-        .replace("${resolution_height}", &resolution.1.to_string()))
+        .replace("${resolution_width}", &resolution_width)
+        .replace("${resolution_height}", &resolution_height))
 }

@@ -6,7 +6,7 @@ use crate::{
     features::{
         events::{emit::emit_instance, InstancePayloadType},
         instance::{self, instance::PackInfo, Instance, InstanceInstallStage, ModLoader},
-        launcher::install_minecraft,
+        minecraft::install_minecraft,
         settings::{Hooks, MemorySettings, WindowSize},
     },
     shared::read_json_async,

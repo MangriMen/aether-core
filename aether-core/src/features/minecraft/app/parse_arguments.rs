@@ -1,8 +1,6 @@
 use daedalus::minecraft;
 
-use crate::features::launcher::parse_rules;
-
-const TEMPORARY_REPLACE_CHAR: &str = "\n";
+use crate::features::minecraft::{parse_rules, TEMPORARY_REPLACE_CHAR};
 
 pub fn parse_arguments<F>(
     arguments: &[minecraft::Argument],
