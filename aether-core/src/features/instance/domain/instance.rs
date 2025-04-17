@@ -169,7 +169,7 @@ impl Instance {
     }
 
     pub async fn save(&self) -> crate::Result<()> {
-        Instance::save_path(self, &self.path.join("instance.json")).await?;
+        Instance::save_path(self, &self.path.join(".metadata").join("instance.json")).await?;
         Ok(())
     }
 
@@ -178,12 +178,12 @@ impl Instance {
         Fut: Future<Output = crate::Result<()>>,
     {
         match crate::api::instance::get(id).await {
-            Ok(profile) => {
-                let mut profile = profile;
+            Ok(instance) => {
+                let mut instance = instance;
 
-                action(&mut profile).await?;
+                action(&mut instance).await?;
 
-                profile.save().await?;
+                instance.save().await?;
 
                 emit_instance(id, InstancePayloadType::Edited).await?;
 

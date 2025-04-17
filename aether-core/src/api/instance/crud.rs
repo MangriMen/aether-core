@@ -211,7 +211,7 @@ pub async fn get_dir(id: &str) -> crate::Result<PathBuf> {
 
 #[tracing::instrument]
 pub async fn get_file_path(id: &str) -> crate::Result<PathBuf> {
-    Ok(get_dir(id).await?.join("instance.json"))
+    Ok(get_dir(id).await?.join(".metadata").join("instance.json"))
 }
 
 #[tracing::instrument]
@@ -240,7 +240,7 @@ pub async fn get_all() -> crate::Result<(Vec<Instance>, Vec<crate::Error>)> {
     for entry in instances_dir.read_dir()? {
         match entry {
             Ok(entry) => {
-                let instance_file = entry.path().join("instance.json");
+                let instance_file = entry.path().join(".metadata").join("instance.json");
 
                 let instance = get_by_path(&instance_file).await;
 
