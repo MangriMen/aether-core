@@ -27,7 +27,7 @@ pub struct LauncherState<PM: ProcessManager = InMemoryProcessManager> {
     // pub io_semaphore: IoSemaphore,
     /// Semaphore to limit concurrent API requests. This is separate from the fetch semaphore
     /// to keep API functionality while the app is performing intensive tasks.
-    pub api_semaphore: FetchSemaphore,
+    pub api_semaphore: Arc<FetchSemaphore>,
     /// Process manager
     pub process_manager: PM,
     pub plugin_manager: RwLock<PluginManager>,
@@ -80,7 +80,9 @@ impl LauncherState {
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
 
         log::info!("Initialize api semaphore");
-        let api_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
+        let api_semaphore = Arc::new(FetchSemaphore(Semaphore::new(
+            settings.max_concurrent_downloads,
+        )));
 
         log::info!("Initialize process manager");
         let process_manager = InMemoryProcessManager::default();

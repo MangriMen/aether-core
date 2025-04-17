@@ -127,6 +127,9 @@ pub enum ErrorKind {
 
     #[error("Content import duplicate error: {content_path}")]
     ContentImportDuplicateError { content_path: String },
+
+    #[error("Storage error: {0}")]
+    StorageError(#[from] crate::shared::infra::StorageError),
 }
 
 #[derive(Debug)]

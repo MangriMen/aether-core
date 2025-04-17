@@ -13,7 +13,6 @@ use reqwest::Method;
 
 use super::rules::parse_rules;
 
-const META_URL: &str = "https://launcher-meta.modrinth.com/";
 const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net/";
 const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
 
@@ -536,93 +535,4 @@ pub async fn download_libraries(
     log::info!("Downloaded libraries for {} successfully", version_info.id);
 
     Ok(())
-}
-
-#[tracing::instrument(skip_all)]
-pub async fn download_version_manifest(
-    state: &LauncherState,
-    force: bool,
-) -> crate::Result<minecraft::VersionManifest> {
-    let path = state.locations.versions_dir().join("manifest.json");
-
-    let res = if path.exists() && !force {
-        shared::read_json_async(path).await
-    } else {
-        let version_manifest = fetch_json(
-            Method::GET,
-            minecraft::VERSION_MANIFEST_URL,
-            None,
-            None,
-            None,
-            &state.api_semaphore,
-        )
-        .await?;
-
-        shared::write_json_async(&path, &version_manifest).await?;
-
-        Ok(version_manifest)
-    }?;
-
-    Ok(res)
-}
-
-#[tracing::instrument(skip_all)]
-pub async fn download_loaders_manifests(
-    state: &LauncherState,
-    loader: &str,
-    force: bool,
-) -> crate::Result<modded::Manifest> {
-    let path = state
-        .locations
-        .cache_dir()
-        .join("mod_loaders")
-        .join(format!("{loader}-manifest.json"));
-
-    let loaders_manifest_url = format!("{META_URL}{}/v0/manifest.json", loader);
-
-    let res = if path.exists() && !force {
-        shared::read_json_async(path).await
-    } else {
-        let loaders_manifest = fetch_json::<modded::Manifest>(
-            Method::GET,
-            &loaders_manifest_url,
-            None,
-            None,
-            None,
-            &state.api_semaphore,
-        )
-        .await?;
-
-        shared::write_json_async(path, &loaders_manifest).await?;
-
-        Ok(loaders_manifest)
-    }?;
-
-    Ok(res)
-
-    // let keys = [
-    //     ModLoader::Forge,
-    //     ModLoader::Fabric,
-    //     ModLoader::Quilt,
-    //     ModLoader::NeoForge,
-    // ];
-
-    // let fetch_urls = keys
-    //     .iter()
-    //     .map(|x| (x, format!("{META_URL}{}/v0/manifest.json", x.as_meta_str())))
-    //     .collect::<Vec<_>>();
-
-    // let res = futures::future::try_join_all(fetch_urls.iter().map(|(_, url)| {
-    //     fetch_json::<modded::Manifest>(Method::GET, url, None, None, None, &state.fetch_semaphore)
-    // }))
-    // .await?
-    // .into_iter()
-    // .enumerate()
-    // .map(|(index, metadata)| ModLoaderManifest {
-    //     loader: *fetch_urls[index].0,
-    //     manifest: metadata,
-    // })
-    // .collect();
-
-    // Ok(res)
 }

@@ -71,7 +71,7 @@ pub async fn launch_minecraft(
 
     let instance_path = Instance::get_full_path(&instance.id).await?;
 
-    let version_manifest = minecraft::download_version_manifest(&state, false).await?;
+    let version_manifest = api::metadata::get_version_manifest().await?;
 
     let (version, minecraft_updated) =
         minecraft::resolve_minecraft_version(&instance.game_version, version_manifest)?;

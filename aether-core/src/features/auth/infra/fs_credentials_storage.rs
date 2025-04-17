@@ -1,28 +1,37 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::{
     features::auth::{Credentials, CredentialsStorage},
-    shared::infra::{AsyncFileDb, AsyncJsonDb},
+    shared::{read_json_async, write_json_async},
     ErrorKind,
 };
 
 pub struct FsCredentialsStorage {
-    db: AsyncJsonDb<Vec<Credentials>>,
+    credentials_file: PathBuf,
 }
 
 impl FsCredentialsStorage {
     pub fn new(settings_dir: &Path) -> Self {
         Self {
-            db: AsyncJsonDb::new(settings_dir.join("credentials.json")),
+            credentials_file: settings_dir.join("credentials.json"),
         }
     }
 
-    #[inline]
-    fn get_default() -> Vec<Credentials> {
-        Vec::default()
+    async fn ensure_read(&self) -> crate::Result<Vec<Credentials>> {
+        if !self.credentials_file.exists() {
+            let default = Vec::<Credentials>::default();
+            write_json_async(&self.credentials_file, &default).await?;
+            return Ok(default);
+        }
+
+        read_json_async(&self.credentials_file).await
+    }
+
+    async fn write(&self, data: &Vec<Credentials>) -> crate::Result<()> {
+        write_json_async(&self.credentials_file, &data).await
     }
 
     async fn update_active(credentials_list: &mut [Credentials], id: &Uuid) -> crate::Result<()> {
@@ -51,12 +60,11 @@ impl FsCredentialsStorage {
 #[async_trait]
 impl CredentialsStorage for FsCredentialsStorage {
     async fn list(&self) -> crate::Result<Vec<Credentials>> {
-        self.db.ensure_read(Self::get_default).await
+        self.ensure_read().await
     }
 
     async fn get(&self, id: &Uuid) -> crate::Result<Credentials> {
-        self.db
-            .ensure_read(Self::get_default)
+        self.ensure_read()
             .await?
             .iter()
             .find(|x| x.id == *id)
@@ -65,7 +73,7 @@ impl CredentialsStorage for FsCredentialsStorage {
     }
 
     async fn upsert(&self, credentials: &Credentials) -> crate::Result<Uuid> {
-        let mut credentials_list = self.db.ensure_read(Self::get_default).await?;
+        let mut credentials_list = self.ensure_read().await?;
         let index = credentials_list.iter().position(|x| x.id == credentials.id);
 
         if let Some(index) = index {
@@ -82,12 +90,12 @@ impl CredentialsStorage for FsCredentialsStorage {
             credentials_list.push(credentials.clone());
         }
 
-        self.db.write(&credentials_list).await?;
+        self.write(&credentials_list).await?;
         Ok(credentials.id)
     }
 
     async fn remove(&self, id: &Uuid) -> crate::Result<()> {
-        let mut credentials_list = self.db.ensure_read(Self::get_default).await?;
+        let mut credentials_list = self.ensure_read().await?;
 
         let mut need_to_set_active = false;
         credentials_list.retain(|x| {
@@ -105,22 +113,16 @@ impl CredentialsStorage for FsCredentialsStorage {
             };
         }
 
-        self.db.write(&credentials_list).await
+        self.write(&credentials_list).await
     }
 
     async fn get_active(&self) -> crate::Result<Option<Credentials>> {
-        Ok(self
-            .db
-            .ensure_read(Self::get_default)
-            .await?
-            .iter()
-            .find(|x| x.active)
-            .cloned())
+        Ok(self.ensure_read().await?.iter().find(|x| x.active).cloned())
     }
 
     async fn set_active(&self, id: &Uuid) -> crate::Result<()> {
-        let mut credentials_list = self.db.ensure_read(Self::get_default).await?;
+        let mut credentials_list = self.ensure_read().await?;
         Self::update_active(&mut credentials_list, id).await?;
-        self.db.write(&credentials_list).await
+        self.write(&credentials_list).await
     }
 }

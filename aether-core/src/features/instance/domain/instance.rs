@@ -132,7 +132,8 @@ impl Instance {
             id => it.id == *id,
         };
 
-        let versions = crate::api::metadata::get_loader_versions(loader.as_meta_str()).await?;
+        let versions =
+            crate::api::metadata::get_loader_version_manifest(loader.as_meta_str()).await?;
 
         let loaders = versions.game_versions.into_iter().find(|x| {
             x.id.replace(daedalus::modded::DUMMY_REPLACE_STRING, game_version) == game_version

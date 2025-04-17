@@ -1,20 +1,30 @@
-use daedalus::{minecraft, modded};
+use std::time::Duration;
 
 use crate::{
     core::LauncherState,
-    features::minecraft::{download_loaders_manifests, download_version_manifest},
+    features::minecraft::{
+        self, CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage,
+    },
 };
 
-#[tracing::instrument]
-pub async fn get_versions_manifest() -> crate::Result<minecraft::VersionManifest> {
+async fn get_storage(
+) -> crate::Result<minecraft::CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage>> {
     let state = LauncherState::get().await?;
-    download_version_manifest(&state, true).await
+
+    Ok(CachedMetadataStorage::new(
+        FsMetadataStorage::new(&state.locations.cache_dir(), Some(Duration::from_secs(120))),
+        ModrinthMetadataStorage::new(state.api_semaphore.clone()),
+    ))
 }
 
 #[tracing::instrument]
-pub async fn get_loader_versions(loader: &str) -> crate::Result<modded::Manifest> {
-    let state = LauncherState::get().await?;
-    download_loaders_manifests(&state, loader, true)
-        .await
-        .map_err(|_| crate::ErrorKind::NoValueFor(format!("{} loader versions", loader)).as_error())
+pub async fn get_version_manifest() -> crate::Result<daedalus::minecraft::VersionManifest> {
+    minecraft::get_version_manifest(&get_storage().await?).await
+}
+
+#[tracing::instrument]
+pub async fn get_loader_version_manifest(
+    loader: &str,
+) -> crate::Result<daedalus::modded::Manifest> {
+    minecraft::get_loader_version_manifest(&get_storage().await?, loader).await
 }
