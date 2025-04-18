@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::features::plugins::{PluginSettings, PluginSettingsStorage};
 
-pub async fn edit_settings<S>(
+pub async fn edit_plugin_settings<S>(
     storage: &S,
     plugin_id: &str,
     new_settings: &PluginSettings,

@@ -108,10 +108,10 @@ pub async fn call(id: &str, data: &str) -> crate::Result<()> {
 
 #[tracing::instrument]
 pub async fn get_settings(id: &str) -> crate::Result<PluginSettings> {
-    plugins::get_settings(&get_plugin_settings_storage().await?, id).await
+    plugins::get_plugin_settings(&get_plugin_settings_storage().await?, id).await
 }
 
 #[tracing::instrument]
 pub async fn edit_settings(id: &str, new_settings: &PluginSettings) -> crate::Result<()> {
-    plugins::edit_settings(&get_plugin_settings_storage().await?, id, new_settings).await
+    plugins::edit_plugin_settings(&get_plugin_settings_storage().await?, id, new_settings).await
 }
