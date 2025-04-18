@@ -8,9 +8,11 @@ use daedalus::{
 use reqwest::Method;
 
 use crate::{
-    features::minecraft::{ReadMetadataStorage, META_URL},
+    features::minecraft::ReadMetadataStorage,
     shared::{fetch_json, CachedValue, FetchSemaphore, StorageError},
 };
+
+pub const META_URL: &str = "https://launcher-meta.modrinth.com/";
 
 pub struct ModrinthMetadataStorage {
     api_semaphore: Arc<FetchSemaphore>,
