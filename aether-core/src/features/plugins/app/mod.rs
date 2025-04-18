@@ -1,3 +1,5 @@
-pub mod plugin_settings_merge;
+pub mod edit_settings;
+pub mod get_settings;
 
-pub use plugin_settings_merge::merge_plugin_settings;
+pub use edit_settings::*;
+pub use get_settings::*;

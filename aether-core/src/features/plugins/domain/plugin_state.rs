@@ -214,9 +214,9 @@ impl PluginState {
         }
 
         let state = LauncherState::get().await?;
+        let plugin_storage = FsPluginSettingsStorage::new(state.locations.clone());
 
-        let plugin_storage = FsPluginSettingsStorage;
-        let plugin_settings = plugin_storage.get(&state, &self.metadata.plugin.id).await?;
+        let plugin_settings = plugin_storage.get(&self.metadata.plugin.id).await?;
 
         let default_allowed_paths = get_default_allowed_paths(&state, &self.metadata.plugin.id);
 

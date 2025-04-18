@@ -1,19 +1,9 @@
 use async_trait::async_trait;
 
-use crate::{core::LauncherState, features::plugins::PluginSettings};
+use crate::{features::plugins::PluginSettings, shared::StorageError};
 
 #[async_trait]
 pub trait PluginSettingsStorage {
-    async fn get(
-        &self,
-        state: &LauncherState,
-        plugin_id: &str,
-    ) -> crate::Result<Option<PluginSettings>>;
-
-    async fn upsert(
-        &self,
-        state: &LauncherState,
-        plugin_id: &str,
-        settings: &PluginSettings,
-    ) -> crate::Result<()>;
+    async fn get(&self, plugin_id: &str) -> Result<Option<PluginSettings>, StorageError>;
+    async fn upsert(&self, plugin_id: &str, settings: &PluginSettings) -> Result<(), StorageError>;
 }

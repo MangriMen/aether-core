@@ -19,7 +19,7 @@ static LAUNCHER_STATE: OnceCell<Arc<LauncherState>> = OnceCell::const_new();
 #[derive(Debug)]
 pub struct LauncherState<PM: ProcessManager = InMemoryProcessManager> {
     // Information about files location
-    pub locations: LocationInfo,
+    pub locations: Arc<LocationInfo>,
     /// Semaphore used to limit concurrent network requests and avoid errors
     pub fetch_semaphore: FetchSemaphore,
 
@@ -71,10 +71,10 @@ impl LauncherState {
         log::info!("Initializing state");
 
         log::info!("Initialize locations");
-        let locations = LocationInfo {
+        let locations = Arc::new(LocationInfo {
             settings_dir: PathBuf::from(settings.launcher_dir.clone().unwrap()),
             config_dir: PathBuf::from(settings.metadata_dir.clone().unwrap()),
-        };
+        });
 
         log::info!("Initialize fetch semaphore");
         let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));

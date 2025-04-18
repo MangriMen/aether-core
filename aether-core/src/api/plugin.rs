@@ -1,16 +1,19 @@
 use crate::{
     core::LauncherState,
     features::{
-        plugins::{
-            merge_plugin_settings, FsPluginSettingsStorage, PluginMetadata, PluginSettings,
-            PluginSettingsStorage,
-        },
+        plugins::{self, FsPluginSettingsStorage, PluginMetadata, PluginSettings},
         settings::{FsSettingsStorage, SettingsStorage},
     },
 };
 
 fn get_settings_storage(state: &LauncherState) -> FsSettingsStorage {
     FsSettingsStorage::new(&state.locations.settings_dir)
+}
+
+async fn get_plugin_settings_storage() -> crate::Result<FsPluginSettingsStorage> {
+    Ok(FsPluginSettingsStorage::new(
+        LauncherState::get().await?.locations.clone(),
+    ))
 }
 
 #[tracing::instrument]
@@ -105,19 +108,10 @@ pub async fn call(id: &str, data: &str) -> crate::Result<()> {
 
 #[tracing::instrument]
 pub async fn get_settings(id: &str) -> crate::Result<PluginSettings> {
-    let state = LauncherState::get().await?;
-    let storage = FsPluginSettingsStorage;
-
-    Ok(storage.get(&state, id).await?.unwrap_or_default())
+    plugins::get_settings(&get_plugin_settings_storage().await?, id).await
 }
 
 #[tracing::instrument]
 pub async fn edit_settings(id: &str, new_settings: &PluginSettings) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let storage = FsPluginSettingsStorage;
-
-    let current = storage.get(&state, id).await?.unwrap_or_default();
-    let merged = merge_plugin_settings(current, new_settings);
-
-    storage.upsert(&state, id, &merged).await
+    plugins::edit_settings(&get_plugin_settings_storage().await?, id, new_settings).await
 }
