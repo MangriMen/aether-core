@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-async fn get_storage(
+pub async fn get_storage(
 ) -> crate::Result<minecraft::CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage>> {
     let state = LauncherState::get().await?;
 

@@ -6,8 +6,8 @@ use crate::{
             emit::{emit_loading, init_or_edit_loading},
             LoadingBarId, LoadingBarType,
         },
-        instance::{Instance, InstanceInstallStage, ModLoader},
-        minecraft::{self},
+        instance::{Instance, InstanceInstallStage},
+        minecraft::{self, ModLoader},
     },
 };
 

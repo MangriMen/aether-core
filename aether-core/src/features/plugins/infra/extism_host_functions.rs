@@ -7,7 +7,8 @@ use reqwest::Method;
 use crate::{
     core::LauncherState,
     features::{
-        instance::{instance::PackInfo, ModLoader},
+        instance::instance::PackInfo,
+        minecraft::ModLoader,
         plugins::{plugin_utils, PluginContext, SerializableOutput},
         settings::SerializableCommand,
     },

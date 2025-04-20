@@ -53,4 +53,18 @@ impl InstanceStorage for FsInstanceStorage {
         self.read(&self.location_info.instance_metadata_file(id))
             .await
     }
+
+    async fn upsert(&self, instance: &Instance) -> Result<(), StorageError> {
+        let path = self.location_info.instance_metadata_file(&instance.id);
+        self.write(&path, instance).await
+    }
+
+    async fn remove(&self, id: &str) -> Result<(), StorageError> {
+        let path = self.location_info.instance_metadata_dir(id);
+        tokio::fs::remove_dir_all(&path)
+            .await
+            .map_err(|_| StorageError::WriteError(path.to_string_lossy().to_string()))?;
+
+        Ok(())
+    }
 }

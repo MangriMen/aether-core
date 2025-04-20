@@ -2,7 +2,7 @@ use std::path::Path;
 
 use lazy_static::lazy_static;
 
-use crate::features::instance::ModLoader;
+use crate::features::minecraft::ModLoader;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

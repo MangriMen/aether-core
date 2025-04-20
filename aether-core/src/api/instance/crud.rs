@@ -4,21 +4,12 @@ use crate::{
     core::LauncherState,
     features::{
         events::{emit::emit_instance, InstancePayloadType},
-        instance::{
-            self, create_instance_path_without_duplicate, instance::PackInfo, Instance,
-            InstanceInstallStage, ModLoader,
-        },
-        minecraft::install_minecraft,
-        settings::{Hooks, MemorySettings, WindowSize},
+        instance::{self, instance::PackInfo, FsInstanceStorage, Instance, InstanceInstallStage},
+        minecraft::{install_minecraft, ModLoader},
+        settings::{MemorySettings, WindowSize},
     },
     shared::read_json_async,
 };
-
-use std::fs::canonicalize;
-
-use chrono::Utc;
-use log::info;
-use tokio::fs;
 
 #[tracing::instrument]
 pub async fn create(
@@ -32,86 +23,23 @@ pub async fn create(
 ) -> crate::Result<String> {
     let state = LauncherState::get().await?;
 
-    let (full_path, sanitized_name) =
-        create_instance_path_without_duplicate(&state.locations.instances_dir(), &name);
+    let instance_storage = FsInstanceStorage::new(state.locations.clone());
+    let metadata_storage = crate::api::metadata::get_storage().await?;
 
-    fs::create_dir_all(&full_path).await?;
-
-    info!(
-        "Creating instance \"{}\" at path \"{}\"",
-        &sanitized_name,
-        &canonicalize(&full_path)?.display()
-    );
-
-    let loader = if mod_loader != ModLoader::Vanilla {
-        Instance::get_loader_version(&game_version, mod_loader, loader_version.as_deref()).await?
-    } else {
-        None
-    };
-
-    let instance = Instance {
-        id: sanitized_name.clone(),
-        path: full_path.clone(),
-
-        name: name.clone(),
-        icon_path: None,
-
-        install_stage: InstanceInstallStage::NotInstalled,
-
+    instance::create_instance(
+        &instance_storage,
+        &metadata_storage,
+        &state.locations,
+        &state.file_watcher,
+        name,
         game_version,
-        loader: mod_loader,
-        loader_version: loader.map(|it| it.id),
-
-        java_path: None,
-        extra_launch_args: None,
-        custom_env_vars: None,
-
-        memory: None,
-        force_fullscreen: None,
-        game_resolution: None,
-
-        created: Utc::now(),
-        modified: Utc::now(),
-        last_played: None,
-
-        time_played: 0,
-        recent_time_played: 0,
-
-        hooks: Hooks::default(),
-
+        mod_loader,
+        loader_version,
+        icon_path,
+        skip_install_instance,
         pack_info,
-    };
-
-    let result = async {
-        instance.save().await?;
-
-        instance::watch_instance(&instance.id, &state.file_watcher, &state.locations).await;
-
-        emit_instance(&instance.id, InstancePayloadType::Created).await?;
-
-        if !skip_install_instance.unwrap_or(false) {
-            install_minecraft(&instance, None, false).await?;
-        }
-
-        Ok(instance.id.clone())
-    }
-    .await;
-
-    match result {
-        Ok(path) => {
-            info!(
-                "Instance \"{}\" created successfully at path \"{}\"",
-                &sanitized_name,
-                &canonicalize(&full_path)?.display()
-            );
-            Ok(path)
-        }
-        Err(err) => {
-            info!("Failed to create instance \"{}\". Instance removed", &name);
-            instance.remove().await?;
-            Err(err)
-        }
-    }
+    )
+    .await
 }
 
 #[tracing::instrument]

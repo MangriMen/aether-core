@@ -1,4 +1,6 @@
-use super::{ContentType, ModLoader};
+use crate::features::minecraft::ModLoader;
+
+use super::ContentType;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

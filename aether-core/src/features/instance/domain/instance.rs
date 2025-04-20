@@ -17,6 +17,7 @@ use crate::{
     features::{
         events::{emit::emit_instance, InstancePayloadType},
         java::Java,
+        minecraft::ModLoader,
         settings::{Hooks, MemorySettings, WindowSize},
     },
     shared::{
@@ -27,7 +28,6 @@ use crate::{
 
 use super::{
     ContentMetadata, ContentMetadataEntry, ContentMetadataFile, ContentType, InstanceInstallStage,
-    ModLoader,
 };
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, FromBytes)]

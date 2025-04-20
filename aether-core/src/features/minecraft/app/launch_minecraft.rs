@@ -3,8 +3,8 @@ use crate::{
     core::LauncherState,
     features::{
         auth::Credentials,
-        instance::{Instance, InstanceInstallStage, ModLoader},
-        minecraft::{self, LaunchSettings},
+        instance::{Instance, InstanceInstallStage},
+        minecraft::{self, LaunchSettings, ModLoader},
         plugins::PluginEvent,
         process::{MinecraftProcessMetadata, ProcessManager},
         settings::SerializableCommand,
