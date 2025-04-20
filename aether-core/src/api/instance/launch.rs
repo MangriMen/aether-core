@@ -1,23 +1,29 @@
 use crate::{
-    api,
     core::LauncherState,
     features::{
-        auth::{storage::CredentialsStorage, Credentials, FsCredentialsStorage},
-        minecraft::launch_minecraft,
+        auth::{Credentials, FsCredentialsStorage},
+        instance::FsInstanceStorage,
+        minecraft::{self},
         process::MinecraftProcessMetadata,
+        settings::FsSettingsStorage,
     },
 };
 
 #[tracing::instrument]
-pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
+pub async fn run(instance_id: &str) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
 
-    let default_account = FsCredentialsStorage::new(&state.locations.settings_dir)
-        .get_active()
-        .await?
-        .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
+    let settings_storage = FsSettingsStorage::new(&state.locations.settings_dir);
+    let credentials_storage = FsCredentialsStorage::new(&state.locations.settings_dir);
+    let instance_storage = FsInstanceStorage::new(state.locations.clone());
 
-    run_credentials(name, &default_account).await
+    minecraft::run(
+        &settings_storage,
+        &credentials_storage,
+        &instance_storage,
+        instance_id,
+    )
+    .await
 }
 
 #[tracing::instrument]
@@ -25,23 +31,10 @@ pub async fn run_credentials(
     id: &str,
     credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata> {
-    // TODO: add io semaphore
-    let settings = api::settings::get().await?;
+    let state = LauncherState::get().await?;
 
-    let instance = api::instance::get(id).await?;
+    let settings_storage = FsSettingsStorage::new(&state.locations.settings_dir);
+    let instance_storage = FsInstanceStorage::new(state.locations.clone());
 
-    let launch_args = api::instance::utils::get_launch_args(&instance, &settings);
-    let launch_settings = api::instance::utils::get_launch_settings(&instance, &settings);
-    let launch_metadata = api::instance::utils::get_launch_metadata(&instance, &settings);
-
-    api::instance::utils::run_pre_launch_command(&instance, &settings).await?;
-
-    launch_minecraft(
-        &instance,
-        &launch_args,
-        &launch_settings,
-        &launch_metadata,
-        credentials,
-    )
-    .await
+    minecraft::run_credentials(&settings_storage, &instance_storage, id, credentials).await
 }

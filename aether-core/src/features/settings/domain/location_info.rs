@@ -94,10 +94,16 @@ impl LocationInfo {
         self.instances_dir().join(id)
     }
 
-    /// Get the launcher directory for a specific instance
+    /// Get the metadata directory for a specific instance
     #[inline]
     pub fn instance_metadata_dir(&self, id: &str) -> PathBuf {
         self.instance_dir(id).join(".metadata")
+    }
+
+    /// Get the metadata file for a specific instance
+    #[inline]
+    pub fn instance_metadata_file(&self, id: &str) -> PathBuf {
+        self.instance_metadata_dir(id).join("instance.json")
     }
 
     /// Get the pack dir for a specific instance

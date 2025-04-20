@@ -1,7 +1,6 @@
 use std::process::ExitStatus;
 
 use chrono::{DateTime, Utc};
-use tokio::process::Command;
 use uuid::Uuid;
 
 use crate::{
@@ -10,6 +9,7 @@ use crate::{
         events::{emit_process, ProcessPayloadType},
         instance::Instance,
         process::ProcessManager,
+        settings::SerializableCommand,
     },
     shared::IOError,
 };
@@ -29,7 +29,14 @@ pub async fn manage_minecraft_process(
     emit_process(&id, uuid, ProcessPayloadType::Finished, "Exited process").await?;
 
     if mc_exit_status.success() {
-        execute_post_exit_command(&id, post_exit_command).await?;
+        if let Some(command) = post_exit_command {
+            let path_to_instance = Instance::get_full_path(&id).await?;
+            if let Ok(cmd) = SerializableCommand::from_string(&command, Some(&path_to_instance)) {
+                cmd.to_tokio_command()
+                    .spawn()
+                    .map_err(|e| IOError::with_path(e, path_to_instance))?;
+            }
+        }
     }
 
     Ok(())
@@ -80,25 +87,4 @@ async fn track_instance_process(
         tokio::time::sleep(check_threshold).await;
         update_playtime(last_updated, id, false).await;
     }
-}
-
-async fn execute_post_exit_command(id: &str, command: Option<String>) -> crate::Result<()> {
-    let Some(command) = command else {
-        return Ok(());
-    };
-
-    let mut split = command.split_whitespace();
-    let Some(program) = split.next() else {
-        return Ok(());
-    };
-
-    let working_dir = Instance::get_full_path(id).await?;
-
-    Command::new(program)
-        .args(split)
-        .current_dir(working_dir)
-        .spawn()
-        .map_err(IOError::from)?;
-
-    Ok(())
 }

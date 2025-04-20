@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use extism::FromBytes;
 use extism_convert::{encoding, Json};
@@ -13,6 +13,16 @@ pub struct SerializableCommand {
 }
 
 impl SerializableCommand {
+    pub fn from_string(command: &str, current_dir: Option<&PathBuf>) -> Result<Self, String> {
+        let mut parts = command.split_whitespace();
+
+        Ok(Self {
+            program: parts.next().ok_or("Error to parse command")?.to_string(),
+            args: parts.map(|s| s.to_string()).collect(),
+            current_dir: current_dir.cloned(),
+        })
+    }
+
     pub fn from_command(command: &std::process::Command) -> Self {
         Self {
             program: command.get_program().to_string_lossy().to_string(),
@@ -40,5 +50,13 @@ impl SerializableCommand {
         }
         command.args(&self.args);
         command
+    }
+}
+
+impl FromStr for SerializableCommand {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_string(s, None)
     }
 }

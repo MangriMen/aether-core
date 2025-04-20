@@ -9,11 +9,11 @@ pub struct Settings {
 
     pub max_concurrent_downloads: usize,
 
-    pub memory: MemorySettings,
-
-    pub game_resolution: WindowSize,
-    pub custom_env_vars: Vec<(String, String)>,
     pub extra_launch_args: Vec<String>,
+    pub custom_env_vars: Vec<(String, String)>,
+
+    pub memory: MemorySettings,
+    pub game_resolution: WindowSize,
 
     pub hooks: Hooks,
 

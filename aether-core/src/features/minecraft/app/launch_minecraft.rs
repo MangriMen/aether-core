@@ -4,41 +4,21 @@ use crate::{
     features::{
         auth::Credentials,
         instance::{Instance, InstanceInstallStage, ModLoader},
-        minecraft::{self},
+        minecraft::{self, LaunchSettings},
         plugins::PluginEvent,
         process::{MinecraftProcessMetadata, ProcessManager},
-        settings::{MemorySettings, WindowSize},
+        settings::SerializableCommand,
     },
+    shared::IOError,
     with_mut_ref,
 };
 
 use super::install_minecraft;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct InstanceLaunchArgs {
-    pub env_args: Vec<(String, String)>,
-    pub java_args: Vec<String>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct InstanceLaunchSettings {
-    pub memory: MemorySettings,
-    pub resolution: WindowSize,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct InstanceLaunchMetadata {
-    pub post_exit_command: Option<String>,
-    pub wrapper: Option<String>,
-}
-
-// TODO: reduce arguments count
 #[tracing::instrument]
 pub async fn launch_minecraft(
     instance: &Instance,
-    launch_args: &InstanceLaunchArgs,
-    launch_settings: &InstanceLaunchSettings,
-    launch_metadata: &InstanceLaunchMetadata,
+    launch_settings: &LaunchSettings,
     credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata> {
     if instance.install_stage == InstanceInstallStage::PackInstalling
@@ -54,6 +34,9 @@ pub async fn launch_minecraft(
     }
 
     let state = LauncherState::get().await?;
+
+    run_pre_launch_command(instance, launch_settings).await?;
+
     let plugin_manager = state.plugin_manager.read().await;
 
     if let Some(pack_info) = &instance.pack_info {
@@ -114,9 +97,9 @@ pub async fn launch_minecraft(
 
     let args = version_info.arguments.clone().unwrap_or_default();
 
-    let env_args_vec = launch_args.env_args.clone();
+    let env_args_vec = launch_settings.custom_env_vars.clone();
 
-    let mut command = match &launch_metadata.wrapper {
+    let mut command = match &launch_settings.hooks.wrapper {
         Some(hook) => {
             with_mut_ref!(it = tokio::process::Command::new(hook) => {it.arg(&java.path)})
         }
@@ -149,7 +132,7 @@ pub async fn launch_minecraft(
         version_jar,
         &java,
         launch_settings.memory,
-        &launch_args.java_args,
+        &launch_settings.extra_launch_args,
         minecraft_updated,
     )?;
 
@@ -163,7 +146,7 @@ pub async fn launch_minecraft(
         &instance_path,
         &state.locations.assets_dir(),
         &version.type_,
-        launch_settings.resolution,
+        launch_settings.game_resolution,
         &java.architecture,
     )?
     .into_iter()
@@ -201,7 +184,7 @@ pub async fn launch_minecraft(
         .insert_new_process(
             &instance.id,
             command,
-            launch_metadata.post_exit_command.clone(),
+            launch_settings.hooks.post_exit.clone(),
         )
         .await;
 
@@ -219,4 +202,38 @@ pub async fn launch_minecraft(
     }
 
     metadata
+}
+
+async fn run_pre_launch_command(
+    instance: &Instance,
+    launch_settings: &LaunchSettings,
+) -> crate::Result<()> {
+    let pre_launch_commands = instance
+        .hooks
+        .pre_launch
+        .as_ref()
+        .or(launch_settings.hooks.pre_launch.as_ref());
+
+    if let Some(command) = pre_launch_commands {
+        let full_path = &instance.path;
+        if let Ok(cmd) = SerializableCommand::from_string(command, Some(full_path)) {
+            let result = cmd
+                .to_tokio_command()
+                .spawn()
+                .map_err(|e| IOError::with_path(e, full_path))?
+                .wait()
+                .await
+                .map_err(IOError::from)?;
+
+            if !result.success() {
+                return Err(crate::ErrorKind::LauncherError(format!(
+                    "Non-zero exit code for pre-launch hook: {}",
+                    result.code().unwrap_or(-1)
+                ))
+                .as_error());
+            }
+        }
+    }
+
+    Ok(())
 }

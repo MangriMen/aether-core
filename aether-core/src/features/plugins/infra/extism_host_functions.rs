@@ -8,7 +8,8 @@ use crate::{
     core::LauncherState,
     features::{
         instance::{instance::PackInfo, ModLoader},
-        plugins::{plugin_utils, PluginContext, SerializableCommand, SerializableOutput},
+        plugins::{plugin_utils, PluginContext, SerializableOutput},
+        settings::SerializableCommand,
     },
     shared::fetch_advanced,
 };

@@ -10,6 +10,7 @@ pub mod parse_arguments;
 pub mod processors;
 pub mod resolve_minecraft_version;
 pub mod rules;
+pub mod run;
 pub mod run_mod_loader_post_install;
 
 pub use download::*;
@@ -23,4 +24,5 @@ pub use minecraft_arguments::*;
 pub use parse_arguments::*;
 pub use resolve_minecraft_version::*;
 pub use rules::*;
+pub use run::*;
 pub use run_mod_loader_post_install::*;

@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    api::instance::get_instance_path_without_duplicate,
     core::LauncherState,
     features::{
         events::{emit::emit_instance, InstancePayloadType},
-        instance::{self, instance::PackInfo, Instance, InstanceInstallStage, ModLoader},
+        instance::{
+            self, create_instance_path_without_duplicate, instance::PackInfo, Instance,
+            InstanceInstallStage, ModLoader,
+        },
         minecraft::install_minecraft,
         settings::{Hooks, MemorySettings, WindowSize},
     },
@@ -30,7 +32,8 @@ pub async fn create(
 ) -> crate::Result<String> {
     let state = LauncherState::get().await?;
 
-    let (full_path, sanitized_name) = get_instance_path_without_duplicate(&state, &name);
+    let (full_path, sanitized_name) =
+        create_instance_path_without_duplicate(&state.locations.instances_dir(), &name);
 
     fs::create_dir_all(&full_path).await?;
 

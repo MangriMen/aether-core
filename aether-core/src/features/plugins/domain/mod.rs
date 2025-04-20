@@ -7,7 +7,6 @@ pub mod plugin_metadata;
 pub mod plugin_settings;
 pub mod plugin_settings_storage;
 pub mod plugin_state;
-pub mod serializable_command;
 pub mod serializable_output;
 pub mod wasm_cache;
 
@@ -20,6 +19,5 @@ pub use plugin_metadata::{ConfigInfo, PluginInfo, PluginMetadata, WasmInfo};
 pub use plugin_settings::PluginSettings;
 pub use plugin_settings_storage::PluginSettingsStorage;
 pub use plugin_state::{PluginContext, PluginState};
-pub use serializable_command::SerializableCommand;
 pub use serializable_output::SerializableOutput;
 pub use wasm_cache::{WasmCache, WasmCacheConfig};
