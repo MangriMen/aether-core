@@ -4,7 +4,10 @@ use crate::{
     core::LauncherState,
     features::{
         events::{emit::emit_instance, InstancePayloadType},
-        instance::{self, instance::PackInfo, FsInstanceStorage, Instance, InstanceInstallStage},
+        instance::{
+            self, instance::PackInfo, CreateInstanceDto, FsInstanceStorage, Instance,
+            InstanceInstallStage,
+        },
         minecraft::{install_minecraft, ModLoader},
         settings::{MemorySettings, WindowSize},
     },
@@ -26,11 +29,7 @@ pub async fn create(
     let instance_storage = FsInstanceStorage::new(state.locations.clone());
     let metadata_storage = crate::api::metadata::get_storage().await?;
 
-    instance::create_instance(
-        &instance_storage,
-        &metadata_storage,
-        &state.locations,
-        &state.file_watcher,
+    let create_instance_dto = CreateInstanceDto {
         name,
         game_version,
         mod_loader,
@@ -38,6 +37,14 @@ pub async fn create(
         icon_path,
         skip_install_instance,
         pack_info,
+    };
+
+    instance::create_instance(
+        &instance_storage,
+        &metadata_storage,
+        &state.locations,
+        &state.file_watcher,
+        &create_instance_dto,
     )
     .await
 }

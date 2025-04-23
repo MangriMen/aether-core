@@ -2,11 +2,11 @@ use crate::features::minecraft::ModLoader;
 
 pub async fn resolve_loader_version(
     game_version: &str,
-    loader: ModLoader,
+    loader: &ModLoader,
     loader_version: Option<&str>,
     loader_version_manifest: &daedalus::modded::Manifest,
 ) -> crate::Result<Option<daedalus::modded::LoaderVersion>> {
-    if loader == ModLoader::Vanilla {
+    if matches!(loader, ModLoader::Vanilla) {
         return Ok(None);
     }
 

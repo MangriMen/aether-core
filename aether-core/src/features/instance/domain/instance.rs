@@ -43,7 +43,6 @@ pub struct PackInfo {
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
     pub id: String,
-    pub path: PathBuf,
 
     pub name: String,
     pub icon_path: Option<String>,
@@ -158,7 +157,8 @@ impl Instance {
     }
 
     pub async fn remove(&self) -> crate::Result<()> {
-        remove_dir_all(&self.path).await?;
+        let path = crate::api::instance::get_dir(&self.id).await?;
+        remove_dir_all(&path).await?;
         Ok(())
     }
 
@@ -169,7 +169,8 @@ impl Instance {
     }
 
     pub async fn save(&self) -> crate::Result<()> {
-        Instance::save_path(self, &self.path.join(".metadata").join("instance.json")).await?;
+        let path = crate::api::instance::get_dir(&self.id).await?;
+        Instance::save_path(self, &path.join(".metadata").join("instance.json")).await?;
         Ok(())
     }
 
@@ -194,7 +195,7 @@ impl Instance {
     }
 
     pub async fn get_contents(&self) -> crate::Result<DashMap<String, InstanceFile>> {
-        let path = &self.path;
+        let path = crate::api::instance::get_dir(&self.id).await?;
 
         let files = DashMap::new();
 

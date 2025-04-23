@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{
     api,
     core::LauncherState,
@@ -35,7 +37,15 @@ pub async fn launch_minecraft(
 
     let state = LauncherState::get().await?;
 
-    run_pre_launch_command(instance, launch_settings).await?;
+    let pre_launch_command = instance
+        .hooks
+        .pre_launch
+        .as_ref()
+        .or(launch_settings.hooks.pre_launch.as_ref());
+
+    let instance_path = Instance::get_full_path(&instance.id).await?;
+
+    run_pre_launch_command(&pre_launch_command, &instance_path).await?;
 
     let plugin_manager = state.plugin_manager.read().await;
 
@@ -51,8 +61,6 @@ pub async fn launch_minecraft(
             }
         }
     }
-
-    let instance_path = Instance::get_full_path(&instance.id).await?;
 
     let version_manifest = api::metadata::get_version_manifest().await?;
 
@@ -205,22 +213,16 @@ pub async fn launch_minecraft(
 }
 
 async fn run_pre_launch_command(
-    instance: &Instance,
-    launch_settings: &LaunchSettings,
+    pre_launch_command: &Option<&String>,
+    working_dir: &Path,
 ) -> crate::Result<()> {
-    let pre_launch_commands = instance
-        .hooks
-        .pre_launch
-        .as_ref()
-        .or(launch_settings.hooks.pre_launch.as_ref());
-
-    if let Some(command) = pre_launch_commands {
-        let full_path = &instance.path;
-        if let Ok(cmd) = SerializableCommand::from_string(command, Some(full_path)) {
+    if let Some(command) = pre_launch_command {
+        if let Ok(cmd) = SerializableCommand::from_string(command, Some(&working_dir.to_path_buf()))
+        {
             let result = cmd
                 .to_tokio_command()
                 .spawn()
-                .map_err(|e| IOError::with_path(e, full_path))?
+                .map_err(|e| IOError::with_path(e, working_dir))?
                 .wait()
                 .await
                 .map_err(IOError::from)?;
