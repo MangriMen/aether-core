@@ -31,7 +31,7 @@ pub struct LauncherState<PM: ProcessManager = InMemoryProcessManager> {
     /// Process manager
     pub process_manager: PM,
     pub plugin_manager: RwLock<PluginManager>,
-    pub(crate) file_watcher: FsWatcher,
+    pub(crate) file_watcher: Arc<FsWatcher>,
     // pub(crate) pool: SqlitePool,
 }
 
@@ -88,7 +88,7 @@ impl LauncherState {
         let process_manager = InMemoryProcessManager::default();
 
         log::info!("Initialize file watcher");
-        let file_watcher = fs_watcher::init_watcher().await?;
+        let file_watcher = Arc::new(fs_watcher::init_watcher().await?);
         fs_watcher::watch_instances(&file_watcher, &locations).await;
 
         log::info!("Initialize plugin manager");

@@ -10,7 +10,6 @@ use dashmap::DashMap;
 use extism::{FromBytes, ToBytes};
 use extism_convert::{encoding, Json};
 use path_slash::PathBufExt;
-use tokio::fs::remove_dir_all;
 
 use crate::{
     core::LauncherState,
@@ -154,12 +153,6 @@ impl Instance {
         } else {
             Ok(None)
         }
-    }
-
-    pub async fn remove(&self) -> crate::Result<()> {
-        let path = crate::api::instance::get_dir(&self.id).await?;
-        remove_dir_all(&path).await?;
-        Ok(())
     }
 
     pub async fn save_path(instance: &Instance, path: &PathBuf) -> crate::Result<()> {

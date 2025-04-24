@@ -49,6 +49,30 @@ impl FsInstanceStorage {
 
 #[async_trait]
 impl InstanceStorage for FsInstanceStorage {
+    async fn list(&self) -> Result<Vec<Instance>, StorageError> {
+        let instances_dir = self.location_info.instances_dir();
+
+        if !instances_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        if let Ok(entries) = instances_dir.read_dir() {
+            let mut instances = Vec::new();
+
+            for entry in entries.flatten() {
+                let instance_json_path = self
+                    .location_info
+                    .instance_metadata_file_with_instance_dir(&entry.path());
+                let instance = self.read(&instance_json_path).await?;
+                instances.push(instance);
+            }
+
+            return Ok(instances);
+        };
+
+        Ok(Vec::new())
+    }
+
     async fn get(&self, id: &str) -> Result<Instance, StorageError> {
         self.read(&self.location_info.instance_metadata_file(id))
             .await

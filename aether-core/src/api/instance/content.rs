@@ -3,10 +3,13 @@ use std::{collections::HashMap, path::Path};
 use dashmap::DashMap;
 
 use crate::{
-    features::events::{emit::emit_instance, InstancePayloadType},
-    features::instance::{
-        content_provider, ContentMetadataFile, ContentRequest, ContentResponse, ContentType,
-        InstallContentPayload, Instance, InstanceFile,
+    core::LauncherState,
+    features::{
+        events::{emit::emit_instance, InstancePayloadType},
+        instance::{
+            content_provider, ContentMetadataFile, ContentRequest, ContentResponse, ContentType,
+            InstallContentPayload, Instance, InstanceFile,
+        },
     },
 };
 
@@ -90,8 +93,11 @@ pub async fn get_metadata_field_to_check_installed(provider: &str) -> crate::Res
 }
 
 pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let instance_dir = state.locations.instance_dir(id);
+
     let instance_file = match payload.provider.as_str() {
-        "modrinth" => content_provider::modrinth::install_content(id, payload).await,
+        "modrinth" => content_provider::modrinth::install_content(&instance_dir, payload).await,
         _ => Err(crate::ErrorKind::ContentProviderNotFound {
             provider: payload.provider.to_string(),
         }

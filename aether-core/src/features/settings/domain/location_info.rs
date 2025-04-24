@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const METADATA_FOLDER_NAME: &str = ".minecraft";
 pub const CACHE_FOLDER_NAME: &str = "cache";
@@ -100,10 +100,23 @@ impl LocationInfo {
         self.instance_dir(id).join(".metadata")
     }
 
+    /// Get the metadata directory for a specific instance folder
+    #[inline]
+    pub fn instance_metadata_dir_with_instance_dir(&self, instance_dir: &Path) -> PathBuf {
+        instance_dir.join(".metadata")
+    }
+
     /// Get the metadata file for a specific instance
     #[inline]
     pub fn instance_metadata_file(&self, id: &str) -> PathBuf {
         self.instance_metadata_dir(id).join("instance.json")
+    }
+
+    /// Get the metadata file for a specific instance folder
+    #[inline]
+    pub fn instance_metadata_file_with_instance_dir(&self, instance_dir: &Path) -> PathBuf {
+        self.instance_metadata_dir_with_instance_dir(instance_dir)
+            .join("instance.json")
     }
 
     /// Get the pack dir for a specific instance

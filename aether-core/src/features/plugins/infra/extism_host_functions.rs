@@ -7,8 +7,7 @@ use reqwest::Method;
 use crate::{
     core::LauncherState,
     features::{
-        instance::instance::PackInfo,
-        minecraft::ModLoader,
+        instance::NewInstance,
         plugins::{plugin_utils, PluginContext, SerializableOutput},
         settings::SerializableCommand,
     },
@@ -100,36 +99,17 @@ pub instance_plugin_get_dir(user_data: PluginContext; instance_id: String) -> ex
 });
 
 host_fn!(
-pub instance_create(
-    user_data: PluginContext;
-    name: String,
-    game_version: String,
-    mod_loader: String,
-    loader_version: Option<String>,
-    icon_path: Option<String>,
-    skip_install_instance: Option<i64>,
-    pack_info: Option<PackInfo>
-) -> extism::Result<String> {
-    let mod_loader = ModLoader::from_string(&mod_loader);
-
-    let res =
+    pub instance_create(
+        user_data: PluginContext;
+        create_instance_request: NewInstance
+    ) -> extism::Result<String> {
         tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(
-                crate::api::instance::create(
-                    name,
-                    game_version,
-                    mod_loader,
-                    loader_version,
-                    icon_path,
-                    skip_install_instance.map(|x| x != 0),
-                    pack_info
-                )
-            )
-        })?;
-
-
-    Ok(res)
-});
+            tokio::runtime::Handle::current()
+                .block_on(crate::api::instance::create(create_instance_request))
+                .map_err(Into::into)
+        })
+    }
+);
 
 host_fn!(
 pub get_java(user_data: PluginContext; version: u32) -> extism::Result<String> {

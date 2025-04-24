@@ -6,4 +6,3 @@ pub mod utils;
 pub use api::*;
 pub use model::*;
 pub use provider::*;
-pub use utils::*;

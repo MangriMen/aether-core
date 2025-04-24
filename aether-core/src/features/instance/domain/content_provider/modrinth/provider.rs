@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use path_slash::PathExt;
 use reqwest::Method;
@@ -12,7 +15,7 @@ use crate::{
 
 use super::{
     get_file_from_project_version, get_project_version, get_project_version_for_game_version,
-    modrinth_to_content_response, search_projects, ModrinthProviderData, ModrinthUpdateData,
+    search_projects, utils::modrinth_to_content_response, ModrinthProviderData, ModrinthUpdateData,
     DEFAULT_HEADERS,
 };
 
@@ -26,7 +29,7 @@ pub async fn search_content(payload: &ContentRequest) -> crate::Result<ContentRe
 }
 
 pub async fn install_content(
-    id: &str,
+    instance_dir: &Path,
     payload: &InstallContentPayload,
 ) -> crate::Result<InstanceFile> {
     let state = LauncherState::get().await?;
@@ -71,8 +74,7 @@ pub async fn install_content(
         let folder = payload.content_type.get_folder();
         let relative_path = PathBuf::from(folder).join(&file_data.filename);
 
-        let instance_folder = crate::api::instance::get_dir(id).await?;
-        let file_path = instance_folder.join(&relative_path);
+        let file_path = instance_dir.join(&relative_path);
 
         write_async(&file_path, &file).await?;
 
