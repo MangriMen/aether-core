@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{
     api,
     core::LauncherState,
@@ -6,17 +8,23 @@ use crate::{
             emit::{emit_loading, init_or_edit_loading},
             LoadingBarId, LoadingBarType,
         },
-        instance::{Instance, InstanceInstallStage},
-        minecraft::{self, ModLoader},
+        instance::{Instance, InstanceInstallStage, InstanceManager},
+        minecraft::{self, resolve_loader_version, ModLoader, ReadMetadataStorage},
     },
 };
 
-#[tracing::instrument]
-pub async fn install_minecraft(
+#[tracing::instrument(skip(instance_manager, metadata_storage))]
+pub async fn install_minecraft<IM, MS>(
+    instance_manager: &IM,
+    metadata_storage: &MS,
     instance: &Instance,
     loading_bar: Option<LoadingBarId>,
     force: bool,
-) -> crate::Result<()> {
+) -> crate::Result<()>
+where
+    IM: InstanceManager + ?Sized,
+    MS: ReadMetadataStorage + ?Sized,
+{
     log::info!(
         "Installing instance: \"{}\" (minecraft: \"{}\", modloader: \"{}\")",
         instance.name,
@@ -35,46 +43,63 @@ pub async fn install_minecraft(
     )
     .await?;
 
-    Instance::edit(&instance.id, |instance| {
-        instance.install_stage = InstanceInstallStage::Installing;
-        async { Ok(()) }
-    })
-    .await?;
+    instance_manager
+        .upsert_with(&instance.id, |instance| {
+            instance.install_stage = InstanceInstallStage::Installing;
+            Ok(())
+        })
+        .await?;
 
     let result = async {
         let state = LauncherState::get().await?;
 
-        let instance_path = Instance::get_full_path(&instance.id).await?;
+        let instance_path = state.locations.instance_dir(&instance.id);
 
         let version_manifest = api::metadata::get_version_manifest().await?;
 
         let (version, minecraft_updated) =
             minecraft::resolve_minecraft_version(&instance.game_version, version_manifest)?;
 
-        let mut loader_version = Instance::get_loader_version(
-            &instance.game_version,
-            instance.loader,
-            instance.loader_version.as_deref(),
-        )
-        .await?;
+        let loader_version = if instance.loader == ModLoader::Vanilla {
+            None
+        } else {
+            let loader_version_manifest = metadata_storage
+                .get_loader_version_manifest(instance.loader.as_meta_str())
+                .await?
+                .value;
 
-        // If no loader version is selected, try to select the stable version!
-        if instance.loader != ModLoader::Vanilla && loader_version.is_none() {
-            loader_version = Instance::get_loader_version(
+            let loader_version = resolve_loader_version(
                 &instance.game_version,
-                instance.loader,
-                Some("stable"),
+                &instance.loader,
+                instance.loader_version.as_deref(),
+                &loader_version_manifest,
             )
             .await?;
 
-            let loader_version_id = loader_version.clone();
+            match loader_version {
+                Some(loader_version) => Some(loader_version),
+                None => {
+                    // If no loader version is selected, try to select the stable version!
+                    let stable_loader_version = resolve_loader_version(
+                        &instance.game_version,
+                        &instance.loader,
+                        Some("stable"),
+                        &loader_version_manifest,
+                    )
+                    .await?;
 
-            Instance::edit(&instance.id, |instance| {
-                instance.loader_version = loader_version_id.clone().map(|x| x.id.clone());
-                async { Ok(()) }
-            })
-            .await?;
-        }
+                    instance_manager
+                        .upsert_with(&instance.id, |instance| {
+                            instance.loader_version =
+                                stable_loader_version.clone().map(|x| x.id.clone());
+                            Ok(())
+                        })
+                        .await?;
+
+                    stable_loader_version
+                }
+            }
+        };
 
         let version_jar = loader_version.as_ref().map_or(version.id.clone(), |it| {
             format!("{}-{}", version.id.clone(), it.id.clone())
@@ -89,8 +114,8 @@ pub async fn install_minecraft(
         )
         .await?;
 
-        let java = if let Some(java) = Instance::get_java(instance).await.transpose() {
-            java
+        let java = if let Some(java_path) = instance.java_path.as_ref() {
+            crate::features::java::get_java_from_path(Path::new(java_path)).await
         } else {
             let compatible_java_version = minecraft::get_compatible_java_version(&version_info);
 
@@ -122,11 +147,12 @@ pub async fn install_minecraft(
         )
         .await?;
 
-        Instance::edit(&instance.id, |prof| {
-            prof.install_stage = InstanceInstallStage::Installed;
-            async { Ok(()) }
-        })
-        .await?;
+        instance_manager
+            .upsert_with(&instance.id, |instance| {
+                instance.install_stage = InstanceInstallStage::Installed;
+                Ok(())
+            })
+            .await?;
 
         emit_loading(&loading_bar, 1.000_000_000_01, Some("Finished installing")).await?;
 
@@ -145,12 +171,12 @@ pub async fn install_minecraft(
             Ok(())
         }
         Err(e) => {
-            Instance::edit(&instance.id, |prof| {
-                prof.install_stage = InstanceInstallStage::NotInstalled;
-                async { Ok(()) }
-            })
-            .await?;
-
+            instance_manager
+                .upsert_with(&instance.id, |instance| {
+                    instance.install_stage = InstanceInstallStage::NotInstalled;
+                    Ok(())
+                })
+                .await?;
             Err(e)
         }
     }

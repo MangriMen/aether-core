@@ -5,8 +5,8 @@ use crate::{
     core::LauncherState,
     features::{
         auth::Credentials,
-        instance::{Instance, InstanceInstallStage},
-        minecraft::{self, LaunchSettings, ModLoader},
+        instance::{Instance, InstanceInstallStage, InstanceManager},
+        minecraft::{self, LaunchSettings, ModLoader, ReadMetadataStorage},
         plugins::PluginEvent,
         process::{MinecraftProcessMetadata, ProcessManager},
         settings::SerializableCommand,
@@ -15,14 +15,20 @@ use crate::{
     with_mut_ref,
 };
 
-use super::install_minecraft;
+use super::{install_minecraft, resolve_loader_version};
 
-#[tracing::instrument]
-pub async fn launch_minecraft(
+#[tracing::instrument(skip(instance_manager, metadata_storage))]
+pub async fn launch_minecraft<IM, MS>(
+    instance_manager: &IM,
+    metadata_storage: &MS,
     instance: &Instance,
     launch_settings: &LaunchSettings,
     credentials: &Credentials,
-) -> crate::Result<MinecraftProcessMetadata> {
+) -> crate::Result<MinecraftProcessMetadata>
+where
+    IM: InstanceManager + ?Sized,
+    MS: ReadMetadataStorage + ?Sized,
+{
     if instance.install_stage == InstanceInstallStage::PackInstalling
         || instance.install_stage == InstanceInstallStage::Installing
     {
@@ -32,7 +38,7 @@ pub async fn launch_minecraft(
     }
 
     if instance.install_stage != InstanceInstallStage::Installed {
-        install_minecraft(instance, None, false).await?;
+        install_minecraft(instance_manager, metadata_storage, instance, None, false).await?;
     }
 
     let state = LauncherState::get().await?;
@@ -43,7 +49,7 @@ pub async fn launch_minecraft(
         .as_ref()
         .or(launch_settings.hooks.pre_launch.as_ref());
 
-    let instance_path = Instance::get_full_path(&instance.id).await?;
+    let instance_path = state.locations.instance_dir(&instance.id);
 
     run_pre_launch_command(&pre_launch_command, &instance_path).await?;
 
@@ -67,12 +73,22 @@ pub async fn launch_minecraft(
     let (version, minecraft_updated) =
         minecraft::resolve_minecraft_version(&instance.game_version, version_manifest)?;
 
-    let loader_version: Option<daedalus::modded::LoaderVersion> = Instance::get_loader_version(
-        &instance.game_version,
-        instance.loader,
-        instance.loader_version.as_deref(),
-    )
-    .await?;
+    let loader_version = if instance.loader == ModLoader::Vanilla {
+        None
+    } else {
+        let loader_version_manifest = metadata_storage
+            .get_loader_version_manifest(instance.loader.as_meta_str())
+            .await?
+            .value;
+
+        resolve_loader_version(
+            &instance.game_version,
+            &instance.loader,
+            instance.loader_version.as_deref(),
+            &loader_version_manifest,
+        )
+        .await?
+    };
 
     if instance.loader != ModLoader::Vanilla && loader_version.is_none() {
         return Err(crate::ErrorKind::LauncherError(format!(
@@ -90,8 +106,8 @@ pub async fn launch_minecraft(
         minecraft::download_version_info(&state, &version, loader_version.as_ref(), None, None)
             .await?;
 
-    let java = if let Some(java) = instance.get_java().await.transpose() {
-        java
+    let java = if let Some(java_path) = instance.java_path.as_ref() {
+        crate::features::java::get_java_from_path(Path::new(java_path)).await
     } else {
         let compatible_java_version = minecraft::get_compatible_java_version(&version_info);
 
@@ -181,11 +197,13 @@ pub async fn launch_minecraft(
 
     // authentication credentials
 
-    Instance::edit(&instance.id, |instance| {
-        instance.last_played = Some(chrono::Utc::now());
-        async { Ok(()) }
-    })
-    .await?;
+    instance_manager
+        .upsert_with(&instance.id, |instance| {
+            instance.last_played = Some(chrono::Utc::now());
+
+            Ok(())
+        })
+        .await?;
 
     let metadata = state
         .process_manager

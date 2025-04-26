@@ -2,14 +2,19 @@ use std::path::PathBuf;
 
 use crate::{
     core::LauncherState,
-    features::instance::{EditInstance, FsInstanceStorage, Instance, InstanceService, NewInstance},
+    features::instance::{
+        EditInstance, FsInstanceStorage, Instance, InstanceManager, InstanceManagerImpl,
+        InstanceService, NewInstance,
+    },
 };
 
-fn get_service(state: &LauncherState) -> InstanceService<FsInstanceStorage> {
-    let instance_storage = FsInstanceStorage::new(state.locations.clone());
+pub fn get_manager(state: &LauncherState) -> InstanceManagerImpl<FsInstanceStorage> {
+    InstanceManagerImpl::new(FsInstanceStorage::new(state.locations.clone()))
+}
 
+fn get_service(state: &LauncherState) -> InstanceService<InstanceManagerImpl<FsInstanceStorage>> {
     InstanceService::new(
-        instance_storage,
+        get_manager(state),
         state.locations.clone(),
         state.file_watcher.clone(),
     )
@@ -30,8 +35,9 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
 pub async fn install(id: &str, force: bool) -> crate::Result<()> {
     let state = LauncherState::get().await?;
     let instance_service = get_service(&state);
+    let metadata_storage = crate::api::metadata::get_storage().await?;
 
-    instance_service.install(id, force).await
+    instance_service.install(&metadata_storage, id, force).await
 }
 
 #[tracing::instrument]
@@ -79,17 +85,17 @@ pub async fn update(id: &str) -> crate::Result<()> {
 #[tracing::instrument]
 pub async fn list() -> crate::Result<Vec<Instance>> {
     let state = LauncherState::get().await?;
-    let instance_service = get_service(&state);
+    let instance_manager = get_manager(&state);
 
-    instance_service.list().await
+    instance_manager.list().await
 }
 
 #[tracing::instrument]
 pub async fn get(id: &str) -> crate::Result<Instance> {
     let state = LauncherState::get().await?;
-    let instance_service = get_service(&state);
+    let instance_manager = get_manager(&state);
 
-    instance_service.get(id).await
+    instance_manager.get(id).await
 }
 
 #[tracing::instrument]
@@ -103,15 +109,9 @@ pub async fn edit(id: &str, edit_instance: &EditInstance) -> crate::Result<()> {
 #[tracing::instrument]
 pub async fn remove(id: &str) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    let instance_storage = FsInstanceStorage::new(state.locations.clone());
+    let instance_manager = get_manager(&state);
 
-    let instance_service = InstanceService::new(
-        instance_storage,
-        state.locations.clone(),
-        state.file_watcher.clone(),
-    );
-
-    instance_service.remove(id).await
+    instance_manager.remove(id).await
 }
 
 #[tracing::instrument]

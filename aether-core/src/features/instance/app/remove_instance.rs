@@ -1,4 +1,4 @@
-use crate::features::{instance::InstanceStorage, settings::LocationInfo};
+use crate::features::{instance::InstanceManager, settings::LocationInfo};
 
 pub async fn remove_instance<S>(
     storage: &S,
@@ -6,7 +6,7 @@ pub async fn remove_instance<S>(
     id: &str,
 ) -> crate::Result<()>
 where
-    S: InstanceStorage + ?Sized,
+    S: InstanceManager + ?Sized,
 {
     storage.remove(id).await?;
 

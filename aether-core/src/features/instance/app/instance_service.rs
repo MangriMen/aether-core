@@ -4,37 +4,36 @@ use chrono::Utc;
 use log::{error, info};
 
 use crate::features::{
-    events::{emit_instance, InstancePayloadType},
     instance::{
         create_instance_dir, watch_instance, FsWatcher, Instance, InstanceInstallStage,
-        InstanceStorage, PackInfo,
+        InstanceManager, PackInfo,
     },
-    minecraft::{self, install_minecraft, resolve_loader_version, ModLoader, ReadMetadataStorage},
+    minecraft::{self, resolve_loader_version, ModLoader, ReadMetadataStorage},
     settings::{Hooks, LocationInfo},
 };
 
 use super::{EditInstance, NewInstance};
 
-pub struct InstanceService<IS>
+pub struct InstanceService<IM>
 where
-    IS: InstanceStorage,
+    IM: InstanceManager,
 {
-    instance_storage: IS,
+    instance_manager: IM,
     location_info: Arc<LocationInfo>,
     fs_watcher: Arc<FsWatcher>,
 }
 
-impl<IS> InstanceService<IS>
+impl<IM> InstanceService<IM>
 where
-    IS: InstanceStorage + Send + Sync,
+    IM: InstanceManager + Send + Sync,
 {
     pub fn new(
-        instance_storage: IS,
+        instance_manager: IM,
         location_info: Arc<LocationInfo>,
         fs_watcher: Arc<FsWatcher>,
     ) -> Self {
         Self {
-            instance_storage,
+            instance_manager,
             location_info,
             fs_watcher,
         }
@@ -80,7 +79,9 @@ where
             pack_info,
         );
 
-        let instance_id = self.setup_instance(&instance, skip_install_instance).await;
+        let instance_id = self
+            .setup_instance(metadata_storage, &instance, skip_install_instance)
+            .await;
 
         match instance_id {
             Ok(instance_id) => {
@@ -95,7 +96,7 @@ where
                     "Failed to create instance \"{}\". Rolling back",
                     &instance.name
                 );
-                if let Err(cleanup_err) = self.remove(&instance.id).await {
+                if let Err(cleanup_err) = self.instance_manager.remove(&instance.id).await {
                     error!("Failed to cleanup instance: {}", cleanup_err);
                 }
                 Err(err)
@@ -103,40 +104,38 @@ where
         }
     }
 
-    pub async fn install(&self, id: &str, force: bool) -> crate::Result<()> {
-        let mut instance = self.instance_storage.get(id).await?;
+    pub async fn install<MS>(
+        &self,
+        metadata_storage: &MS,
+        id: &str,
+        force: bool,
+    ) -> crate::Result<()>
+    where
+        MS: ReadMetadataStorage + ?Sized,
+    {
+        let mut instance = self.instance_manager.get(id).await?;
 
-        if install_minecraft(&instance, None, force).await.is_err() {
+        if minecraft::install_minecraft(
+            &self.instance_manager,
+            metadata_storage,
+            &instance,
+            None,
+            force,
+        )
+        .await
+        .is_err()
+        {
             self.handle_failed_installation(&mut instance).await?;
         }
 
         Ok(())
     }
 
-    pub async fn list(&self) -> crate::Result<Vec<Instance>> {
-        Ok(self.instance_storage.list().await?)
-    }
-
-    pub async fn get(&self, id: &str) -> crate::Result<Instance> {
-        Ok(self.instance_storage.get(id).await?)
-    }
-
     pub async fn edit(&self, id: &str, edit_instance: &EditInstance) -> crate::Result<()> {
         validate_edit(edit_instance)?;
-        let mut instance = self.instance_storage.get(id).await?;
+        let mut instance = self.instance_manager.get(id).await?;
         apply_edit_changes(&mut instance, edit_instance);
-        self.upsert(&instance).await
-    }
-
-    pub async fn upsert(&self, instance: &Instance) -> crate::Result<()> {
-        self.instance_storage.upsert(instance).await?;
-        emit_instance(&instance.id, InstancePayloadType::Edited).await?;
-        Ok(())
-    }
-
-    pub async fn remove(&self, id: &str) -> crate::Result<()> {
-        self.instance_storage.remove(id).await?;
-        emit_instance(id, InstancePayloadType::Removed).await
+        self.instance_manager.upsert(&instance).await
     }
 
     async fn found_loader_version<MS>(
@@ -167,17 +166,28 @@ where
         }
     }
 
-    async fn setup_instance(
+    async fn setup_instance<MS>(
         &self,
+        metadata_storage: &MS,
         instance: &Instance,
         skip_install_instance: &Option<bool>,
-    ) -> crate::Result<String> {
-        self.upsert(instance).await?;
+    ) -> crate::Result<String>
+    where
+        MS: ReadMetadataStorage + ?Sized,
+    {
+        self.instance_manager.upsert(instance).await?;
 
         watch_instance(&instance.id, &self.fs_watcher, &self.location_info).await;
 
         if !skip_install_instance.unwrap_or(false) {
-            minecraft::install_minecraft(instance, None, false).await?;
+            minecraft::install_minecraft(
+                &self.instance_manager,
+                metadata_storage,
+                instance,
+                None,
+                false,
+            )
+            .await?;
         }
 
         Ok(instance.id.clone())
@@ -186,7 +196,7 @@ where
     async fn handle_failed_installation(&self, instance: &mut Instance) -> crate::Result<()> {
         if instance.install_stage != InstanceInstallStage::Installed {
             instance.install_stage = InstanceInstallStage::NotInstalled;
-            self.upsert(instance).await?;
+            self.instance_manager.upsert(instance).await?;
         }
         Ok(())
     }
