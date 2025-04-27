@@ -4,37 +4,43 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::features::plugins::{
-    LoadConfigType, Plugin, PluginLoader, PluginSettingsStorage, PluginStorage,
+    LoadConfigType, Plugin, PluginLoader, PluginManifest, PluginSettingsManager, PluginStorage,
 };
+use crate::features::settings::SettingsStorage;
 use crate::{Error, ErrorKind, Result};
 
 #[derive(Debug)]
-pub struct PluginService<PS, PSS, PL>
+pub struct PluginService<SS, PS, PSM, PL>
 where
+    SS: SettingsStorage + Send + Sync,
     PS: PluginStorage + Send + Sync,
-    PSS: PluginSettingsStorage + Send + Sync,
+    PSM: PluginSettingsManager + Send + Sync,
     PL: PluginLoader + Send + Sync,
 {
+    settings_storage: SS,
     plugin_storage: PS,
-    plugin_settings_storage: PSS,
+    plugin_settings_manager: Arc<PSM>,
     loaders: HashMap<LoadConfigType, PL>,
     plugins: HashMap<String, Plugin>,
 }
 
-impl<PS, PSS, PL> PluginService<PS, PSS, PL>
+impl<SS, PS, PSM, PL> PluginService<SS, PS, PSM, PL>
 where
+    SS: SettingsStorage + Send + Sync,
     PS: PluginStorage + Send + Sync,
-    PSS: PluginSettingsStorage + Send + Sync,
+    PSM: PluginSettingsManager + Send + Sync,
     PL: PluginLoader + Send + Sync,
 {
     pub fn new(
+        settings_storage: SS,
         plugin_storage: PS,
-        plugin_settings_storage: PSS,
+        plugin_settings_manager: Arc<PSM>,
         loaders: HashMap<LoadConfigType, PL>,
     ) -> Self {
         Self {
+            settings_storage,
             plugin_storage,
-            plugin_settings_storage,
+            plugin_settings_manager,
             loaders,
             plugins: HashMap::new(),
         }
@@ -47,6 +53,10 @@ where
 
     pub fn list(&self) -> impl Iterator<Item = &Plugin> {
         self.plugins.values()
+    }
+
+    pub fn list_manifests(&self) -> impl Iterator<Item = &PluginManifest> {
+        self.plugins.values().map(|p| &p.manifest)
     }
 
     pub fn get(&self, plugin: &str) -> Result<&Plugin> {
@@ -67,10 +77,15 @@ where
         })
     }
 
-    pub async fn load_plugin(&mut self, plugin_id: &str) -> Result<()> {
+    pub fn get_manifest(&self, plugin: &str) -> Result<PluginManifest> {
+        let plugin = self.get(plugin)?;
+        Ok(plugin.manifest.clone())
+    }
+
+    pub async fn enable(&mut self, plugin_id: &str) -> Result<()> {
         let plugin = self.get(plugin_id)?;
 
-        let plugin_settings = self.plugin_settings_storage.get(plugin_id).await?;
+        let plugin_settings = self.plugin_settings_manager.get(plugin_id).await?;
 
         let loader = self.loaders.get(&(&plugin.manifest.load).into());
         if let Some(loader) = loader {
@@ -86,10 +101,16 @@ where
             .as_error());
         }
 
+        let mut settings = self.settings_storage.get().await?;
+        if !settings.enabled_plugins.contains(plugin_id) {
+            settings.enabled_plugins.insert(plugin_id.to_string());
+            self.settings_storage.upsert(&settings).await?;
+        }
+
         Ok(())
     }
 
-    pub async fn unload_plugin(&mut self, plugin_id: &str) -> Result<()> {
+    pub async fn disable(&mut self, plugin_id: &str) -> Result<()> {
         let plugin = self.get(plugin_id)?;
 
         let loader = self.loaders.get(&(&plugin.manifest.load).into());
@@ -115,11 +136,17 @@ where
             .as_error());
         }
 
+        let mut settings = self.settings_storage.get().await?;
+        if !settings.enabled_plugins.contains(plugin_id) {
+            settings.enabled_plugins.remove(plugin_id);
+            self.settings_storage.upsert(&settings).await?;
+        }
+
         Ok(())
     }
 
     async fn remove_plugin(&mut self, plugin_id: &str) -> Result<()> {
-        self.unload_plugin(plugin_id).await?;
+        self.disable(plugin_id).await?;
         self.plugins.remove(plugin_id);
         Ok(())
     }

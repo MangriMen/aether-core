@@ -1,9 +1,7 @@
 pub mod dto;
-pub mod edit_plugin_settings;
-pub mod get_plugin_settings;
 pub mod plugin_service;
+pub mod plugin_settings_manager_impl;
 
 pub use dto::*;
-pub use edit_plugin_settings::*;
-pub use get_plugin_settings::*;
 pub use plugin_service::*;
+pub use plugin_settings_manager_impl::*;
