@@ -10,13 +10,15 @@ use tokio::sync::Mutex;
 use crate::{
     features::{
         plugins::{
-            extism_host_functions, get_default_allowed_paths, LoadConfig, PathMapping, Plugin,
-            PluginInstance, PluginLoader, PluginSettings, WasmCache, WasmCacheConfig,
+            extism_host_functions, plugin_utils::get_default_allowed_paths, LoadConfig,
+            PathMapping, Plugin, PluginInstance, PluginLoader, PluginSettings,
         },
         settings::LocationInfo,
     },
     ErrorKind,
 };
+
+use super::wasm_cache::{WasmCache, WasmCacheConfig};
 
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PluginContext {
@@ -37,13 +39,14 @@ impl ExtismPluginLoader {
         if !cache_config.exists() {
             let cache_dir = self.location_info.wasm_cache_dir();
 
-            let cache = WasmCache {
-                enabled: true,
-                cleanup_interval: "30m".to_owned(),
-                files_total_size_soft_limit: "1Gi".to_owned(),
-                directory: cache_dir.clone(),
+            let config = WasmCacheConfig {
+                cache: WasmCache {
+                    enabled: true,
+                    cleanup_interval: "30m".to_owned(),
+                    files_total_size_soft_limit: "1Gi".to_owned(),
+                    directory: cache_dir.clone(),
+                },
             };
-            let config = WasmCacheConfig { cache };
 
             crate::shared::write_toml_async(&cache_config, config).await?;
             tokio::fs::create_dir_all(&cache_dir).await?;

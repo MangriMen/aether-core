@@ -1,9 +1,25 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     core::LauncherState,
-    features::{plugins::get_default_allowed_paths, settings::SerializableCommand},
+    features::settings::{LocationInfo, SerializableCommand},
 };
+
+pub fn get_default_allowed_paths(
+    location_info: &LocationInfo,
+    plugin_id: &str,
+) -> HashMap<String, PathBuf> {
+    HashMap::from([
+        (
+            "/cache".to_owned(),
+            location_info.plugin_cache_dir(plugin_id),
+        ),
+        ("/instances".to_owned(), location_info.instances_dir()),
+    ])
+}
 
 pub fn plugin_path_to_relative<I, T>(
     id: &str,

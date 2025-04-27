@@ -8,13 +8,14 @@ use crate::{
     core::LauncherState,
     features::{
         instance::NewInstance,
-        plugins::{plugin_utils, PluginContext, SerializableOutput},
+        plugins::{
+            plugin_utils::{self, plugin_path_to_host},
+            PluginContext, SerializableOutput,
+        },
         settings::SerializableCommand,
     },
     shared::fetch_advanced,
 };
-
-use super::plugin_utils::plugin_path_to_host;
 
 host_fn!(
 pub log(user_data: PluginContext; level: u32, msg: String) -> extism::Result<()> {
