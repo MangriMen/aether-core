@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    core::LauncherState,
+    core::{domain::ServiceLocator, LauncherState},
     features::instance::{
         EditInstance, FsInstanceStorage, Instance, InstanceManager, InstanceManagerImpl,
         InstanceService, NewInstance,
@@ -44,11 +44,11 @@ pub async fn install(id: &str, force: bool) -> crate::Result<()> {
 pub async fn update(id: &str) -> crate::Result<()> {
     if let Ok(instance) = get(id).await {
         if let Some(pack_info) = instance.pack_info {
-            let state = LauncherState::get().await?;
-            let plugin_manager = state.plugin_manager.read().await;
+            let service_locator = ServiceLocator::get().await?;
+            let plugin_service = service_locator.plugin_service.read().await;
 
-            if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
-                if let Some(plugin) = plugin.get_plugin() {
+            if let Ok(plugin) = plugin_service.get(&pack_info.pack_type) {
+                if let Some(plugin) = &plugin.instance {
                     plugin.lock().await.update(id).map_err(|_| {
                         crate::ErrorKind::InstanceUpdateError(format!(
                             "Failed to import instance from plugin {}",

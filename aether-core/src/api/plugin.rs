@@ -1,7 +1,9 @@
 use crate::{
-    core::LauncherState,
+    core::{domain::ServiceLocator, LauncherState},
     features::{
-        plugins::{self, FsPluginSettingsStorage, PluginMetadata, PluginSettings},
+        plugins::{
+            self, EditPluginSettings, FsPluginSettingsStorage, PluginManifest, PluginSettings,
+        },
         settings::{FsSettingsStorage, SettingsStorage},
     },
 };
@@ -18,39 +20,37 @@ async fn get_plugin_settings_storage() -> crate::Result<FsPluginSettingsStorage>
 
 #[tracing::instrument]
 pub async fn scan() -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let mut plugin_manager = state.plugin_manager.write().await;
+    let service_locator = ServiceLocator::get().await?;
+    let mut plugin_service = service_locator.plugin_service.write().await;
 
-    plugin_manager
-        .scan_plugins(&state.locations.plugins_dir())
-        .await
+    plugin_service.scan_plugins().await
 }
 
 #[tracing::instrument]
-pub async fn list() -> crate::Result<Vec<PluginMetadata>> {
-    let state = LauncherState::get().await?;
-    let plugin_manager = state.plugin_manager.read().await;
+pub async fn list() -> crate::Result<Vec<PluginManifest>> {
+    let service_locator = ServiceLocator::get().await?;
+    let plugin_service = service_locator.plugin_service.read().await;
 
-    Ok(plugin_manager
-        .get_plugins()
-        .map(|value| value.metadata.clone())
+    Ok(plugin_service
+        .list()
+        .map(|value| value.manifest.clone())
         .collect())
 }
 
 #[tracing::instrument]
-pub async fn get(id: &str) -> crate::Result<PluginMetadata> {
-    let state = LauncherState::get().await?;
-    let plugin_manager = state.plugin_manager.read().await;
+pub async fn get(id: &str) -> crate::Result<PluginManifest> {
+    let service_locator = ServiceLocator::get().await?;
+    let plugin_service = service_locator.plugin_service.read().await;
 
-    Ok(plugin_manager.get_plugin(id)?.metadata.clone())
+    Ok(plugin_service.get(id)?.manifest.clone())
 }
 
 #[tracing::instrument]
 pub async fn is_enabled(id: &str) -> crate::Result<bool> {
-    let state = LauncherState::get().await?;
-    let plugin_manager = state.plugin_manager.read().await;
+    let service_locator = ServiceLocator::get().await?;
+    let plugin_service = service_locator.plugin_service.read().await;
 
-    if let Ok(plugin) = plugin_manager.get_plugin(id) {
+    if let Ok(plugin) = plugin_service.get(id) {
         return Ok(plugin.is_loaded());
     }
 
@@ -60,12 +60,13 @@ pub async fn is_enabled(id: &str) -> crate::Result<bool> {
 #[tracing::instrument]
 pub async fn enable(id: &str) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    let mut plugin_manager = state.plugin_manager.write().await;
+    let service_locator = ServiceLocator::get().await?;
 
-    plugin_manager.load_plugin(id).await?;
+    let mut plugin_service = service_locator.plugin_service.write().await;
+
+    plugin_service.load_plugin(id).await?;
 
     let settings_storage = get_settings_storage(&state);
-
     let mut settings = settings_storage.get().await?;
     if !settings.enabled_plugins.contains(id) {
         settings.enabled_plugins.insert(id.to_owned());
@@ -78,12 +79,13 @@ pub async fn enable(id: &str) -> crate::Result<()> {
 #[tracing::instrument]
 pub async fn disable(id: &str) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    let mut plugin_manager = state.plugin_manager.write().await;
+    let service_locator = ServiceLocator::get().await?;
 
-    plugin_manager.unload_plugin(id).await?;
+    let mut plugin_service = service_locator.plugin_service.write().await;
+
+    plugin_service.unload_plugin(id).await?;
 
     let settings_storage = get_settings_storage(&state);
-
     let mut settings = settings_storage.get().await?;
     if !settings.enabled_plugins.contains(id) {
         settings.enabled_plugins.remove(id);
@@ -95,10 +97,11 @@ pub async fn disable(id: &str) -> crate::Result<()> {
 
 #[tracing::instrument]
 pub async fn call(id: &str, data: &str) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let plugin_manager = state.plugin_manager.read().await;
+    let service_locator = ServiceLocator::get().await?;
 
-    let _plugin = plugin_manager.get_plugin(id)?;
+    let plugin_service = service_locator.plugin_service.read().await;
+
+    let _plugin = plugin_service.get(id)?;
 
     log::debug!("Calling plugin {:?}", id);
     // plugin.plugin.call(data).await?;
@@ -112,6 +115,6 @@ pub async fn get_settings(id: &str) -> crate::Result<PluginSettings> {
 }
 
 #[tracing::instrument]
-pub async fn edit_settings(id: &str, new_settings: &PluginSettings) -> crate::Result<()> {
-    plugins::edit_plugin_settings(&get_plugin_settings_storage().await?, id, new_settings).await
+pub async fn edit_settings(id: &str, edit_settings: &EditPluginSettings) -> crate::Result<()> {
+    plugins::edit_plugin_settings(&get_plugin_settings_storage().await?, id, edit_settings).await
 }

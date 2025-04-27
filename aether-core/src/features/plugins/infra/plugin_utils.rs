@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     core::LauncherState,
-    features::{plugins::plugin_state::get_default_allowed_paths, settings::SerializableCommand},
+    features::{plugins::get_default_allowed_paths, settings::SerializableCommand},
 };
 
 pub fn plugin_path_to_relative<I, T>(
@@ -49,7 +49,7 @@ pub fn plugin_path_to_host(id: &str, path: &str) -> crate::Result<PathBuf> {
     let cleaned_path_str = path.strip_prefix('#').unwrap_or(path);
     let cleaned_path_start_segment = get_first_segment(cleaned_path_str);
 
-    let allowed_paths = get_default_allowed_paths(&state, id);
+    let allowed_paths = get_default_allowed_paths(&state.locations, id);
     let base_dir = allowed_paths
         .get(cleaned_path_start_segment)
         .ok_or_else(|| {

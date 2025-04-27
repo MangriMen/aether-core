@@ -1,11 +1,11 @@
 use std::{path::PathBuf, sync::Arc};
 
-use tokio::sync::{OnceCell, RwLock, Semaphore};
+use tokio::sync::{OnceCell, Semaphore};
 
 use crate::{
+    core::domain::ServiceLocator,
     features::{
         instance::{fs_watcher, FsWatcher},
-        plugins::PluginManager,
         process::{InMemoryProcessManager, ProcessManager},
         settings::{LocationInfo, Settings},
     },
@@ -30,7 +30,6 @@ pub struct LauncherState<PM: ProcessManager = InMemoryProcessManager> {
     pub api_semaphore: Arc<FetchSemaphore>,
     /// Process manager
     pub process_manager: PM,
-    pub plugin_manager: RwLock<PluginManager>,
     pub(crate) file_watcher: Arc<FsWatcher>,
     // pub(crate) pool: SqlitePool,
 }
@@ -91,18 +90,20 @@ impl LauncherState {
         let file_watcher = Arc::new(fs_watcher::init_watcher().await?);
         fs_watcher::watch_instances(&file_watcher, &locations).await;
 
-        log::info!("Initialize plugin manager");
-        let plugin_manager = RwLock::new(PluginManager::default());
-
         log::info!("State initialized");
 
-        Ok(Arc::new(Self {
+        log::info!("Initializing service locator");
+
+        let state = Arc::new(Self {
             locations,
             fetch_semaphore,
             api_semaphore,
             process_manager,
-            plugin_manager,
             file_watcher,
-        }))
+        });
+
+        ServiceLocator::init(&state).await?;
+
+        Ok(state)
     }
 }

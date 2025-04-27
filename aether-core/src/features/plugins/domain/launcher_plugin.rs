@@ -3,12 +3,12 @@ use crate::features::{instance::ImportConfig, plugins::PluginError};
 use super::{PluginApi, PluginEvent};
 
 #[derive(Debug)]
-pub struct LauncherPlugin<P: PluginApi = extism::Plugin> {
+pub struct PluginInstance<P: PluginApi = extism::Plugin> {
     pub inner: P,
     pub public_id: String,
 }
 
-impl<P: PluginApi> LauncherPlugin<P> {
+impl<P: PluginApi> PluginInstance<P> {
     fn get_error(&self, e: PluginError) -> crate::Error {
         crate::ErrorKind::PluginCallError(self.public_id.to_string(), e).as_error()
     }

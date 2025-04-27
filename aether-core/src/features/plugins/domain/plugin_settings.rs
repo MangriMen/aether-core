@@ -1,9 +1,12 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
+
+use super::PathMapping;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PluginSettings {
-    pub allowed_hosts: Option<Vec<String>>,
-    pub allowed_paths: Option<Vec<(String, PathBuf)>>,
+    #[serde(default)]
+    pub allowed_hosts: Vec<String>,
+
+    #[serde(default)]
+    pub allowed_paths: Vec<PathMapping>,
 }

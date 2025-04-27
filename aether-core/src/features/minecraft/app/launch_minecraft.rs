@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     api,
-    core::LauncherState,
+    core::{domain::ServiceLocator, LauncherState},
     features::{
         auth::Credentials,
         instance::{Instance, InstanceInstallStage, InstanceManager},
@@ -53,11 +53,12 @@ where
 
     run_pre_launch_command(&pre_launch_command, &instance_path).await?;
 
-    let plugin_manager = state.plugin_manager.read().await;
+    let service_locator = ServiceLocator::get().await?;
+    let plugin_service = &service_locator.plugin_service.read().await;
 
     if let Some(pack_info) = &instance.pack_info {
-        if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
-            if let Some(plugin) = plugin.get_plugin() {
+        if let Ok(plugin) = plugin_service.get(&pack_info.pack_type) {
+            if let Some(plugin) = &plugin.instance {
                 let mut plugin = plugin.lock().await;
                 if plugin.supports_handle_events() {
                     plugin.handle_event(&PluginEvent::BeforeInstanceLaunch {
@@ -215,8 +216,8 @@ where
         .await;
 
     if let Some(pack_info) = &instance.pack_info {
-        if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
-            if let Some(plugin) = plugin.get_plugin() {
+        if let Ok(plugin) = plugin_service.get(&pack_info.pack_type) {
+            if let Some(plugin) = &plugin.instance {
                 let mut plugin = plugin.lock().await;
                 if plugin.supports_handle_events() {
                     plugin.handle_event(&PluginEvent::AfterInstanceLaunch {
