@@ -5,8 +5,6 @@ pub const CACHE_FOLDER_NAME: &str = "cache";
 pub const INSTANCES_FOLDER_NAME: &str = "instances";
 pub const PLUGINS_FOLDER_NAME: &str = "plugins";
 
-pub const CONTENT_METADATA_FILE_NAME: &str = "content.toml";
-
 #[derive(Debug)]
 pub struct LocationInfo {
     pub settings_dir: PathBuf, // Base settings directory - app database
@@ -126,7 +124,7 @@ impl LocationInfo {
     }
 
     #[inline]
-    pub fn instance_content_metadata(&self, id: &str) -> PathBuf {
+    pub fn instance_pack(&self, id: &str) -> PathBuf {
         self.instance_pack_dir(id).join("content.toml")
     }
 

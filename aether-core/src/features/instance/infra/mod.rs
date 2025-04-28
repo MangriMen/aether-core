@@ -1,7 +1,9 @@
-pub mod fs_content_metadata_storage;
+pub mod content_providers;
 pub mod fs_instance_storage;
+pub mod fs_pack_storage;
 pub mod fs_watcher;
 
-pub use fs_content_metadata_storage::*;
+pub use content_providers::*;
 pub use fs_instance_storage::*;
+pub use fs_pack_storage::*;
 pub use fs_watcher::*;

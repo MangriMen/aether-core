@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 
-use crate::shared::StorageError;
-
-use super::Instance;
+use crate::{features::instance::Instance, shared::StorageError};
 
 #[async_trait]
 pub trait InstanceStorage {

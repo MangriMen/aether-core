@@ -51,7 +51,7 @@ where
     let settings = settings_storage.get().await?;
     let instance = instance_manager.get(instance_id).await?;
 
-    let launch_settings = instance::get_merged_settings(&instance, &settings);
+    let launch_settings = instance::resolve_launch_settings(&instance, &settings);
 
     launch_minecraft(
         instance_manager,

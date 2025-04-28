@@ -1,3 +1,12 @@
+use serde::{Deserialize, Serialize};
+
+use crate::features::{
+    instance::{ContentItem, ContentSearchParams, ContentType},
+    minecraft::ModLoader,
+};
+
+use super::get_facet;
+
 pub const MODRINTH_API_URL: &str = "https://api.modrinth.com/v2";
 
 lazy_static::lazy_static! {
@@ -11,13 +20,13 @@ lazy_static::lazy_static! {
     };
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ModrinthProviderData {
     pub project_id: String,
 }
 
-#[derive(serde::Serialize)]
-pub struct SearchProjectsParams {
+#[derive(Serialize)]
+pub struct ProjectSearchParams {
     pub index: &'static str,
     pub offset: i64,
     pub limit: i64,
@@ -26,15 +35,15 @@ pub struct SearchProjectsParams {
     pub query: Option<String>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct SearchProjectsResponse {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProjectSearchResponse {
     pub hits: Vec<Hit>,
     pub offset: i64,
     pub limit: i64,
     pub total_hits: i64,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Hit {
     pub project_id: String,
     pub project_type: String,
@@ -59,7 +68,7 @@ pub struct Hit {
     pub color: Option<i64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectVersionResponse {
     pub game_versions: Vec<String>,
     pub loaders: Vec<String>,
@@ -80,7 +89,7 @@ pub struct ProjectVersionResponse {
     pub dependencies: Vec<Option<serde_json::Value>>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct File {
     pub hashes: Hashes,
     pub url: String,
@@ -90,13 +99,13 @@ pub struct File {
     pub file_type: Option<serde_json::Value>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Hashes {
     pub sha1: String,
     pub sha512: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ModrinthProjectResponse {
     pub client_side: String,
     pub server_side: String,
@@ -136,14 +145,14 @@ pub struct ModrinthProjectResponse {
     pub monetization_status: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct License {
     pub id: String,
     pub name: String,
     pub url: Option<serde_json::Value>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ListProjectVersionsParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub loaders: Option<Vec<String>>,
@@ -152,8 +161,77 @@ pub struct ListProjectVersionsParams {
 
 pub type ListProjectsVersionsResponse = Vec<ProjectVersionResponse>;
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ModrinthUpdateData {
     pub project_id: String,
     pub version: String,
+}
+
+impl TryFrom<ContentSearchParams> for ProjectSearchParams {
+    type Error = serde_json::Error;
+
+    fn try_from(value: ContentSearchParams) -> Result<Self, Self::Error> {
+        let categories = match value.content_type {
+            ContentType::Mod => match value.loader {
+                ModLoader::Vanilla => None,
+                loader => Some(get_facet("categories", &[loader.as_meta_str().to_owned()])),
+            },
+            _ => None,
+        };
+
+        let versions = value
+            .game_versions
+            .as_ref()
+            .map(|game_versions| get_facet("versions", game_versions));
+
+        let project_types = get_facet("project_type", &[value.content_type.get_name().to_owned()]);
+
+        let mut facets: Vec<Vec<String>> = Vec::new();
+
+        if let Some(categories) = categories {
+            facets.push(categories);
+        }
+
+        if let Some(versions) = versions {
+            facets.push(versions);
+        }
+
+        facets.push(project_types);
+
+        let facets_string = serde_json::to_string(&facets)?;
+
+        Ok(Self {
+            index: "relevance",
+            offset: (value.page - 1) * value.page_size,
+            limit: value.page_size,
+            facets: facets_string,
+            query: value.query.clone(),
+        })
+    }
+}
+
+impl TryFrom<Hit> for ContentItem {
+    type Error = serde_json::Error;
+
+    fn try_from(value: Hit) -> Result<Self, Self::Error> {
+        let content_type =
+            ContentType::from_string(&value.project_type).unwrap_or(ContentType::Mod);
+        let url = format!("https://modrinth.com/mod/{}", value.slug);
+
+        let provider_data = Some(serde_json::to_value(&ModrinthProviderData {
+            project_id: value.project_id.to_owned(),
+        })?);
+
+        Ok(Self {
+            id: value.slug.clone(),
+            name: value.title.clone(),
+            description: Some(value.description.clone()),
+            content_type,
+            url,
+            author: value.author.clone(),
+            icon_url: value.icon_url.clone(),
+            versions: value.versions.clone(),
+            provider_data,
+        })
+    }
 }

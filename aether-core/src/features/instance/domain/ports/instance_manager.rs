@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::Instance;
+use crate::features::instance::Instance;
 
 #[async_trait]
 pub trait InstanceManager {

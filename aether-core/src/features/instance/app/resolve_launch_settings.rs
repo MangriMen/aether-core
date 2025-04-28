@@ -4,7 +4,7 @@ use crate::features::{
     settings::{Hooks, Settings},
 };
 
-pub fn get_merged_settings(instance: &Instance, settings: &Settings) -> LaunchSettings {
+pub fn resolve_launch_settings(instance: &Instance, settings: &Settings) -> LaunchSettings {
     LaunchSettings {
         extra_launch_args: instance
             .extra_launch_args

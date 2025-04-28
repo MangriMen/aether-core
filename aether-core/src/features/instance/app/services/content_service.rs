@@ -9,30 +9,27 @@ use path_slash::PathBufExt;
 use crate::{
     features::{
         events::{emit_instance, InstancePayloadType},
-        instance::{
-            ContentMetadataEntry, ContentMetadataFile, ContentMetadataStorage, ContentType,
-            InstanceFile,
-        },
+        instance::{ContentType, InstanceFile, PackEntry, PackFile, PackStorage},
         settings::LocationInfo,
     },
     shared::{read_async, remove_file, rename, sha1_async, IOError},
 };
 
-pub struct ContentService<CMS>
+pub struct ContentService<PS>
 where
-    CMS: ContentMetadataStorage,
+    PS: PackStorage,
 {
-    content_metadata_storage: CMS,
+    pack_storage: PS,
     location_info: Arc<LocationInfo>,
 }
 
-impl<CS> ContentService<CS>
+impl<PS> ContentService<PS>
 where
-    CS: ContentMetadataStorage + Send + Sync,
+    PS: PackStorage + Send + Sync,
 {
-    pub fn new(content_metadata_storage: CS, location_info: Arc<LocationInfo>) -> Self {
+    pub fn new(pack_storage: PS, location_info: Arc<LocationInfo>) -> Self {
         Self {
-            content_metadata_storage,
+            pack_storage,
             location_info,
         }
     }
@@ -43,15 +40,15 @@ where
         content_type: ContentType,
         source_paths: &[&Path],
     ) -> crate::Result<()> {
-        let (content_paths, content_metadata_files) = self
+        let (content_paths, pack_files) = self
             .prepare_import_data(instance_id, content_type, source_paths)
             .await?;
 
         self.copy_import_files(instance_id, source_paths, &content_paths)
             .await?;
 
-        self.content_metadata_storage
-            .update_content_metadata_file_many(instance_id, &content_paths, &content_metadata_files)
+        self.pack_storage
+            .update_pack_file_many(instance_id, &content_paths, &pack_files)
             .await?;
 
         self.notify_instance_updated(instance_id).await?;
@@ -95,8 +92,8 @@ where
             remove_file(instance_dir.join(content_path)).await?;
         }
 
-        self.content_metadata_storage
-            .remove_content_metadata_file_many(instance_id, content_paths)
+        self.pack_storage
+            .remove_pack_file_many(instance_id, content_paths)
             .await?;
 
         self.notify_instance_updated(instance_id).await?;
@@ -194,11 +191,8 @@ where
     async fn get_entries_by_path(
         &self,
         instance_id: &str,
-    ) -> crate::Result<DashMap<String, ContentMetadataEntry>> {
-        let metadata = self
-            .content_metadata_storage
-            .get_content_metadata(instance_id)
-            .await?;
+    ) -> crate::Result<DashMap<String, PackEntry>> {
+        let metadata = self.pack_storage.get_pack(instance_id).await?;
 
         Ok(metadata
             .files
@@ -212,7 +206,7 @@ where
         instance_id: &str,
         instance_dir: &Path,
         content_type: ContentType,
-        entries_by_path: &DashMap<String, ContentMetadataEntry>,
+        entries_by_path: &DashMap<String, PackEntry>,
         files: &mut DashMap<String, InstanceFile>,
     ) -> crate::Result<()> {
         let content_dir = instance_dir.join(content_type.get_folder());
@@ -246,7 +240,7 @@ where
         instance_id: &str,
         file_path: &Path,
         content_type: ContentType,
-        entries_by_path: &DashMap<String, ContentMetadataEntry>,
+        entries_by_path: &DashMap<String, PackEntry>,
     ) -> crate::Result<Option<InstanceFile>> {
         let file_name = match file_path.file_name().and_then(|n| n.to_str()) {
             Some(name) => name,
@@ -260,36 +254,32 @@ where
             .to_slash_lossy()
             .to_string();
 
-        let content_metadata_file_path = original_path.trim_end_matches(".disabled").to_string();
+        let pack_file_path = original_path.trim_end_matches(".disabled").to_string();
 
-        let content_metadata_file = match entries_by_path.get(&content_metadata_file_path) {
+        let pack_file = match entries_by_path.get(&pack_file_path) {
             Some(entry) => {
-                self.content_metadata_storage
-                    .get_content_metadata_file(instance_id, &entry.file)
+                self.pack_storage
+                    .get_pack_file(instance_id, &entry.file)
                     .await?
             }
             None => {
-                let content_metadata_file = content_metadata_for_file(file_path, file_name).await?;
-                self.content_metadata_storage
-                    .update_content_metadata_file(
-                        instance_id,
-                        &content_metadata_file_path,
-                        &content_metadata_file,
-                    )
+                let pack_file = file_to_pack_file(file_path, file_name).await?;
+                self.pack_storage
+                    .update_pack_file(instance_id, &pack_file_path, &pack_file)
                     .await?;
-                content_metadata_file
+                pack_file
             }
         };
 
         Ok(Some(InstanceFile {
-            name: content_metadata_file.name,
-            hash: content_metadata_file.hash,
+            name: pack_file.name,
+            hash: pack_file.hash,
             file_name: file_name.to_string(),
             content_type,
             size: file_size,
             disabled: file_name.ends_with(".disabled"),
             path: original_path,
-            update: content_metadata_file.update,
+            update: pack_file.update,
         }))
     }
 
@@ -298,7 +288,7 @@ where
         instance_id: &str,
         content_type: ContentType,
         source_paths: &[&Path],
-    ) -> crate::Result<(Vec<String>, Vec<ContentMetadataFile>)> {
+    ) -> crate::Result<(Vec<String>, Vec<PackFile>)> {
         let mut paths = Vec::with_capacity(source_paths.len());
         let mut metadata_files = Vec::with_capacity(source_paths.len());
 
@@ -319,7 +309,7 @@ where
         instance_id: &str,
         content_type: ContentType,
         path: &Path,
-    ) -> crate::Result<(String, ContentMetadataFile)> {
+    ) -> crate::Result<(String, PackFile)> {
         let content_folder = content_type.get_folder();
 
         let file_name = path.file_name().and_then(|n| n.to_str()).ok_or_else(|| {
@@ -344,18 +334,18 @@ where
             return Err(duplicate_error.as_error());
         }
 
-        let content_metadata_file = self
-            .content_metadata_storage
-            .get_content_metadata_file(instance_id, &content_path)
+        let pack_file = self
+            .pack_storage
+            .get_pack_file(instance_id, &content_path)
             .await;
 
-        if content_metadata_file.is_ok() {
+        if pack_file.is_ok() {
             return Err(duplicate_error.as_error());
         }
 
-        let content_metadata_file = content_metadata_for_file(path, file_name).await?;
+        let pack_file = file_to_pack_file(path, file_name).await?;
 
-        Ok((content_path, content_metadata_file))
+        Ok((content_path, pack_file))
     }
 
     async fn copy_import_files(
@@ -376,14 +366,11 @@ where
     }
 }
 
-async fn content_metadata_for_file(
-    file_path: &Path,
-    file_name: &str,
-) -> crate::Result<ContentMetadataFile> {
+async fn file_to_pack_file(file_path: &Path, file_name: &str) -> crate::Result<PackFile> {
     let file_content = read_async(&file_path).await?;
     let hash = sha1_async(file_content).await?;
 
-    Ok(ContentMetadataFile {
+    Ok(PackFile {
         file_name: file_name.to_string(),
         name: None,
         hash: hash.clone(),

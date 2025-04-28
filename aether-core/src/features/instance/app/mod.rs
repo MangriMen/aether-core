@@ -1,19 +1,7 @@
-pub mod app_utils;
-pub mod content_service;
-pub mod create_instance_path_without_duplicates;
 pub mod dto;
-pub mod get_merged_settings;
-pub mod instance_manager_impl;
-pub mod instance_service;
-pub mod remove_instance;
-pub mod sanitize_instance_name;
+pub mod resolve_launch_settings;
+pub mod services;
 
-pub use app_utils::*;
-pub use content_service::*;
-pub use create_instance_path_without_duplicates::*;
 pub use dto::*;
-pub use get_merged_settings::*;
-pub use instance_manager_impl::*;
-pub use instance_service::*;
-pub use remove_instance::*;
-pub use sanitize_instance_name::*;
+pub use resolve_launch_settings::*;
+pub use services::*;

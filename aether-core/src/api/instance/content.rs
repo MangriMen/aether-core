@@ -3,20 +3,19 @@ use std::{collections::HashMap, path::Path};
 use dashmap::DashMap;
 
 use crate::{
-    core::LauncherState,
+    core::{domain::ServiceLocator, LauncherState},
     features::instance::{
-        content_provider, ContentMetadataFile, ContentMetadataStorage, ContentRequest,
-        ContentResponse, ContentService, ContentType, FsContentMetadataStorage,
-        InstallContentPayload, InstanceFile,
+        ContentInstallParams, ContentSearchParams, ContentSearchResult, ContentService,
+        ContentType, FsPackStorage, InstanceFile,
     },
 };
 
-fn get_content_metadata_storage(state: &LauncherState) -> FsContentMetadataStorage {
-    FsContentMetadataStorage::new(state.locations.clone())
+fn get_pack_storage(state: &LauncherState) -> FsPackStorage {
+    FsPackStorage::new(state.locations.clone())
 }
 
-fn get_service(state: &LauncherState) -> ContentService<FsContentMetadataStorage> {
-    ContentService::new(get_content_metadata_storage(state), state.locations.clone())
+fn get_service(state: &LauncherState) -> ContentService<FsPackStorage> {
+    ContentService::new(get_pack_storage(state), state.locations.clone())
 }
 
 pub async fn get_contents(instance_id: &str) -> crate::Result<DashMap<String, InstanceFile>> {
@@ -86,65 +85,41 @@ pub async fn import_contents(
 }
 
 pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
-    Ok(HashMap::from([
-        // ("Curseforge".to_string(), "curseforge".to_string()),
-        ("Modrinth".to_string(), "modrinth".to_string()),
-    ]))
+    let service_locator = ServiceLocator::get().await?;
+
+    service_locator
+        .content_provider_service
+        .list_providers()
+        .await
 }
 
-pub async fn get_content_by_provider(payload: &ContentRequest) -> crate::Result<ContentResponse> {
-    match payload.provider.as_str() {
-        "modrinth" => content_provider::modrinth::search_content(payload).await,
-        _ => Err(crate::ErrorKind::ContentProviderNotFound {
-            provider: payload.provider.to_string(),
-        }
-        .as_error()),
-    }
+pub async fn get_content_by_provider(
+    search_params: &ContentSearchParams,
+) -> crate::Result<ContentSearchResult> {
+    let service_locator = ServiceLocator::get().await?;
+
+    service_locator
+        .content_provider_service
+        .search(search_params)
+        .await
 }
 
-pub async fn get_metadata_field_to_check_installed(provider: &str) -> crate::Result<String> {
-    match provider {
-        "modrinth" => Ok(content_provider::modrinth::get_field_to_check_installed()),
-        _ => Err(crate::ErrorKind::ContentProviderNotFound {
-            provider: provider.to_string(),
-        }
-        .as_error()),
-    }
+pub async fn get_metadata_field_to_check_installed(provider_id: &str) -> crate::Result<String> {
+    let service_locator = ServiceLocator::get().await?;
+
+    service_locator
+        .content_provider_service
+        .get_update_data_id_field(provider_id)
 }
 
 pub async fn install_content(
     instance_id: &str,
-    payload: &InstallContentPayload,
+    install_params: &ContentInstallParams,
 ) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let content_metadata_storage = get_content_metadata_storage(&state);
+    let service_locator = ServiceLocator::get().await?;
 
-    let instance_dir = state.locations.instance_dir(instance_id);
-
-    let instance_file = match payload.provider.as_str() {
-        "modrinth" => content_provider::modrinth::install_content(&instance_dir, payload).await,
-        _ => Err(crate::ErrorKind::ContentProviderNotFound {
-            provider: payload.provider.to_string(),
-        }
-        .as_error()),
-    }?;
-
-    content_metadata_storage
-        .update_content_metadata_file(
-            instance_id,
-            &instance_file.path,
-            &ContentMetadataFile {
-                name: instance_file.name.clone(),
-                file_name: instance_file.file_name.clone(),
-                hash: instance_file.hash,
-                download: None,
-                option: None,
-                side: None,
-                update_provider: Some(payload.provider.to_owned()),
-                update: instance_file.update,
-            },
-        )
-        .await?;
-
-    Ok(())
+    service_locator
+        .content_provider_service
+        .install(instance_id, install_params)
+        .await
 }

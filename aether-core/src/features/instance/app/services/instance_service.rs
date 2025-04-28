@@ -1,18 +1,19 @@
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use chrono::Utc;
 use log::{error, info};
 
 use crate::features::{
     instance::{
-        create_instance_dir, watch_instance, FsWatcher, Instance, InstanceInstallStage,
-        InstanceManager, PackInfo,
+        watch_instance, EditInstance, FsWatcher, Instance, InstanceInstallStage, InstanceManager,
+        NewInstance, PackInfo,
     },
     minecraft::{self, resolve_loader_version, ModLoader, ReadMetadataStorage},
     settings::{Hooks, LocationInfo},
 };
-
-use super::{EditInstance, NewInstance};
 
 pub struct InstanceService<IM>
 where
@@ -57,12 +58,12 @@ where
             pack_info,
         } = new_instance;
 
-        let (instance_path, sanitized_name) =
-            create_instance_dir(name, &self.location_info.instances_dir()).await?;
+        let (instance_dir, sanitized_name) =
+            create_unique_instance_dir(name, &self.location_info.instances_dir()).await?;
 
         info!(
             "Creating instance \"{}\" at path \"{:?}\"",
-            &name, &instance_path
+            &name, &instance_dir
         );
 
         let loader_version = self
@@ -87,7 +88,7 @@ where
             Ok(instance_id) => {
                 info!(
                     "Instance \"{}\" created successfully at path \"{:?}\"",
-                    &instance.name, &instance_path
+                    &instance.name, &instance_dir
                 );
                 Ok(instance_id)
             }
@@ -285,4 +286,36 @@ fn validate_name(name: &str) -> crate::Result<()> {
         return Err(crate::ErrorKind::OtherError("Name cannot be empty".to_string()).into());
     }
     Ok(())
+}
+
+pub async fn create_unique_instance_dir(
+    name: &str,
+    base_dir: &Path,
+) -> crate::Result<(PathBuf, String)> {
+    let (instance_path, sanitized_name) = create_unique_instance_path(name, base_dir);
+    tokio::fs::create_dir_all(&instance_path).await?;
+    Ok((instance_path, sanitized_name))
+}
+
+fn create_unique_instance_path(name: &str, base_dir: &Path) -> (PathBuf, String) {
+    let base_sanitized_name = sanitize_instance_name(name);
+
+    let mut sanitized_name = base_sanitized_name.clone();
+    let mut full_path = base_dir.join(&sanitized_name);
+
+    let mut counter = 1;
+    while full_path.exists() {
+        sanitized_name = format!("{}-{}", base_sanitized_name, counter);
+        full_path = base_dir.join(&sanitized_name);
+        counter += 1;
+    }
+
+    (full_path, sanitized_name)
+}
+
+pub fn sanitize_instance_name(name: &str) -> String {
+    name.replace(
+        ['/', '\\', '?', '*', ':', '\'', '\"', '|', '<', '>', '!'],
+        "_",
+    )
 }
