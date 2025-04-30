@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{OnceCell, Semaphore};
 
 use crate::{
-    core::domain::ServiceLocator,
+    core::domain::{LazyLocator, ServiceLocator},
     features::{
         instance::{fs_watcher, FsWatcher},
         process::{InMemoryProcessManager, ProcessManager},
@@ -103,6 +103,7 @@ impl LauncherState {
         });
 
         ServiceLocator::init(&state).await?;
+        LazyLocator::init(state.clone()).await?;
 
         Ok(state)
     }

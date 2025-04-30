@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use super::Credentials;
+use crate::features::auth::Credentials;
 
 #[async_trait]
 pub trait CredentialsStorage {

@@ -1,32 +1,46 @@
 use uuid::Uuid;
 
 use crate::{
-    core::LauncherState,
-    features::auth::{self, Account, FsCredentialsStorage},
+    core::domain::LazyLocator,
+    features::auth::{
+        Account, CreateOfflineAccountUseCase, GetAccountsUseCase, LogoutUseCase,
+        SetActiveAccountUseCase,
+    },
+    shared::domain::{AsyncUseCase, AsyncUseCaseWithoutInput},
 };
 
-async fn get_storage() -> crate::Result<FsCredentialsStorage> {
-    Ok(FsCredentialsStorage::new(
-        &LauncherState::get().await?.locations.settings_dir,
-    ))
+#[tracing::instrument]
+pub async fn create_offline_account(username: String) -> crate::Result<Uuid> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    CreateOfflineAccountUseCase::new(lazy_locator.get_auth_storage().await)
+        .execute(username)
+        .await
 }
 
 #[tracing::instrument]
 pub async fn get_accounts() -> crate::Result<Vec<Account>> {
-    auth::get_accounts(&get_storage().await?).await
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetAccountsUseCase::new(lazy_locator.get_auth_storage().await)
+        .execute()
+        .await
 }
 
 #[tracing::instrument]
-pub async fn create_offline_account(username: &str) -> crate::Result<Uuid> {
-    auth::create_offline_account(&get_storage().await?, username).await
+pub async fn change_account(id: Uuid) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    SetActiveAccountUseCase::new(lazy_locator.get_auth_storage().await)
+        .execute(id)
+        .await
 }
 
 #[tracing::instrument]
-pub async fn change_account(id: &Uuid) -> crate::Result<()> {
-    auth::set_active_account(&get_storage().await?, id).await
-}
+pub async fn logout(id: Uuid) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-#[tracing::instrument]
-pub async fn logout(id: &Uuid) -> crate::Result<()> {
-    auth::logout(&get_storage().await?, id).await
+    LogoutUseCase::new(lazy_locator.get_auth_storage().await)
+        .execute(id)
+        .await
 }
