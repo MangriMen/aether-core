@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 
-use crate::features::plugins::EditPluginSettings;
-
-use super::PluginSettings;
+use crate::features::plugins::{EditPluginSettings, PluginSettings};
 
 #[async_trait]
 pub trait PluginSettingsManager {

@@ -3,7 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use super::{Plugin, PluginInstance, PluginSettings};
+use crate::features::plugins::{Plugin, PluginSettings};
+
+use super::PluginInstance;
 
 #[async_trait]
 pub trait PluginLoader {

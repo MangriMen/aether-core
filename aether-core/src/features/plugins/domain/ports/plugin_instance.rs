@@ -1,6 +1,9 @@
-use crate::features::{instance::ImportConfig, plugins::PluginError};
+use crate::features::{
+    instance::ImportConfig,
+    plugins::{PluginError, PluginEvent},
+};
 
-use super::{PluginApi, PluginEvent};
+use super::PluginApi;
 
 #[derive(Debug)]
 pub struct PluginInstance<P: PluginApi = extism::Plugin> {

@@ -1,4 +1,4 @@
-use super::PluginError;
+use crate::features::plugins::PluginError;
 
 pub trait PluginApi {
     fn function_exists(&self, func_name: &str) -> bool;

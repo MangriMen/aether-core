@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 
-use super::Plugin;
+use crate::features::plugins::Plugin;
 
 #[async_trait]
 pub trait PluginStorage {
