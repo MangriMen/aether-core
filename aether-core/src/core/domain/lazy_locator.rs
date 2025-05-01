@@ -6,6 +6,7 @@ use crate::{
     features::{
         auth::FsCredentialsStorage,
         instance::{FsInstanceStorage, InstanceManagerImpl},
+        java::infra::FsJavaStorage,
         process::InMemoryProcessManager,
         settings::FsSettingsStorage,
     },
@@ -24,6 +25,7 @@ pub struct LazyLocator {
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
     process_manager: OnceCell<Arc<InMemoryProcessManager>>,
     instance_manager: OnceCell<Arc<InstanceManagerImpl<FsInstanceStorage>>>,
+    java_storage: OnceCell<Arc<FsJavaStorage>>,
 }
 
 impl LazyLocator {
@@ -38,6 +40,7 @@ impl LazyLocator {
                     settings_storage: OnceCell::new(),
                     process_manager: OnceCell::new(),
                     instance_manager: OnceCell::new(),
+                    java_storage: OnceCell::new(),
                 })
             })
             .await;
@@ -136,6 +139,15 @@ impl LazyLocator {
                 Arc::new(InstanceManagerImpl::new(FsInstanceStorage::new(
                     self.state.locations.clone(),
                 )))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_java_storage(&self) -> Arc<FsJavaStorage> {
+        self.java_storage
+            .get_or_init(|| async {
+                Arc::new(FsJavaStorage::new(&self.state.locations.java_dir()))
             })
             .await
             .clone()

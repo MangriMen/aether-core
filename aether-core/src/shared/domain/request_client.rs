@@ -20,3 +20,38 @@ pub struct Request {
     pub sha1: Option<String>,
     pub body: Option<Vec<u8>>,
 }
+
+impl Request {
+    pub fn new(method: Method, url: String) -> Self {
+        Self {
+            method,
+            url,
+            headers: None,
+            sha1: None,
+            body: None,
+        }
+    }
+
+    pub fn get(url: impl Into<String>) -> Self {
+        Self::new(Method::GET, url.into())
+    }
+
+    pub fn post(url: impl Into<String>) -> Self {
+        Self::new(Method::POST, url.into())
+    }
+
+    pub fn with_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
+        self.headers = Some(headers);
+        self
+    }
+
+    pub fn with_sha1(mut self, sha1: impl Into<String>) -> Self {
+        self.sha1 = Some(sha1.into());
+        self
+    }
+
+    pub fn with_body(mut self, body: Vec<u8>) -> Self {
+        self.body = Some(body);
+        self
+    }
+}

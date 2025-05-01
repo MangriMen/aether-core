@@ -1,30 +1,49 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
-use crate::features::java::{Java, JavaError, JavaStorage};
+use async_trait::async_trait;
 
-use super::construct_java_from_jre;
+use crate::{
+    features::java::{Java, JavaError, JavaInstallationService, JavaStorage},
+    shared::domain::AsyncUseCaseWithInputAndError,
+};
 
-pub async fn get_java<S>(storage: &S, version: u32) -> crate::Result<Java>
-where
-    S: JavaStorage + ?Sized,
-{
-    let java = storage.get(version).await?;
+pub struct GetJavaUseCase<JS: JavaStorage, JIS: JavaInstallationService> {
+    storage: Arc<JS>,
+    java_installation_service: JIS,
+}
 
-    let get_error = || JavaError::NoJREFound { version };
-
-    if let Some(java) = java {
-        Ok(construct_java_from_jre(Path::new(&java.path))
-            .await
-            .ok_or_else(get_error)?)
-    } else {
-        Err(get_error().into())
+impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
+    pub fn new(storage: Arc<JS>, java_installation_service: JIS) -> Self {
+        Self {
+            storage,
+            java_installation_service,
+        }
     }
 }
 
-pub async fn get_java_from_path(path: &Path) -> crate::Result<Java> {
-    Ok(construct_java_from_jre(path)
-        .await
-        .ok_or_else(|| JavaError::NoJREFoundAtPath {
-            path: path.to_path_buf(),
-        })?)
+#[async_trait]
+impl<JS, JIS> AsyncUseCaseWithInputAndError for GetJavaUseCase<JS, JIS>
+where
+    JS: JavaStorage + Send + Sync,
+    JIS: JavaInstallationService + Send + Sync,
+{
+    type Input = u32;
+    type Output = Java;
+    type Error = crate::Error;
+
+    async fn execute(&self, version: Self::Input) -> Result<Self::Output, Self::Error> {
+        let java = self.storage.get(version).await?;
+
+        let get_error = || JavaError::NotFound { version };
+
+        if let Some(java) = java {
+            Ok(self
+                .java_installation_service
+                .locate_java(Path::new(&java.path))
+                .await
+                .ok_or_else(get_error)?)
+        } else {
+            Err(get_error().into())
+        }
+    }
 }

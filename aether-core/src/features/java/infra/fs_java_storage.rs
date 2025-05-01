@@ -33,6 +33,10 @@ impl FsJavaStorage {
 
 #[async_trait]
 impl JavaStorage for FsJavaStorage {
+    async fn list(&self) -> crate::Result<Vec<Java>> {
+        self.ensure_read().await
+    }
+
     async fn get(&self, version: u32) -> crate::Result<Option<Java>> {
         Ok(self
             .ensure_read()

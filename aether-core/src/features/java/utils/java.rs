@@ -2,36 +2,43 @@ use std::{path::Path, process::Command};
 
 use crate::features::java::JavaError;
 
-pub fn get_java_version_and_arch_from_jre(path: &Path) -> (Option<String>, Option<String>) {
+#[derive(Debug, Default)]
+pub struct JavaProperties {
+    pub version: Option<String>,
+    pub architecture: Option<String>,
+}
+
+pub fn get_java_properties(path: &Path) -> Result<JavaProperties, JavaError> {
     let output = Command::new(path)
         .arg("-XshowSettings:properties")
         .arg("-version")
         .env_remove("_JAVA_OPTIONS")
-        .output();
+        .output()
+        .map_err(|e| JavaError::FailedToGetProperties {
+            reason: e.to_string(),
+        })?;
 
-    let stdout = match &output {
-        Ok(output) => String::from_utf8_lossy(if output.stdout.is_empty() {
-            &output.stderr
-        } else {
-            &output.stdout
-        }),
-        Err(_) => return (None, None),
-    };
+    let mut combined_output = String::new();
+    combined_output.push_str(&String::from_utf8_lossy(&output.stdout));
+    combined_output.push_str(&String::from_utf8_lossy(&output.stderr));
 
-    let mut java_version = None;
-    let mut java_arch = None;
+    let mut version = None;
+    let mut architecture = None;
 
-    for line in stdout.lines() {
+    for line in combined_output.lines() {
         let (key, value) = line.split_once('=').unwrap_or(("", ""));
 
         match key.trim() {
-            "os.arch" => java_arch = Some(value.trim().to_string()),
-            "java.version" => java_version = Some(value.trim().to_string()),
+            "os.arch" => architecture = Some(value.trim().to_string()),
+            "java.version" => version = Some(value.trim().to_string()),
             _ => {}
         }
     }
 
-    (java_version, java_arch)
+    Ok(JavaProperties {
+        version,
+        architecture,
+    })
 }
 
 /// Extracts the major and minor version from a Java version string.
@@ -42,7 +49,7 @@ pub fn get_java_version_and_arch_from_jre(path: &Path) -> (Option<String>, Optio
 /// - "1.8.0_361" -> (1, 8)
 /// - "20" -> (1, 20)
 pub fn extract_java_major_minor_version(version: &str) -> Result<(u32, u32), JavaError> {
-    let get_error = || JavaError::InvalidJREVersion {
+    let get_error = || JavaError::InvalidVersion {
         version: version.to_string(),
     };
 

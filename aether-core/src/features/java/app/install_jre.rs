@@ -1,26 +1,29 @@
-use std::path::{Path, PathBuf};
+use std::{path::PathBuf, sync::Arc};
 
-use crate::{features::java::infra::azul_provider, shared::FetchSemaphore};
+use async_trait::async_trait;
 
-pub enum JreProvider {
-    Azul,
+use crate::{features::java::ports::JreProvider, shared::domain::AsyncUseCaseWithInputAndError};
+
+pub struct InstallJreUseCase<JP: JreProvider> {
+    provider: Arc<JP>,
 }
 
-pub async fn install_jre(
-    version: u32,
-    java_dir: &Path,
-    fetch_semaphore: &FetchSemaphore,
-) -> crate::Result<PathBuf> {
-    install_jre_with_provider(version, JreProvider::Azul, java_dir, fetch_semaphore).await
+impl<JP: JreProvider> InstallJreUseCase<JP> {
+    pub fn new(provider: Arc<JP>) -> Self {
+        Self { provider }
+    }
 }
 
-pub async fn install_jre_with_provider(
-    version: u32,
-    provider: JreProvider,
-    java_dir: &Path,
-    fetch_semaphore: &FetchSemaphore,
-) -> crate::Result<PathBuf> {
-    match provider {
-        JreProvider::Azul => azul_provider::install_jre(version, java_dir, fetch_semaphore).await,
+#[async_trait]
+impl<JP> AsyncUseCaseWithInputAndError for InstallJreUseCase<JP>
+where
+    JP: JreProvider + Send + Sync,
+{
+    type Input = (u32, PathBuf);
+    type Output = PathBuf;
+    type Error = crate::Error;
+
+    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
+        self.provider.install(input.0, &input.1).await
     }
 }
