@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use tokio::sync::OnceCell;
 
-use crate::features::{auth::FsCredentialsStorage, settings::FsSettingsStorage};
+use crate::{
+    features::{auth::FsCredentialsStorage, settings::FsSettingsStorage},
+    shared::infra::{ReqwestClient, REQWEST_CLIENT},
+};
 
 use super::{ErrorKind, LauncherState};
 
@@ -10,6 +13,8 @@ static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 
 pub struct LazyLocator {
     state: Arc<LauncherState>,
+    request_client: OnceCell<Arc<ReqwestClient>>,
+    api_client: OnceCell<Arc<ReqwestClient>>,
     auth_storage: OnceCell<Arc<FsCredentialsStorage>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
 }
@@ -20,6 +25,8 @@ impl LazyLocator {
             .get_or_init(|| async {
                 Arc::new(Self {
                     state,
+                    request_client: OnceCell::new(),
+                    api_client: OnceCell::new(),
                     auth_storage: OnceCell::new(),
                     settings_storage: OnceCell::new(),
                 })
@@ -61,6 +68,30 @@ impl LazyLocator {
         }
 
         Ok(())
+    }
+
+    pub async fn get_request_client(&self) -> Arc<ReqwestClient> {
+        self.request_client
+            .get_or_init(|| async {
+                Arc::new(ReqwestClient::new(
+                    (*REQWEST_CLIENT).clone(),
+                    self.state.fetch_semaphore.clone(),
+                ))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_api_client(&self) -> Arc<ReqwestClient> {
+        self.api_client
+            .get_or_init(|| async {
+                Arc::new(ReqwestClient::new(
+                    (*REQWEST_CLIENT).clone(),
+                    self.state.api_semaphore.clone(),
+                ))
+            })
+            .await
+            .clone()
     }
 
     pub async fn get_auth_storage(&self) -> Arc<FsCredentialsStorage> {

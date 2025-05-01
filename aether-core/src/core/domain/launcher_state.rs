@@ -21,7 +21,7 @@ pub struct LauncherState<PM: ProcessManager = InMemoryProcessManager> {
     // Information about files location
     pub locations: Arc<LocationInfo>,
     /// Semaphore used to limit concurrent network requests and avoid errors
-    pub fetch_semaphore: FetchSemaphore,
+    pub fetch_semaphore: Arc<FetchSemaphore>,
 
     // /// Semaphore used to limit concurrent I/O and avoid errors
     // pub io_semaphore: IoSemaphore,
@@ -76,7 +76,9 @@ impl LauncherState {
         });
 
         log::info!("Initialize fetch semaphore");
-        let fetch_semaphore = FetchSemaphore(Semaphore::new(settings.max_concurrent_downloads));
+        let fetch_semaphore = Arc::new(FetchSemaphore(Semaphore::new(
+            settings.max_concurrent_downloads,
+        )));
 
         log::info!("Initialize api semaphore");
         let api_semaphore = Arc::new(FetchSemaphore(Semaphore::new(
