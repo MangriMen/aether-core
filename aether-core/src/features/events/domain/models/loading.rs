@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use uuid::Uuid;
 
-use super::{EventError, EventState, LauncherEvent};
+use crate::features::events::EventState;
+
+use super::{EventError, LauncherEvent};
 
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -18,7 +21,7 @@ pub struct LoadingBar {
     pub bar_type: LoadingBarType,
 }
 
-#[derive(serde::Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct LoadingBarId(pub Uuid);
 
 // When Loading bar id is dropped, we should remove it from the hashmap
@@ -57,7 +60,7 @@ impl Drop for LoadingBarId {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
 pub enum LoadingBarType {
@@ -111,7 +114,7 @@ pub enum LoadingBarType {
     },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadingPayload {
     pub event: LoadingBarType,

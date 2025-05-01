@@ -1,23 +1,9 @@
 use tauri::Emitter;
 use uuid::Uuid;
 
-use super::{EventError, EventState, LauncherEvent};
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ProcessPayload {
-    pub instance_id: String,
-    pub uuid: Uuid,
-    pub event: ProcessPayloadType,
-    pub message: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "snake_case")]
-pub enum ProcessPayloadType {
-    Launched,
-    Finished,
-}
+use crate::features::events::{
+    EventError, EventState, LauncherEvent, ProcessPayload, ProcessPayloadType,
+};
 
 pub async fn emit_process(
     id: &str,

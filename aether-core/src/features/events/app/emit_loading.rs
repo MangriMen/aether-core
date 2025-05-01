@@ -1,11 +1,8 @@
 use tauri::Emitter;
 use uuid::Uuid;
 
-use crate::features::events::WarningPayload;
-
-use super::{
-    EventError, EventState, InstancePayload, InstancePayloadType, LauncherEvent, LoadingBar,
-    LoadingBarId, LoadingBarType, LoadingPayload, ProcessPayload, ProcessPayloadType,
+use crate::features::events::{
+    EventError, EventState, LauncherEvent, LoadingBar, LoadingBarId, LoadingBarType, LoadingPayload,
 };
 
 pub async fn init_loading_unsafe(
@@ -122,65 +119,5 @@ pub async fn edit_loading(
 
     emit_loading(id, 0.0, None).await?;
 
-    Ok(())
-}
-
-// emit_profile(path, event)
-pub async fn emit_instance(instance_id: &str, event: InstancePayloadType) -> crate::Result<()> {
-    let event_state = EventState::get()?;
-
-    if let Some(app_handle) = &event_state.app {
-        app_handle
-            .emit(
-                LauncherEvent::Instance.as_str(),
-                InstancePayload {
-                    instance_path_id: instance_id.to_string(),
-                    event,
-                },
-            )
-            .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)))?;
-    }
-    Ok(())
-}
-
-pub async fn emit_process(
-    id: &str,
-    uuid: Uuid,
-    event: ProcessPayloadType,
-    message: &str,
-) -> crate::Result<()> {
-    let event_state = EventState::get()?;
-
-    if let Some(app_handle) = &event_state.app {
-        app_handle
-            .emit(
-                LauncherEvent::Process.as_str(),
-                ProcessPayload {
-                    instance_id: id.to_string(),
-                    uuid,
-                    event,
-                    message: message.to_string(),
-                },
-            )
-            .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)))?;
-    }
-
-    Ok(())
-}
-
-// emit_warning(message)
-pub async fn emit_warning(message: &str) -> crate::Result<()> {
-    let event_state = EventState::get()?;
-    if let Some(app_handle) = &event_state.app {
-        app_handle
-            .emit(
-                LauncherEvent::Warning.as_str(),
-                WarningPayload {
-                    message: message.to_string(),
-                },
-            )
-            .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)))?;
-    }
-    tracing::warn!("{}", message);
     Ok(())
 }

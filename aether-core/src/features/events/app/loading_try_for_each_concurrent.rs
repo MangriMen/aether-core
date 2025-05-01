@@ -2,7 +2,9 @@ use std::future::Future;
 
 use futures::TryStream;
 
-use super::{emit::emit_loading, LoadingBarId};
+use crate::features::events::LoadingBarId;
+
+use super::emit_loading;
 
 // A drop in replacement to try_for_each_concurrent that emits loading events as it goes
 // Key is the key to use for which loading bar- a LoadingBarId. If None, does nothing

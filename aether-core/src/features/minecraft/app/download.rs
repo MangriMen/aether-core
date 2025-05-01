@@ -1,6 +1,6 @@
 use crate::{
     core::LauncherState,
-    features::events::{emit::emit_loading, loading_try_for_each_concurrent, LoadingBarId},
+    features::events::{emit_loading, loading_try_for_each_concurrent, LoadingBarId},
     shared::{self, fetch_advanced, fetch_json, write_async},
 };
 use bytes::Bytes;

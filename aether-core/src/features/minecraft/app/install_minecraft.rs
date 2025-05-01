@@ -4,10 +4,7 @@ use crate::{
     api,
     core::LauncherState,
     features::{
-        events::{
-            emit::{emit_loading, init_or_edit_loading},
-            LoadingBarId, LoadingBarType,
-        },
+        events::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
         instance::{Instance, InstanceInstallStage, InstanceManager},
         minecraft::{self, resolve_loader_version, ModLoader, ReadMetadataStorage},
     },

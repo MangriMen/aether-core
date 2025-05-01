@@ -8,7 +8,7 @@ use bytes::Bytes;
 
 use crate::{
     features::{
-        events::{emit::init_loading, emit_loading, LoadingBarId, LoadingBarType},
+        events::{emit_loading, init_loading, LoadingBarId, LoadingBarType},
         java::ports::JreProvider,
     },
     shared::{
