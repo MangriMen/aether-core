@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::OnceCell;
 
-use crate::features::auth::FsCredentialsStorage;
+use crate::features::{auth::FsCredentialsStorage, settings::FsSettingsStorage};
 
 use super::{ErrorKind, LauncherState};
 
@@ -11,6 +11,7 @@ static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 pub struct LazyLocator {
     state: Arc<LauncherState>,
     auth_storage: OnceCell<Arc<FsCredentialsStorage>>,
+    settings_storage: OnceCell<Arc<FsSettingsStorage>>,
 }
 
 impl LazyLocator {
@@ -20,6 +21,7 @@ impl LazyLocator {
                 Arc::new(Self {
                     state,
                     auth_storage: OnceCell::new(),
+                    settings_storage: OnceCell::new(),
                 })
             })
             .await;
@@ -67,6 +69,15 @@ impl LazyLocator {
                 Arc::new(FsCredentialsStorage::new(
                     &self.state.locations.settings_dir,
                 ))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_settings_storage(&self) -> Arc<FsSettingsStorage> {
+        self.settings_storage
+            .get_or_init(|| async {
+                Arc::new(FsSettingsStorage::new(&self.state.locations.settings_dir))
             })
             .await
             .clone()

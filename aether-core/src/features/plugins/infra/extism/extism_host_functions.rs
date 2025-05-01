@@ -12,9 +12,8 @@ use crate::{
             plugin_utils::{self, plugin_path_to_host},
             PluginContext, SerializableOutput,
         },
-        settings::SerializableCommand,
     },
-    shared::fetch_advanced,
+    shared::{domain::SerializableCommand, fetch_advanced},
 };
 
 host_fn!(

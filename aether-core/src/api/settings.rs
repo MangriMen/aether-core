@@ -1,22 +1,21 @@
 use crate::{
-    core::LauncherState,
-    features::settings::{self, FsSettingsStorage, Settings},
+    core::domain::LazyLocator,
+    features::settings::{GetSettingsUseCase, Settings, UpsertSettingsUseCase},
+    shared::domain::{AsyncUseCase, AsyncUseCaseWithoutInput},
 };
 
-async fn get_storage() -> crate::Result<FsSettingsStorage> {
-    Ok(FsSettingsStorage::new(
-        &LauncherState::get().await?.locations.settings_dir,
-    ))
-}
-
 pub async fn get() -> crate::Result<Settings> {
-    settings::get_settings(&get_storage().await?).await
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetSettingsUseCase::new(lazy_locator.get_settings_storage().await)
+        .execute()
+        .await
 }
 
-pub async fn upsert(settings: &Settings) -> crate::Result<()> {
-    settings::upsert_settings(&get_storage().await?, settings).await
-}
+pub async fn upsert(settings: Settings) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-pub fn get_max_ram() -> u64 {
-    settings::get_max_ram()
+    UpsertSettingsUseCase::new(lazy_locator.get_settings_storage().await)
+        .execute(settings)
+        .await
 }

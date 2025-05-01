@@ -4,8 +4,7 @@ use std::{
 };
 
 use crate::{
-    core::LauncherState,
-    features::settings::{LocationInfo, SerializableCommand},
+    core::LauncherState, features::settings::LocationInfo, shared::domain::SerializableCommand,
 };
 
 pub fn get_default_allowed_paths(

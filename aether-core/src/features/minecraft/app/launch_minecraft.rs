@@ -9,9 +9,8 @@ use crate::{
         minecraft::{self, LaunchSettings, ModLoader, ReadMetadataStorage},
         plugins::PluginEvent,
         process::{MinecraftProcessMetadata, ProcessManager},
-        settings::SerializableCommand,
     },
-    shared::IOError,
+    shared::{domain::SerializableCommand, IOError},
     with_mut_ref,
 };
 

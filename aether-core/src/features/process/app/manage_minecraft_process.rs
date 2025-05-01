@@ -9,9 +9,8 @@ use crate::{
         events::{emit_process, ProcessPayloadType},
         instance::{FsInstanceStorage, InstanceManager, InstanceManagerImpl},
         process::ProcessManager,
-        settings::SerializableCommand,
     },
-    shared::IOError,
+    shared::{domain::SerializableCommand, IOError},
 };
 
 pub async fn manage_minecraft_process(
