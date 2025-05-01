@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use tokio::process::Command;
 use uuid::Uuid;
 
-use super::MinecraftProcessMetadata;
+use crate::features::process::MinecraftProcessMetadata;
 
 #[async_trait]
 pub trait ProcessManager {

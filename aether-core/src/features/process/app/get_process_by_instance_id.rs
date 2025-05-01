@@ -1,13 +1,36 @@
-use crate::features::process::{MinecraftProcessMetadata, ProcessManager};
+use std::sync::Arc;
 
-pub fn get_process_by_instance_id<M>(process_manager: &M, id: &str) -> Vec<MinecraftProcessMetadata>
+use async_trait::async_trait;
+
+use crate::{
+    features::process::{MinecraftProcessMetadata, ProcessManager},
+    shared::domain::AsyncUseCaseWithInput,
+};
+
+pub struct GetProcessByInstanceIdUseCase<PM: ProcessManager> {
+    manager: Arc<PM>,
+}
+
+impl<PM: ProcessManager> GetProcessByInstanceIdUseCase<PM> {
+    pub fn new(manager: Arc<PM>) -> Self {
+        Self { manager }
+    }
+}
+
+#[async_trait]
+impl<PM> AsyncUseCaseWithInput for GetProcessByInstanceIdUseCase<PM>
 where
-    M: ProcessManager + ?Sized,
+    PM: ProcessManager + Send + Sync,
 {
-    process_manager
-        .list()
-        .iter()
-        .filter(|x| x.id == id)
-        .cloned()
-        .collect()
+    type Input = String;
+    type Output = Vec<MinecraftProcessMetadata>;
+
+    async fn execute(&self, id: Self::Input) -> Self::Output {
+        self.manager
+            .list()
+            .iter()
+            .filter(|x| x.id == id)
+            .cloned()
+            .collect()
+    }
 }

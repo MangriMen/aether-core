@@ -2,7 +2,10 @@ use std::path::Path;
 
 use crate::{
     api,
-    core::{domain::ServiceLocator, LauncherState},
+    core::{
+        domain::{LazyLocator, ServiceLocator},
+        LauncherState,
+    },
     features::{
         auth::Credentials,
         instance::{Instance, InstanceInstallStage, InstanceManager},
@@ -132,7 +135,7 @@ where
 
     // Check if profile has a running profile, and reject running the command if it does
     // Done late so a quick double call doesn't launch two instances
-    let existing_processes = api::process::get_by_instance_id(&instance.id).await?;
+    let existing_processes = api::process::get_by_instance_id(instance.id.clone()).await?;
     if let Some(process) = existing_processes.first() {
         return Err(crate::ErrorKind::LauncherError(format!(
             "Profile {} is already running at path: {}",
@@ -205,8 +208,11 @@ where
         })
         .await?;
 
-    let metadata = state
-        .process_manager
+    let lazy_locator = LazyLocator::get().await?;
+
+    let metadata = lazy_locator
+        .get_process_manager()
+        .await
         .insert_new_process(
             &instance.id,
             command,

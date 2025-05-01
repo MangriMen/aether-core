@@ -1,10 +1,30 @@
+use std::sync::Arc;
+
+use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::features::process::ProcessManager;
+use crate::{features::process::ProcessManager, shared::domain::AsyncUseCaseWithInputAndError};
 
-pub async fn wait_for_process<M>(process_manager: &M, id: Uuid) -> crate::Result<()>
+pub struct WaitForProcessUseCase<PM: ProcessManager> {
+    manager: Arc<PM>,
+}
+
+impl<PM: ProcessManager> WaitForProcessUseCase<PM> {
+    pub fn new(manager: Arc<PM>) -> Self {
+        Self { manager }
+    }
+}
+
+#[async_trait]
+impl<PM> AsyncUseCaseWithInputAndError for WaitForProcessUseCase<PM>
 where
-    M: ProcessManager + ?Sized,
+    PM: ProcessManager + Send + Sync,
 {
-    process_manager.wait_for(id).await
+    type Input = Uuid;
+    type Output = ();
+    type Error = crate::Error;
+
+    async fn execute(&self, id: Self::Input) -> Result<Self::Output, Self::Error> {
+        self.manager.wait_for(id).await
+    }
 }

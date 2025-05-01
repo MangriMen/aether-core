@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     features::auth::{Credentials, CredentialsStorage},
-    shared::domain::AsyncUseCase,
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 pub struct CreateOfflineAccountUseCase<CS: CredentialsStorage> {
@@ -20,7 +20,7 @@ impl<CS: CredentialsStorage> CreateOfflineAccountUseCase<CS> {
 }
 
 #[async_trait]
-impl<CS> AsyncUseCase for CreateOfflineAccountUseCase<CS>
+impl<CS> AsyncUseCaseWithInputAndError for CreateOfflineAccountUseCase<CS>
 where
     CS: CredentialsStorage + Send + Sync,
 {

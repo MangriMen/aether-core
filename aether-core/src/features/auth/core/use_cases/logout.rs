@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::{features::auth::CredentialsStorage, shared::domain::AsyncUseCase};
+use crate::{features::auth::CredentialsStorage, shared::domain::AsyncUseCaseWithInputAndError};
 
 pub struct LogoutUseCase<CS: CredentialsStorage> {
     storage: Arc<CS>,
@@ -16,7 +16,7 @@ impl<CS: CredentialsStorage> LogoutUseCase<CS> {
 }
 
 #[async_trait]
-impl<CS> AsyncUseCase for LogoutUseCase<CS>
+impl<CS> AsyncUseCaseWithInputAndError for LogoutUseCase<CS>
 where
     CS: CredentialsStorage + Send + Sync,
 {

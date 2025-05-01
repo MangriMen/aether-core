@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::auth::{Account, CredentialsStorage},
-    shared::domain::AsyncUseCaseWithoutInput,
+    shared::domain::AsyncUseCaseWithError,
 };
 
 pub struct GetAccountsUseCase<CS: CredentialsStorage> {
@@ -18,7 +18,7 @@ impl<CS: CredentialsStorage> GetAccountsUseCase<CS> {
 }
 
 #[async_trait]
-impl<CS> AsyncUseCaseWithoutInput for GetAccountsUseCase<CS>
+impl<CS> AsyncUseCaseWithError for GetAccountsUseCase<CS>
 where
     CS: CredentialsStorage + Send + Sync,
 {

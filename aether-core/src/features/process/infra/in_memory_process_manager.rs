@@ -1,4 +1,4 @@
-use std::process::ExitStatus;
+use std::{process::ExitStatus, sync::Arc};
 
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -6,13 +6,15 @@ use tokio::process::Command;
 use uuid::Uuid;
 
 use crate::{
+    core::{domain::LazyLocator, LauncherState},
     features::{
         events::{emit_process, ProcessPayloadType},
         process::{
-            manage_minecraft_process, MinecraftProcess, MinecraftProcessMetadata, ProcessManager,
+            ManageProcessParams, ManageProcessUseCase, MinecraftProcess, MinecraftProcessMetadata,
+            ProcessManager, TrackProcessUseCase,
         },
     },
-    shared::IOError,
+    shared::{domain::AsyncUseCaseWithInputAndError, IOError},
 };
 
 #[derive(Debug, Default)]
@@ -32,10 +34,11 @@ impl ProcessManager for InMemoryProcessManager {
         let process = MinecraftProcess::from_child(instance_id, minecraft_process);
 
         let metadata = process.metadata.clone();
-        tokio::spawn(manage_minecraft_process(
+
+        tokio::spawn(manage_process(
+            metadata.uuid,
             instance_id.to_string(),
             post_exit_command,
-            metadata.uuid,
         ));
         self.processes.insert(process.metadata.uuid, process);
 
@@ -86,4 +89,32 @@ impl ProcessManager for InMemoryProcessManager {
     fn remove(&self, id: Uuid) {
         self.processes.remove(&id);
     }
+}
+
+async fn manage_process(
+    process_uuid: Uuid,
+    instance_id: String,
+    post_exit_command: Option<String>,
+) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
+
+    let track_process_use_case = Arc::new(TrackProcessUseCase::new(
+        lazy_locator.get_process_manager().await,
+        lazy_locator.get_instance_manager().await,
+    ));
+
+    let manage_process_use_case = ManageProcessUseCase::new(
+        lazy_locator.get_process_manager().await,
+        track_process_use_case,
+        state.locations.clone(),
+    );
+
+    manage_process_use_case
+        .execute(ManageProcessParams {
+            process_uuid,
+            instance_id,
+            post_exit_command,
+        })
+        .await
 }

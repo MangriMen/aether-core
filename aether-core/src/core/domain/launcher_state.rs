@@ -6,7 +6,6 @@ use crate::{
     core::domain::{LazyLocator, ServiceLocator},
     features::{
         instance::{fs_watcher, FsWatcher},
-        process::{InMemoryProcessManager, ProcessManager},
         settings::{LocationInfo, Settings},
     },
     shared::FetchSemaphore,
@@ -17,7 +16,7 @@ use crate::{
 static LAUNCHER_STATE: OnceCell<Arc<LauncherState>> = OnceCell::const_new();
 
 #[derive(Debug)]
-pub struct LauncherState<PM: ProcessManager = InMemoryProcessManager> {
+pub struct LauncherState {
     // Information about files location
     pub locations: Arc<LocationInfo>,
     /// Semaphore used to limit concurrent network requests and avoid errors
@@ -28,8 +27,6 @@ pub struct LauncherState<PM: ProcessManager = InMemoryProcessManager> {
     /// Semaphore to limit concurrent API requests. This is separate from the fetch semaphore
     /// to keep API functionality while the app is performing intensive tasks.
     pub api_semaphore: Arc<FetchSemaphore>,
-    /// Process manager
-    pub process_manager: PM,
     pub(crate) file_watcher: Arc<FsWatcher>,
     // pub(crate) pool: SqlitePool,
 }
@@ -85,9 +82,6 @@ impl LauncherState {
             settings.max_concurrent_downloads,
         )));
 
-        log::info!("Initialize process manager");
-        let process_manager = InMemoryProcessManager::default();
-
         log::info!("Initialize file watcher");
         let file_watcher = Arc::new(fs_watcher::init_watcher().await?);
         fs_watcher::watch_instances(&file_watcher, &locations).await;
@@ -100,7 +94,6 @@ impl LauncherState {
             locations,
             fetch_semaphore,
             api_semaphore,
-            process_manager,
             file_watcher,
         });
 

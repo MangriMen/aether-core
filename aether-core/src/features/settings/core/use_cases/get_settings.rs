@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::settings::{Settings, SettingsStorage},
-    shared::domain::AsyncUseCaseWithoutInput,
+    shared::domain::AsyncUseCaseWithError,
 };
 
 pub struct GetSettingsUseCase<SS: SettingsStorage> {
@@ -18,7 +18,7 @@ impl<SS: SettingsStorage> GetSettingsUseCase<SS> {
 }
 
 #[async_trait]
-impl<SS> AsyncUseCaseWithoutInput for GetSettingsUseCase<SS>
+impl<SS> AsyncUseCaseWithError for GetSettingsUseCase<SS>
 where
     SS: SettingsStorage + Send + Sync,
 {

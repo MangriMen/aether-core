@@ -1,10 +1,30 @@
+use std::sync::Arc;
+
+use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::features::process::ProcessManager;
+use crate::{features::process::ProcessManager, shared::domain::AsyncUseCaseWithInputAndError};
 
-pub async fn kill_process<M>(process_manager: &M, id: Uuid) -> crate::Result<()>
+pub struct KillProcessUseCase<PM: ProcessManager> {
+    manager: Arc<PM>,
+}
+
+impl<PM: ProcessManager> KillProcessUseCase<PM> {
+    pub fn new(manager: Arc<PM>) -> Self {
+        Self { manager }
+    }
+}
+
+#[async_trait]
+impl<PM> AsyncUseCaseWithInputAndError for KillProcessUseCase<PM>
 where
-    M: ProcessManager + ?Sized,
+    PM: ProcessManager + Send + Sync,
 {
-    process_manager.kill(id).await
+    type Input = Uuid;
+    type Output = ();
+    type Error = crate::Error;
+
+    async fn execute(&self, id: Self::Input) -> Result<Self::Output, Self::Error> {
+        self.manager.kill(id).await
+    }
 }

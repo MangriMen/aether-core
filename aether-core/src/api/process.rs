@@ -1,33 +1,50 @@
 use uuid::Uuid;
 
 use crate::{
-    core::LauncherState,
-    features::process::{self, MinecraftProcessMetadata},
+    core::domain::LazyLocator,
+    features::process::{
+        GetProcessByInstanceIdUseCase, KillProcessUseCase, ListProcessUseCase,
+        MinecraftProcessMetadata, WaitForProcessUseCase,
+    },
+    shared::domain::{AsyncUseCase, AsyncUseCaseWithInput, AsyncUseCaseWithInputAndError},
 };
 
 #[tracing::instrument]
 pub async fn list() -> crate::Result<Vec<MinecraftProcessMetadata>> {
-    let state = LauncherState::get().await?;
-    Ok(process::list_process(&state.process_manager))
+    let lazy_locator = LazyLocator::get().await?;
+
+    Ok(
+        ListProcessUseCase::new(lazy_locator.get_process_manager().await)
+            .execute()
+            .await,
+    )
 }
 
 #[tracing::instrument]
-pub async fn get_by_instance_id(id: &str) -> crate::Result<Vec<MinecraftProcessMetadata>> {
-    let state = LauncherState::get().await?;
-    Ok(process::get_process_by_instance_id(
-        &state.process_manager,
-        id,
-    ))
+pub async fn get_by_instance_id(id: String) -> crate::Result<Vec<MinecraftProcessMetadata>> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    Ok(
+        GetProcessByInstanceIdUseCase::new(lazy_locator.get_process_manager().await)
+            .execute(id)
+            .await,
+    )
 }
 
 #[tracing::instrument]
 pub async fn kill(uuid: Uuid) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    process::kill_process(&state.process_manager, uuid).await
+    let lazy_locator = LazyLocator::get().await?;
+
+    KillProcessUseCase::new(lazy_locator.get_process_manager().await)
+        .execute(uuid)
+        .await
 }
 
 #[tracing::instrument]
 pub async fn wait_for(uuid: Uuid) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    process::wait_for_process(&state.process_manager, uuid).await
+    let lazy_locator = LazyLocator::get().await?;
+
+    WaitForProcessUseCase::new(lazy_locator.get_process_manager().await)
+        .execute(uuid)
+        .await
 }

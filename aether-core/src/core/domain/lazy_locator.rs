@@ -3,7 +3,12 @@ use std::sync::Arc;
 use tokio::sync::OnceCell;
 
 use crate::{
-    features::{auth::FsCredentialsStorage, settings::FsSettingsStorage},
+    features::{
+        auth::FsCredentialsStorage,
+        instance::{FsInstanceStorage, InstanceManagerImpl},
+        process::InMemoryProcessManager,
+        settings::FsSettingsStorage,
+    },
     shared::infra::{ReqwestClient, REQWEST_CLIENT},
 };
 
@@ -17,6 +22,8 @@ pub struct LazyLocator {
     api_client: OnceCell<Arc<ReqwestClient>>,
     auth_storage: OnceCell<Arc<FsCredentialsStorage>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
+    process_manager: OnceCell<Arc<InMemoryProcessManager>>,
+    instance_manager: OnceCell<Arc<InstanceManagerImpl<FsInstanceStorage>>>,
 }
 
 impl LazyLocator {
@@ -29,6 +36,8 @@ impl LazyLocator {
                     api_client: OnceCell::new(),
                     auth_storage: OnceCell::new(),
                     settings_storage: OnceCell::new(),
+                    process_manager: OnceCell::new(),
+                    instance_manager: OnceCell::new(),
                 })
             })
             .await;
@@ -109,6 +118,24 @@ impl LazyLocator {
         self.settings_storage
             .get_or_init(|| async {
                 Arc::new(FsSettingsStorage::new(&self.state.locations.settings_dir))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_process_manager(&self) -> Arc<InMemoryProcessManager> {
+        self.process_manager
+            .get_or_init(|| async { Arc::new(InMemoryProcessManager::default()) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_instance_manager(&self) -> Arc<InstanceManagerImpl<FsInstanceStorage>> {
+        self.instance_manager
+            .get_or_init(|| async {
+                Arc::new(InstanceManagerImpl::new(FsInstanceStorage::new(
+                    self.state.locations.clone(),
+                )))
             })
             .await
             .clone()
