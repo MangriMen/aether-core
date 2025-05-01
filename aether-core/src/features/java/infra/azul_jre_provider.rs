@@ -9,13 +9,15 @@ use bytes::Bytes;
 use crate::{
     features::{
         events::{emit::init_loading, emit_loading, LoadingBarId, LoadingBarType},
-        java::{ports::JreProvider, JAVA_WINDOW_BIN},
+        java::ports::JreProvider,
     },
     shared::{
         domain::{Request, RequestClient},
         extensions::RequestClientExt,
     },
 };
+
+use super::JAVA_WINDOW_BIN;
 
 #[derive(serde::Deserialize, Clone)]
 struct Package {

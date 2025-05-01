@@ -5,10 +5,12 @@ use async_trait::async_trait;
 use crate::{
     features::java::{
         utils::{extract_java_major_minor_version, get_java_properties, JavaProperties},
-        Java, JavaInstallationService, JAVA_BIN, JAVA_WINDOW_BIN,
+        Java, JavaInstallationService,
     },
     shared,
 };
+
+use super::{JAVA_BIN, JAVA_WINDOW_BIN};
 
 pub struct FsJavaInstallationService;
 
