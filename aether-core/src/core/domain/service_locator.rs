@@ -3,7 +3,6 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{OnceCell, RwLock};
 
 use crate::features::{
-    instance::{ContentProviderService, FsPackStorage, ModrinthContentProvider},
     plugins::{
         ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, LoadConfigType,
         PluginService, PluginSettingsManagerImpl,
@@ -25,8 +24,6 @@ pub type PluginServiceType = PluginService<
 pub struct ServiceLocator {
     pub plugin_service: RwLock<PluginServiceType>,
     pub plugin_settings_manager: Arc<PluginSettingsManagerImpl<FsPluginSettingsStorage>>,
-    pub content_provider_service:
-        Arc<ContentProviderService<FsPackStorage, ModrinthContentProvider>>,
 }
 
 impl ServiceLocator {
@@ -78,23 +75,9 @@ impl ServiceLocator {
             loaders,
         ));
 
-        let content_providers = HashMap::from([(
-            "modrinth".to_string(),
-            ModrinthContentProvider::new(
-                state.api_semaphore.clone(),
-                state.locations.clone(),
-                None,
-            ),
-        )]);
-
-        let pack_storage = FsPackStorage::new(state.locations.clone());
-        let content_provider_service =
-            Arc::new(ContentProviderService::new(pack_storage, content_providers));
-
         Ok(Arc::new(Self {
             plugin_service,
             plugin_settings_manager,
-            content_provider_service,
         }))
     }
 }

@@ -1,11 +1,14 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use tokio::sync::OnceCell;
 
 use crate::{
     features::{
         auth::FsCredentialsStorage,
-        instance::{EventEmittingInstanceStorage, FsInstanceStorage, FsPackStorage},
+        instance::{
+            EventEmittingInstanceStorage, FsInstanceStorage, FsPackStorage,
+            ModrinthContentProvider, ProviderRegistry,
+        },
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         process::InMemoryProcessManager,
@@ -33,6 +36,7 @@ pub struct LazyLocator {
         Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>>,
     >,
     pack_storage: OnceCell<Arc<FsPackStorage>>,
+    provider_registry: OnceCell<Arc<ProviderRegistry<ModrinthContentProvider<ReqwestClient>>>>,
 }
 
 impl LazyLocator {
@@ -50,6 +54,7 @@ impl LazyLocator {
                     java_storage: OnceCell::new(),
                     metadata_storage: OnceCell::new(),
                     pack_storage: OnceCell::new(),
+                    provider_registry: OnceCell::new(),
                 })
             })
             .await;
@@ -181,6 +186,26 @@ impl LazyLocator {
     pub async fn get_pack_storage(&self) -> Arc<FsPackStorage> {
         self.pack_storage
             .get_or_init(|| async { Arc::new(FsPackStorage::new(self.state.locations.clone())) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_provider_registry(
+        &self,
+    ) -> Arc<ProviderRegistry<ModrinthContentProvider<ReqwestClient>>> {
+        self.provider_registry
+            .get_or_init(|| async {
+                let providers = HashMap::from([(
+                    "modrinth".to_string(),
+                    ModrinthContentProvider::new(
+                        self.state.locations.clone(),
+                        None,
+                        self.get_request_client().await,
+                    ),
+                )]);
+
+                Arc::new(ProviderRegistry::new(providers))
+            })
             .await
             .clone()
     }

@@ -15,7 +15,7 @@ use crate::{
         },
         settings::LocationInfo,
     },
-    shared::{write_async, FetchSemaphore},
+    shared::{domain::RequestClient, write_async},
 };
 
 use super::{
@@ -23,19 +23,22 @@ use super::{
     ModrinthProviderData, ModrinthUpdateData, ProjectVersionResponse, MODRINTH_API_URL,
 };
 
-pub struct ModrinthContentProvider {
-    api: ModrinthApiClient,
+pub struct ModrinthContentProvider<RC> {
+    api: ModrinthApiClient<RC>,
     location_info: Arc<LocationInfo>,
 }
 
-impl ModrinthContentProvider {
+impl<RC> ModrinthContentProvider<RC>
+where
+    RC: RequestClient + Send + Sync,
+{
     pub fn new(
-        api_semaphore: Arc<FetchSemaphore>,
         location_info: Arc<LocationInfo>,
         base_headers: Option<reqwest::header::HeaderMap>,
+        request_client: Arc<RC>,
     ) -> Self {
         Self {
-            api: ModrinthApiClient::new(MODRINTH_API_URL.to_string(), api_semaphore, base_headers),
+            api: ModrinthApiClient::new(MODRINTH_API_URL.to_string(), base_headers, request_client),
             location_info,
         }
     }
@@ -129,7 +132,10 @@ impl ModrinthContentProvider {
 }
 
 #[async_trait]
-impl ContentProvider for ModrinthContentProvider {
+impl<RC> ContentProvider for ModrinthContentProvider<RC>
+where
+    RC: RequestClient + Send + Sync,
+{
     async fn search(
         &self,
         search_params: &ContentSearchParams,

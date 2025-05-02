@@ -1,31 +1,36 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use reqwest::Method;
 
-use crate::shared::{fetch_advanced, fetch_json, FetchSemaphore};
+use crate::shared::{
+    domain::{Request, RequestClient},
+    extensions::RequestClientExt,
+};
 
 use super::{
     ListProjectVersionsParams, ListProjectsVersionsResponse, ProjectSearchParams,
     ProjectSearchResponse, ProjectVersionResponse,
 };
 
-pub struct ModrinthApiClient {
+pub struct ModrinthApiClient<RC> {
     base_url: String,
     base_headers: Option<reqwest::header::HeaderMap>,
-    api_semaphore: Arc<FetchSemaphore>,
+    request_client: Arc<RC>,
 }
 
-impl ModrinthApiClient {
+impl<RC> ModrinthApiClient<RC>
+where
+    RC: RequestClient + Send + Sync,
+{
     pub fn new(
         base_url: String,
-        api_semaphore: Arc<FetchSemaphore>,
         base_headers: Option<reqwest::header::HeaderMap>,
+        request_client: Arc<RC>,
     ) -> Self {
         Self {
             base_url,
             base_headers,
-            api_semaphore,
+            request_client,
         }
     }
 
@@ -36,15 +41,12 @@ impl ModrinthApiClient {
         let query_string = serde_qs::to_string(&search_params).unwrap();
         let url = format!("{}/search?{query_string}", self.base_url);
 
-        fetch_json(
-            Method::GET,
-            &url,
-            self.base_headers.clone(),
-            None,
-            None,
-            &self.api_semaphore,
-        )
-        .await
+        let mut request = Request::get(&url);
+        if let Some(base_headers) = self.base_headers.clone() {
+            request = request.with_headers(base_headers);
+        }
+
+        self.request_client.fetch_json(request, None).await
     }
 
     pub async fn get_project_version(
@@ -53,15 +55,12 @@ impl ModrinthApiClient {
     ) -> crate::Result<ProjectVersionResponse> {
         let url = format!("{}/version/{project_version}", self.base_url);
 
-        fetch_json(
-            Method::GET,
-            &url,
-            self.base_headers.clone(),
-            None,
-            None,
-            &self.api_semaphore,
-        )
-        .await
+        let mut request = Request::get(&url);
+        if let Some(base_headers) = self.base_headers.clone() {
+            request = request.with_headers(base_headers);
+        }
+
+        self.request_client.fetch_json(request, None).await
     }
 
     pub async fn get_project_version_for_game_version(
@@ -81,15 +80,13 @@ impl ModrinthApiClient {
             self.base_url
         );
 
-        let response = fetch_json::<ListProjectsVersionsResponse>(
-            Method::GET,
-            &url,
-            self.base_headers.clone(),
-            None,
-            None,
-            &self.api_semaphore,
-        )
-        .await?;
+        let mut request = Request::get(&url);
+        if let Some(base_headers) = self.base_headers.clone() {
+            request = request.with_headers(base_headers);
+        }
+
+        let response: ListProjectsVersionsResponse =
+            self.request_client.fetch_json(request, None).await?;
 
         let version = response
             .iter()
@@ -107,15 +104,11 @@ impl ModrinthApiClient {
     }
 
     pub async fn get_file(&self, url: &str) -> crate::Result<Bytes> {
-        fetch_advanced(
-            Method::GET,
-            url,
-            self.base_headers.clone(),
-            None,
-            None,
-            &self.api_semaphore,
-            None,
-        )
-        .await
+        let mut request = Request::get(url);
+        if let Some(base_headers) = self.base_headers.clone() {
+            request = request.with_headers(base_headers);
+        }
+
+        self.request_client.fetch_bytes(request, None).await
     }
 }

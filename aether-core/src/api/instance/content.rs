@@ -3,16 +3,17 @@ use std::{collections::HashMap, path::PathBuf};
 use dashmap::DashMap;
 
 use crate::{
-    core::{
-        domain::{LazyLocator, ServiceLocator},
-        LauncherState,
-    },
+    core::{domain::LazyLocator, LauncherState},
     features::instance::{
+        use_cases::content_provider::{
+            GetProviderMetadataUseCase, InstallContentUseCase, ListProvidersUseCase,
+            SearchContentUseCase,
+        },
         ChangeContentState, ChangeContentStateUseCase, ContentInstallParams, ContentSearchParams,
         ContentSearchResult, ContentStateAction, ContentType, ImportContent, ImportContentUseCase,
         InstanceFile, ListContentUseCase, RemoveContent, RemoveContentUseCase,
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 pub async fn get_contents(instance_id: String) -> crate::Result<DashMap<String, InstanceFile>> {
@@ -99,41 +100,41 @@ pub async fn import_contents(
 }
 
 pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
-    let service_locator = ServiceLocator::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    service_locator
-        .content_provider_service
-        .list_providers()
+    ListProvidersUseCase::new(lazy_locator.get_provider_registry().await)
+        .execute()
         .await
 }
 
-pub async fn get_content_by_provider(
-    search_params: &ContentSearchParams,
+pub async fn search_content(
+    search_params: ContentSearchParams,
 ) -> crate::Result<ContentSearchResult> {
-    let service_locator = ServiceLocator::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    service_locator
-        .content_provider_service
-        .search(search_params)
+    SearchContentUseCase::new(lazy_locator.get_provider_registry().await)
+        .execute(search_params)
         .await
 }
 
-pub async fn get_metadata_field_to_check_installed(provider_id: &str) -> crate::Result<String> {
-    let service_locator = ServiceLocator::get().await?;
+pub async fn get_metadata_field_to_check_installed(provider_id: String) -> crate::Result<String> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    service_locator
-        .content_provider_service
-        .get_update_data_id_field(provider_id)
+    GetProviderMetadataUseCase::new(lazy_locator.get_provider_registry().await)
+        .execute(provider_id)
+        .await
 }
 
 pub async fn install_content(
-    instance_id: &str,
-    install_params: &ContentInstallParams,
+    instance_id: String,
+    install_params: ContentInstallParams,
 ) -> crate::Result<()> {
-    let service_locator = ServiceLocator::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    service_locator
-        .content_provider_service
-        .install(instance_id, install_params)
-        .await
+    InstallContentUseCase::new(
+        lazy_locator.get_pack_storage().await,
+        lazy_locator.get_provider_registry().await,
+    )
+    .execute((instance_id, install_params))
+    .await
 }
