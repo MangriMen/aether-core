@@ -1,7 +1,7 @@
-use std::{process::ExitStatus, sync::Arc, time::Duration};
+use std::{process::ExitStatus, sync::Arc, time};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use crate::{
@@ -12,7 +12,8 @@ use crate::{
     shared::domain::AsyncUseCaseWithInput,
 };
 
-const PROCESS_CHECK_INTERVAL: Duration = Duration::from_millis(50);
+const PROCESS_CHECK_INTERVAL: time::Duration = time::Duration::from_millis(50);
+const UPDATE_PLAYTIME_INTERVAL: Duration = Duration::seconds(60);
 
 pub struct TrackProcessParams {
     pub process_uuid: Uuid,
@@ -36,15 +37,13 @@ where
     }
 
     async fn update_playtime(&self, last_updated: &mut DateTime<Utc>, id: &str, force: bool) {
-        let elapsed_seconds = Utc::now()
-            .signed_duration_since(*last_updated)
-            .num_seconds();
+        let elapsed_seconds = Utc::now().signed_duration_since(*last_updated);
 
-        if elapsed_seconds >= 60 || force {
+        if elapsed_seconds >= UPDATE_PLAYTIME_INTERVAL || force {
             let result = async {
                 self.instance_storage
                     .upsert_with(id, |instance| {
-                        instance.time_played += elapsed_seconds as u64;
+                        instance.time_played += elapsed_seconds.num_seconds() as u64;
                         Ok(())
                     })
                     .await
@@ -94,6 +93,7 @@ where
             }
 
             tokio::time::sleep(PROCESS_CHECK_INTERVAL).await;
+
             self.update_playtime(&mut last_updated_playtime, &instance_id, false)
                 .await;
         }
