@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use crate::features::instance::ContentProvider;
 
 #[derive(Default)]
-pub struct ProviderRegistry<CP> {
+pub struct ContentProviderRegistry<CP> {
     providers: HashMap<String, CP>,
 }
 
-impl<CP> ProviderRegistry<CP>
+impl<CP> ContentProviderRegistry<CP>
 where
     CP: ContentProvider + Send + Sync,
 {

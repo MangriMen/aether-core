@@ -1,7 +1,5 @@
-pub mod dto;
 pub mod plugin_service;
 pub mod use_cases;
 
-pub use dto::*;
 pub use plugin_service::*;
 pub use use_cases::*;

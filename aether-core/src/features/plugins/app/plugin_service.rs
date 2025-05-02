@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
-
 use crate::features::plugins::{
-    LoadConfigType, Plugin, PluginLoader, PluginManifest, PluginSettingsStorage, PluginStorage,
+    LoadConfigType, Plugin, PluginLoader, PluginSettingsStorage, PluginStorage,
 };
 use crate::features::settings::SettingsStorage;
 use crate::{Error, ErrorKind, Result};
@@ -55,10 +53,6 @@ where
         self.plugins.values()
     }
 
-    pub fn list_manifests(&self) -> impl Iterator<Item = &PluginManifest> {
-        self.plugins.values().map(|p| &p.manifest)
-    }
-
     pub fn get(&self, plugin: &str) -> Result<&Plugin> {
         self.plugins.get(plugin).ok_or_else(|| {
             Error::from(ErrorKind::PluginNotFoundError(format!(
@@ -77,76 +71,8 @@ where
         })
     }
 
-    pub fn get_manifest(&self, plugin: &str) -> Result<PluginManifest> {
-        let plugin = self.get(plugin)?;
-        Ok(plugin.manifest.clone())
-    }
-
-    pub async fn enable(&mut self, plugin_id: &str) -> Result<()> {
-        let plugin = self.get(plugin_id)?;
-
-        let plugin_settings = self.plugin_settings_manager.get(plugin_id).await?;
-
-        let loader = self.loaders.get(&(&plugin.manifest.load).into());
-        if let Some(loader) = loader {
-            let plugin_instance = loader.load(plugin, &plugin_settings).await?;
-
-            let plugin = self.get_mut(plugin_id)?;
-            plugin.instance = Some(Arc::new(Mutex::new(plugin_instance)));
-        } else {
-            return Err(ErrorKind::PluginLoadError(format!(
-                "Not found loader for {:?}",
-                &plugin.manifest.load
-            ))
-            .as_error());
-        }
-
-        let mut settings = self.settings_storage.get().await?;
-        if !settings.enabled_plugins.contains(plugin_id) {
-            settings.enabled_plugins.insert(plugin_id.to_string());
-            self.settings_storage.upsert(&settings).await?;
-        }
-
-        Ok(())
-    }
-
-    pub async fn disable(&mut self, plugin_id: &str) -> Result<()> {
-        let plugin = self.get(plugin_id)?;
-
-        let loader = self.loaders.get(&(&plugin.manifest.load).into());
-
-        if let Some(loader) = loader {
-            if let Some(plugin_instance) = plugin.instance.clone() {
-                loader.unload(plugin_instance.clone()).await?;
-
-                let plugin = self.get_mut(plugin_id)?;
-                plugin.instance = None;
-            } else {
-                return Err(ErrorKind::PluginLoadError(format!(
-                    "Plugin {} is not loaded",
-                    plugin_id
-                ))
-                .as_error());
-            }
-        } else {
-            return Err(ErrorKind::PluginLoadError(format!(
-                "Not found loader for {:?}",
-                &plugin.manifest.load
-            ))
-            .as_error());
-        }
-
-        let mut settings = self.settings_storage.get().await?;
-        if !settings.enabled_plugins.contains(plugin_id) {
-            settings.enabled_plugins.remove(plugin_id);
-            self.settings_storage.upsert(&settings).await?;
-        }
-
-        Ok(())
-    }
-
     async fn remove_plugin(&mut self, plugin_id: &str) -> Result<()> {
-        self.disable(plugin_id).await?;
+        // self.disable(plugin_id).await?;
         self.plugins.remove(plugin_id);
         Ok(())
     }

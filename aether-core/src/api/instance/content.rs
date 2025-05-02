@@ -102,7 +102,7 @@ pub async fn import_contents(
 pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
     let lazy_locator = LazyLocator::get().await?;
 
-    ListProvidersUseCase::new(lazy_locator.get_provider_registry().await)
+    ListProvidersUseCase::new(lazy_locator.get_content_provider_registry().await)
         .execute()
         .await
 }
@@ -112,7 +112,7 @@ pub async fn search_content(
 ) -> crate::Result<ContentSearchResult> {
     let lazy_locator = LazyLocator::get().await?;
 
-    SearchContentUseCase::new(lazy_locator.get_provider_registry().await)
+    SearchContentUseCase::new(lazy_locator.get_content_provider_registry().await)
         .execute(search_params)
         .await
 }
@@ -120,7 +120,7 @@ pub async fn search_content(
 pub async fn get_metadata_field_to_check_installed(provider_id: String) -> crate::Result<String> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetProviderMetadataUseCase::new(lazy_locator.get_provider_registry().await)
+    GetProviderMetadataUseCase::new(lazy_locator.get_content_provider_registry().await)
         .execute(provider_id)
         .await
 }
@@ -133,7 +133,7 @@ pub async fn install_content(
 
     InstallContentUseCase::new(
         lazy_locator.get_pack_storage().await,
-        lazy_locator.get_provider_registry().await,
+        lazy_locator.get_content_provider_registry().await,
     )
     .execute((instance_id, install_params))
     .await

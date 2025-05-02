@@ -6,12 +6,15 @@ use crate::{
     features::{
         auth::FsCredentialsStorage,
         instance::{
-            EventEmittingInstanceStorage, FsInstanceStorage, FsPackStorage,
-            ModrinthContentProvider, ProviderRegistry,
+            ContentProviderRegistry, EventEmittingInstanceStorage, FsInstanceStorage,
+            FsPackStorage, ModrinthContentProvider,
         },
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
-        plugins::FsPluginSettingsStorage,
+        plugins::{
+            ExtismPluginLoader, FsPluginSettingsStorage, LoadConfigType, PluginLoaderRegistry,
+            PluginRegistry,
+        },
         process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
     },
@@ -37,8 +40,11 @@ pub struct LazyLocator {
         Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>>,
     >,
     pack_storage: OnceCell<Arc<FsPackStorage>>,
-    provider_registry: OnceCell<Arc<ProviderRegistry<ModrinthContentProvider<ReqwestClient>>>>,
+    content_provider_registry:
+        OnceCell<Arc<ContentProviderRegistry<ModrinthContentProvider<ReqwestClient>>>>,
     plugin_settings_storage: OnceCell<Arc<FsPluginSettingsStorage>>,
+    plugin_registry: OnceCell<Arc<PluginRegistry>>,
+    plugin_loader_registry: OnceCell<Arc<PluginLoaderRegistry<ExtismPluginLoader>>>,
 }
 
 impl LazyLocator {
@@ -56,8 +62,10 @@ impl LazyLocator {
                     java_storage: OnceCell::new(),
                     metadata_storage: OnceCell::new(),
                     pack_storage: OnceCell::new(),
-                    provider_registry: OnceCell::new(),
+                    content_provider_registry: OnceCell::new(),
                     plugin_settings_storage: OnceCell::new(),
+                    plugin_registry: OnceCell::new(),
+                    plugin_loader_registry: OnceCell::new(),
                 })
             })
             .await;
@@ -197,10 +205,10 @@ impl LazyLocator {
             .clone()
     }
 
-    pub async fn get_provider_registry(
+    pub async fn get_content_provider_registry(
         &self,
-    ) -> Arc<ProviderRegistry<ModrinthContentProvider<ReqwestClient>>> {
-        self.provider_registry
+    ) -> Arc<ContentProviderRegistry<ModrinthContentProvider<ReqwestClient>>> {
+        self.content_provider_registry
             .get_or_init(|| async {
                 let providers = HashMap::from([(
                     "modrinth".to_string(),
@@ -211,7 +219,7 @@ impl LazyLocator {
                     ),
                 )]);
 
-                Arc::new(ProviderRegistry::new(providers))
+                Arc::new(ContentProviderRegistry::new(providers))
             })
             .await
             .clone()
@@ -223,6 +231,29 @@ impl LazyLocator {
                 Arc::new(FsPluginSettingsStorage::new(
                     self.state.location_info.clone(),
                 ))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_plugin_registry(&self) -> Arc<PluginRegistry> {
+        self.plugin_registry
+            .get_or_init(|| async { Arc::new(PluginRegistry::default()) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_plugin_loader_registry(
+        &self,
+    ) -> Arc<PluginLoaderRegistry<ExtismPluginLoader>> {
+        self.plugin_loader_registry
+            .get_or_init(|| async {
+                let loaders = HashMap::from([(
+                    LoadConfigType::Extism,
+                    ExtismPluginLoader::new(self.state.location_info.clone()),
+                )]);
+
+                Arc::new(PluginLoaderRegistry::new(loaders))
             })
             .await
             .clone()

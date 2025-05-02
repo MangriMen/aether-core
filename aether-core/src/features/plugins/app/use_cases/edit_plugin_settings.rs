@@ -1,11 +1,18 @@
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    features::plugins::{EditPluginSettings, PluginSettings, PluginSettingsStorage},
+    features::plugins::{PathMapping, PluginSettings, PluginSettingsStorage},
     shared::domain::AsyncUseCaseWithInputAndError,
 };
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct EditPluginSettings {
+    pub allowed_hosts: Option<Vec<String>>,
+    pub allowed_paths: Option<Vec<PathMapping>>,
+}
 
 pub struct EditPluginSettingsUseCase<PSS: PluginSettingsStorage> {
     plugin_settings_storage: Arc<PSS>,

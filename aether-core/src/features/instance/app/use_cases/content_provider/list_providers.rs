@@ -3,16 +3,16 @@ use std::{collections::HashMap, sync::Arc};
 use async_trait::async_trait;
 
 use crate::{
-    features::instance::{ContentProvider, ProviderRegistry},
+    features::instance::{ContentProvider, ContentProviderRegistry},
     shared::domain::AsyncUseCaseWithError,
 };
 
 pub struct ListProvidersUseCase<CP> {
-    provider_registry: Arc<ProviderRegistry<CP>>,
+    provider_registry: Arc<ContentProviderRegistry<CP>>,
 }
 
 impl<CP> ListProvidersUseCase<CP> {
-    pub fn new(provider_registry: Arc<ProviderRegistry<CP>>) -> Self {
+    pub fn new(provider_registry: Arc<ContentProviderRegistry<CP>>) -> Self {
         Self { provider_registry }
     }
 }

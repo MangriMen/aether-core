@@ -4,18 +4,18 @@ use async_trait::async_trait;
 
 use crate::{
     features::instance::{
-        ContentInstallParams, ContentProvider, PackFile, PackStorage, ProviderRegistry,
+        ContentInstallParams, ContentProvider, PackFile, PackStorage, ContentProviderRegistry,
     },
     shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 pub struct InstallContentUseCase<PS: PackStorage, CP: ContentProvider> {
     pack_storage: Arc<PS>,
-    provider_registry: Arc<ProviderRegistry<CP>>,
+    provider_registry: Arc<ContentProviderRegistry<CP>>,
 }
 
 impl<PS: PackStorage, CP: ContentProvider> InstallContentUseCase<PS, CP> {
-    pub fn new(pack_storage: Arc<PS>, provider_registry: Arc<ProviderRegistry<CP>>) -> Self {
+    pub fn new(pack_storage: Arc<PS>, provider_registry: Arc<ContentProviderRegistry<CP>>) -> Self {
         Self {
             pack_storage,
             provider_registry,

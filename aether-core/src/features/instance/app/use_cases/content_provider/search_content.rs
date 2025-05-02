@@ -4,17 +4,17 @@ use async_trait::async_trait;
 
 use crate::{
     features::instance::{
-        ContentProvider, ContentSearchParams, ContentSearchResult, ProviderRegistry,
+        ContentProvider, ContentSearchParams, ContentSearchResult, ContentProviderRegistry,
     },
     shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 pub struct SearchContentUseCase<CP: ContentProvider> {
-    provider_registry: Arc<ProviderRegistry<CP>>,
+    provider_registry: Arc<ContentProviderRegistry<CP>>,
 }
 
 impl<CP: ContentProvider> SearchContentUseCase<CP> {
-    pub fn new(provider_registry: Arc<ProviderRegistry<CP>>) -> Self {
+    pub fn new(provider_registry: Arc<ContentProviderRegistry<CP>>) -> Self {
         Self { provider_registry }
     }
 }

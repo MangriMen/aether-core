@@ -1,10 +1,11 @@
 use crate::{
     core::domain::{LazyLocator, ServiceLocator},
     features::plugins::{
-        EditPluginSettings, EditPluginSettingsUseCase, GetPluginSettingsUseCase, PluginManifest,
-        PluginSettings,
+        DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
+        GetPluginManifestUseCase, GetPluginSettingsUseCase, ListPluginsManifestsUseCase,
+        PluginManifest, PluginSettings,
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 #[tracing::instrument]
@@ -16,19 +17,21 @@ pub async fn scan() -> crate::Result<()> {
 }
 
 #[tracing::instrument]
-pub async fn list() -> crate::Result<Vec<PluginManifest>> {
-    let service_locator = ServiceLocator::get().await?;
-    let plugin_service = service_locator.plugin_service.read().await;
+pub async fn list_manifests() -> crate::Result<Vec<PluginManifest>> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    Ok(plugin_service.list_manifests().cloned().collect())
+    ListPluginsManifestsUseCase::new(lazy_locator.get_plugin_registry().await)
+        .execute()
+        .await
 }
 
 #[tracing::instrument]
-pub async fn get(id: &str) -> crate::Result<PluginManifest> {
-    let service_locator = ServiceLocator::get().await?;
-    let plugin_service = service_locator.plugin_service.read().await;
+pub async fn get_manifest(plugin_id: String) -> crate::Result<PluginManifest> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    plugin_service.get_manifest(id)
+    GetPluginManifestUseCase::new(lazy_locator.get_plugin_registry().await)
+        .execute(plugin_id)
+        .await
 }
 
 #[tracing::instrument]
@@ -40,19 +43,30 @@ pub async fn is_enabled(id: &str) -> crate::Result<bool> {
 }
 
 #[tracing::instrument]
-pub async fn enable(id: &str) -> crate::Result<()> {
-    let service_locator = ServiceLocator::get().await?;
-    let mut plugin_service = service_locator.plugin_service.write().await;
+pub async fn enable(plugin_id: String) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    plugin_service.enable(id).await
+    EnablePluginUseCase::new(
+        lazy_locator.get_plugin_registry().await,
+        lazy_locator.get_plugin_loader_registry().await,
+        lazy_locator.get_plugin_settings_storage().await,
+        lazy_locator.get_settings_storage().await,
+    )
+    .execute(plugin_id)
+    .await
 }
 
 #[tracing::instrument]
-pub async fn disable(id: &str) -> crate::Result<()> {
-    let service_locator = ServiceLocator::get().await?;
-    let mut plugin_service = service_locator.plugin_service.write().await;
+pub async fn disable(plugin_id: String) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    plugin_service.disable(id).await
+    DisablePluginUseCase::new(
+        lazy_locator.get_plugin_registry().await,
+        lazy_locator.get_plugin_loader_registry().await,
+        lazy_locator.get_settings_storage().await,
+    )
+    .execute(plugin_id)
+    .await
 }
 
 #[tracing::instrument]
