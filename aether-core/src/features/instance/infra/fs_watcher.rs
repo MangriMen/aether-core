@@ -125,10 +125,10 @@ pub(crate) async fn watch_instance(instance_id: &str, watcher: &FsWatcher, dirs:
     }
 }
 
-fn crash_task(path: String) {
+fn crash_task(id: String) {
     tokio::task::spawn(async move {
         let res = async {
-            let instance = crate::api::instance::get(&path).await;
+            let instance = crate::api::instance::get(id).await;
 
             if let Ok(instance) = instance {
                 // Hide warning if profile is not yet installed

@@ -1,30 +1,25 @@
-use std::time::Duration;
-
 use crate::{
-    core::LauncherState,
-    features::minecraft::{
-        self, CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage,
-    },
+    core::domain::LazyLocator,
+    features::minecraft::{GetLoaderVersionManifestUseCase, GetVersionManifestUseCase},
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
-
-pub async fn get_storage(
-) -> crate::Result<minecraft::CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage>> {
-    let state = LauncherState::get().await?;
-
-    Ok(CachedMetadataStorage::new(
-        FsMetadataStorage::new(&state.locations.cache_dir(), Some(Duration::from_secs(120))),
-        ModrinthMetadataStorage::new(state.api_semaphore.clone()),
-    ))
-}
 
 #[tracing::instrument]
 pub async fn get_version_manifest() -> crate::Result<daedalus::minecraft::VersionManifest> {
-    minecraft::get_version_manifest(&get_storage().await?).await
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetVersionManifestUseCase::new(lazy_locator.get_metadata_storage().await)
+        .execute()
+        .await
 }
 
 #[tracing::instrument]
 pub async fn get_loader_version_manifest(
-    loader: &str,
+    loader: String,
 ) -> crate::Result<daedalus::modded::Manifest> {
-    minecraft::get_loader_version_manifest(&get_storage().await?, loader).await
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetLoaderVersionManifestUseCase::new(lazy_locator.get_metadata_storage().await)
+        .execute(loader)
+        .await
 }

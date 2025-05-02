@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::features::{
     auth::{storage::CredentialsStorage, Credentials},
     instance::{self, InstanceManager},
@@ -12,14 +14,14 @@ pub async fn run<SS, CS, IM, MS>(
     settings_storage: &SS,
     credentials_storage: &CS,
     instance_manager: &IM,
-    metadata_storage: &MS,
+    metadata_storage: Arc<MS>,
     instance_id: &str,
 ) -> crate::Result<MinecraftProcessMetadata>
 where
     SS: SettingsStorage + ?Sized,
     CS: CredentialsStorage + ?Sized,
     IM: InstanceManager + ?Sized,
-    MS: ReadMetadataStorage + ?Sized,
+    MS: ReadMetadataStorage,
 {
     let default_account = credentials_storage
         .get_active()
@@ -39,14 +41,14 @@ where
 pub async fn run_credentials<SS, IM, MS>(
     settings_storage: &SS,
     instance_manager: &IM,
-    metadata_storage: &MS,
+    metadata_storage: Arc<MS>,
     instance_id: &str,
     credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata>
 where
     SS: SettingsStorage + ?Sized,
     IM: InstanceManager + ?Sized,
-    MS: ReadMetadataStorage + ?Sized,
+    MS: ReadMetadataStorage,
 {
     let settings = settings_storage.get().await?;
     let instance = instance_manager.get(instance_id).await?;

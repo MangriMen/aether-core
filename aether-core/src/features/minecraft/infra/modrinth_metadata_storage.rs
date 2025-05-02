@@ -5,22 +5,25 @@ use daedalus::{
     minecraft::VersionManifest,
     modded::{self},
 };
-use reqwest::Method;
 
 use crate::{
     features::minecraft::ReadMetadataStorage,
-    shared::{fetch_json, CachedValue, FetchSemaphore, StorageError},
+    shared::{
+        domain::{Request, RequestClient},
+        extensions::RequestClientExt,
+        CachedValue, StorageError,
+    },
 };
 
 pub const META_URL: &str = "https://launcher-meta.modrinth.com/";
 
-pub struct ModrinthMetadataStorage {
-    api_semaphore: Arc<FetchSemaphore>,
+pub struct ModrinthMetadataStorage<RC: RequestClient> {
+    request_client: Arc<RC>,
 }
 
-impl ModrinthMetadataStorage {
-    pub fn new(api_semaphore: Arc<FetchSemaphore>) -> Self {
-        Self { api_semaphore }
+impl<RC: RequestClient> ModrinthMetadataStorage<RC> {
+    pub fn new(request_client: Arc<RC>) -> Self {
+        Self { request_client }
     }
 
     fn get_loader_manifest_url(loader: &str) -> String {
@@ -29,35 +32,29 @@ impl ModrinthMetadataStorage {
 }
 
 #[async_trait]
-impl ReadMetadataStorage for ModrinthMetadataStorage {
+impl<RC> ReadMetadataStorage for ModrinthMetadataStorage<RC>
+where
+    RC: RequestClient + Send + Sync,
+{
     async fn get_version_manifest(&self) -> Result<CachedValue<VersionManifest>, StorageError> {
-        fetch_json::<VersionManifest>(
-            Method::GET,
-            daedalus::minecraft::VERSION_MANIFEST_URL,
-            None,
-            None,
-            None,
-            &self.api_semaphore,
-        )
-        .await
-        .map_err(|err| StorageError::ReadError(err.raw.to_string()))
-        .map(CachedValue::new)
+        self.request_client
+            .fetch_json(
+                Request::get(daedalus::minecraft::VERSION_MANIFEST_URL),
+                None,
+            )
+            .await
+            .map_err(|err| StorageError::ReadError(err.raw.to_string()))
+            .map(CachedValue::new)
     }
 
     async fn get_loader_version_manifest(
         &self,
         loader: &str,
     ) -> Result<CachedValue<modded::Manifest>, StorageError> {
-        fetch_json::<modded::Manifest>(
-            Method::GET,
-            &Self::get_loader_manifest_url(loader),
-            None,
-            None,
-            None,
-            &self.api_semaphore,
-        )
-        .await
-        .map_err(|err| StorageError::ReadError(err.raw.to_string()))
-        .map(CachedValue::new)
+        self.request_client
+            .fetch_json(Request::get(Self::get_loader_manifest_url(loader)), None)
+            .await
+            .map_err(|err| StorageError::ReadError(err.raw.to_string()))
+            .map(CachedValue::new)
     }
 }

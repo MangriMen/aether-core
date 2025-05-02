@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use tokio::sync::OnceCell;
 
@@ -7,6 +7,7 @@ use crate::{
         auth::FsCredentialsStorage,
         instance::{FsInstanceStorage, InstanceManagerImpl},
         java::infra::FsJavaStorage,
+        minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         process::InMemoryProcessManager,
         settings::FsSettingsStorage,
     },
@@ -17,6 +18,8 @@ use super::{ErrorKind, LauncherState};
 
 static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 
+const CACHE_TTL: Duration = Duration::from_secs(120);
+
 pub struct LazyLocator {
     state: Arc<LauncherState>,
     request_client: OnceCell<Arc<ReqwestClient>>,
@@ -26,6 +29,9 @@ pub struct LazyLocator {
     process_manager: OnceCell<Arc<InMemoryProcessManager>>,
     instance_manager: OnceCell<Arc<InstanceManagerImpl<FsInstanceStorage>>>,
     java_storage: OnceCell<Arc<FsJavaStorage>>,
+    metadata_storage: OnceCell<
+        Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>>,
+    >,
 }
 
 impl LazyLocator {
@@ -41,6 +47,7 @@ impl LazyLocator {
                     process_manager: OnceCell::new(),
                     instance_manager: OnceCell::new(),
                     java_storage: OnceCell::new(),
+                    metadata_storage: OnceCell::new(),
                 })
             })
             .await;
@@ -148,6 +155,20 @@ impl LazyLocator {
         self.java_storage
             .get_or_init(|| async {
                 Arc::new(FsJavaStorage::new(&self.state.locations.java_dir()))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_metadata_storage(
+        &self,
+    ) -> Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>> {
+        self.metadata_storage
+            .get_or_init(|| async {
+                Arc::new(CachedMetadataStorage::new(
+                    FsMetadataStorage::new(&self.state.locations.cache_dir(), Some(CACHE_TTL)),
+                    ModrinthMetadataStorage::new(self.get_request_client().await),
+                ))
             })
             .await
             .clone()

@@ -1,10 +1,11 @@
 pub mod download;
 pub mod get_compatible_java_version;
+pub mod get_loader_version_manifest;
 pub mod get_minecraft_jvm_arguments;
+pub mod get_version_manifest;
 pub mod install_minecraft;
 pub mod jvm_arguments;
 pub mod launch_minecraft;
-pub mod metadata;
 pub mod minecraft_arguments;
 pub mod parse_arguments;
 pub mod processors;
@@ -16,11 +17,12 @@ pub mod run_mod_loader_post_install;
 
 pub use download::*;
 pub use get_compatible_java_version::*;
+pub use get_loader_version_manifest::*;
 pub use get_minecraft_jvm_arguments::*;
+pub use get_version_manifest::*;
 pub use install_minecraft::*;
 pub use jvm_arguments::*;
 pub use launch_minecraft::*;
-pub use metadata::*;
 pub use minecraft_arguments::*;
 pub use parse_arguments::*;
 pub use resolve_loader_version::*;

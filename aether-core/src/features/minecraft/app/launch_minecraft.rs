@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use crate::{
     api,
@@ -9,7 +9,7 @@ use crate::{
     features::{
         auth::Credentials,
         instance::{Instance, InstanceInstallStage, InstanceManager},
-        minecraft::{self, LaunchSettings, ModLoader, ReadMetadataStorage},
+        minecraft::{self, LaunchSettings, LoaderVersionResolver, ModLoader, ReadMetadataStorage},
         plugins::PluginEvent,
         process::{MinecraftProcessMetadata, ProcessManager},
     },
@@ -22,14 +22,14 @@ use super::{install_minecraft, resolve_loader_version};
 #[tracing::instrument(skip(instance_manager, metadata_storage))]
 pub async fn launch_minecraft<IM, MS>(
     instance_manager: &IM,
-    metadata_storage: &MS,
+    metadata_storage: Arc<MS>,
     instance: &Instance,
     launch_settings: &LaunchSettings,
     credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata>
 where
     IM: InstanceManager + ?Sized,
-    MS: ReadMetadataStorage + ?Sized,
+    MS: ReadMetadataStorage,
 {
     if instance.install_stage == InstanceInstallStage::PackInstalling
         || instance.install_stage == InstanceInstallStage::Installing
@@ -40,7 +40,16 @@ where
     }
 
     if instance.install_stage != InstanceInstallStage::Installed {
-        install_minecraft(instance_manager, metadata_storage, instance, None, false).await?;
+        let loader_version_resolver = LoaderVersionResolver::new(metadata_storage.clone());
+
+        install_minecraft(
+            instance_manager,
+            &loader_version_resolver,
+            instance,
+            None,
+            false,
+        )
+        .await?;
     }
 
     let state = LauncherState::get().await?;

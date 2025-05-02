@@ -1,29 +1,21 @@
 use crate::{
-    core::LauncherState,
+    core::domain::LazyLocator,
     features::{
-        auth::{Credentials, FsCredentialsStorage},
+        auth::Credentials,
         minecraft::{self},
         process::MinecraftProcessMetadata,
-        settings::FsSettingsStorage,
     },
 };
 
-use super::get_manager;
-
 #[tracing::instrument]
 pub async fn run(instance_id: &str) -> crate::Result<MinecraftProcessMetadata> {
-    let state = LauncherState::get().await?;
-
-    let settings_storage = FsSettingsStorage::new(&state.locations.settings_dir);
-    let credentials_storage = FsCredentialsStorage::new(&state.locations.settings_dir);
-    let instance_manager = get_manager(&state);
-    let metadata_storage = crate::api::metadata::get_storage().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
     minecraft::run(
-        &settings_storage,
-        &credentials_storage,
-        &instance_manager,
-        &metadata_storage,
+        &*lazy_locator.get_settings_storage().await,
+        &*lazy_locator.get_auth_storage().await,
+        &*lazy_locator.get_instance_manager().await,
+        lazy_locator.get_metadata_storage().await,
         instance_id,
     )
     .await
@@ -34,16 +26,12 @@ pub async fn run_credentials(
     id: &str,
     credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata> {
-    let state = LauncherState::get().await?;
-
-    let settings_storage = FsSettingsStorage::new(&state.locations.settings_dir);
-    let instance_manager = get_manager(&state);
-    let metadata_storage = crate::api::metadata::get_storage().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
     minecraft::run_credentials(
-        &settings_storage,
-        &instance_manager,
-        &metadata_storage,
+        &*lazy_locator.get_settings_storage().await,
+        &*lazy_locator.get_instance_manager().await,
+        lazy_locator.get_metadata_storage().await,
         id,
         credentials,
     )

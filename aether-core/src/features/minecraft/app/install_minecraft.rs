@@ -6,21 +6,21 @@ use crate::{
     features::{
         events::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
         instance::{Instance, InstanceInstallStage, InstanceManager},
-        minecraft::{self, resolve_loader_version, ModLoader, ReadMetadataStorage},
+        minecraft::{self, LoaderVersionResolver, ModLoader, ReadMetadataStorage},
     },
 };
 
-#[tracing::instrument(skip(instance_manager, metadata_storage))]
+#[tracing::instrument(skip(instance_manager, loader_version_resolver))]
 pub async fn install_minecraft<IM, MS>(
     instance_manager: &IM,
-    metadata_storage: &MS,
+    loader_version_resolver: &LoaderVersionResolver<MS>,
     instance: &Instance,
     loading_bar: Option<LoadingBarId>,
     force: bool,
 ) -> crate::Result<()>
 where
     IM: InstanceManager + ?Sized,
-    MS: ReadMetadataStorage + ?Sized,
+    MS: ReadMetadataStorage,
 {
     log::info!(
         "Installing instance: \"{}\" (minecraft: \"{}\", modloader: \"{}\")",
@@ -60,30 +60,25 @@ where
         let loader_version = if instance.loader == ModLoader::Vanilla {
             None
         } else {
-            let loader_version_manifest = metadata_storage
-                .get_loader_version_manifest(instance.loader.as_meta_str())
-                .await?
-                .value;
-
-            let loader_version = resolve_loader_version(
-                &instance.game_version,
-                &instance.loader,
-                instance.loader_version.as_deref(),
-                &loader_version_manifest,
-            )
-            .await?;
+            let loader_version = loader_version_resolver
+                .resolve(
+                    &instance.game_version,
+                    &instance.loader,
+                    &instance.loader_version,
+                )
+                .await?;
 
             match loader_version {
                 Some(loader_version) => Some(loader_version),
                 None => {
                     // If no loader version is selected, try to select the stable version!
-                    let stable_loader_version = resolve_loader_version(
-                        &instance.game_version,
-                        &instance.loader,
-                        Some("stable"),
-                        &loader_version_manifest,
-                    )
-                    .await?;
+                    let stable_loader_version = loader_version_resolver
+                        .resolve(
+                            &instance.game_version,
+                            &instance.loader,
+                            &Some("stable".to_string()),
+                        )
+                        .await?;
 
                     instance_manager
                         .upsert_with(&instance.id, |instance| {

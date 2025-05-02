@@ -1,55 +1,66 @@
-use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::{
-    core::{domain::ServiceLocator, LauncherState},
-    features::instance::{
-        EditInstance, FsInstanceStorage, Instance, InstanceManager, InstanceManagerImpl,
-        InstanceService, NewInstance,
+    core::{
+        domain::{LazyLocator, ServiceLocator},
+        LauncherState,
     },
+    features::{
+        instance::{
+            CreateInstanceUseCase, EditInstance, EditInstanceUseCase, GetInstanceUseCase,
+            InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
+            RemoveInstanceUseCase,
+        },
+        minecraft::LoaderVersionResolver,
+    },
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
-
-pub fn get_manager(state: &LauncherState) -> InstanceManagerImpl<FsInstanceStorage> {
-    InstanceManagerImpl::new(FsInstanceStorage::new(state.locations.clone()))
-}
-
-fn get_service(state: &LauncherState) -> InstanceService<InstanceManagerImpl<FsInstanceStorage>> {
-    InstanceService::new(
-        get_manager(state),
-        state.locations.clone(),
-        state.file_watcher.clone(),
-    )
-}
 
 #[tracing::instrument]
 pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
     let state = LauncherState::get().await?;
-    let metadata_storage = crate::api::metadata::get_storage().await?;
-    let instance_service = get_service(&state);
+    let lazy_locator = LazyLocator::get().await?;
 
-    instance_service
-        .create(&metadata_storage, &new_instance)
-        .await
+    let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
+
+    CreateInstanceUseCase::new(
+        lazy_locator.get_instance_manager().await,
+        loader_version_resolver,
+        state.locations.clone(),
+        state.file_watcher.clone(),
+    )
+    .execute(new_instance)
+    .await
 }
 
 #[tracing::instrument]
-pub async fn install(id: &str, force: bool) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let instance_service = get_service(&state);
-    let metadata_storage = crate::api::metadata::get_storage().await?;
+pub async fn install(id: String, force: bool) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    instance_service.install(&metadata_storage, id, force).await
+    let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
+
+    InstallInstanceUseCase::new(
+        lazy_locator.get_instance_manager().await,
+        loader_version_resolver,
+    )
+    .execute((id, force))
+    .await
 }
 
 #[tracing::instrument]
-pub async fn update(id: &str) -> crate::Result<()> {
-    if let Ok(instance) = get(id).await {
+pub async fn update(id: String) -> crate::Result<()> {
+    if let Ok(instance) = get(id.clone()).await {
         if let Some(pack_info) = instance.pack_info {
             let service_locator = ServiceLocator::get().await?;
             let plugin_service = service_locator.plugin_service.read().await;
 
             if let Ok(plugin) = plugin_service.get(&pack_info.pack_type) {
                 if let Some(plugin) = &plugin.instance {
-                    plugin.lock().await.update(id).map_err(|_| {
+                    plugin.lock().await.update(&id).map_err(|_| {
                         crate::ErrorKind::InstanceUpdateError(format!(
                             "Failed to import instance from plugin {}",
                             pack_info.pack_type
@@ -84,38 +95,36 @@ pub async fn update(id: &str) -> crate::Result<()> {
 
 #[tracing::instrument]
 pub async fn list() -> crate::Result<Vec<Instance>> {
-    let state = LauncherState::get().await?;
-    let instance_manager = get_manager(&state);
+    let lazy_locator = LazyLocator::get().await?;
 
-    instance_manager.list().await
+    ListInstancesUseCase::new(lazy_locator.get_instance_manager().await)
+        .execute()
+        .await
 }
 
 #[tracing::instrument]
-pub async fn get(id: &str) -> crate::Result<Instance> {
-    let state = LauncherState::get().await?;
-    let instance_manager = get_manager(&state);
+pub async fn get(id: String) -> crate::Result<Instance> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    instance_manager.get(id).await
+    GetInstanceUseCase::new(lazy_locator.get_instance_manager().await)
+        .execute(id)
+        .await
 }
 
 #[tracing::instrument]
-pub async fn edit(id: &str, edit_instance: &EditInstance) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let instance_service = get_service(&state);
+pub async fn edit(id: String, edit_instance: EditInstance) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    instance_service.edit(id, edit_instance).await
+    EditInstanceUseCase::new(lazy_locator.get_instance_manager().await)
+        .execute((id, edit_instance))
+        .await
 }
 
 #[tracing::instrument]
-pub async fn remove(id: &str) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let instance_manager = get_manager(&state);
+pub async fn remove(id: String) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    instance_manager.remove(id).await
-}
-
-#[tracing::instrument]
-pub async fn get_dir(id: &str) -> crate::Result<PathBuf> {
-    let state = LauncherState::get().await?;
-    Ok(state.locations.instance_dir(id))
+    RemoveInstanceUseCase::new(lazy_locator.get_instance_manager().await)
+        .execute(id)
+        .await
 }
