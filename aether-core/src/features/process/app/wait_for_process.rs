@@ -3,28 +3,28 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::{features::process::ProcessManager, shared::domain::AsyncUseCaseWithInputAndError};
+use crate::{features::process::ProcessStorage, shared::domain::AsyncUseCaseWithInputAndError};
 
-pub struct WaitForProcessUseCase<PM: ProcessManager> {
-    manager: Arc<PM>,
+pub struct WaitForProcessUseCase<PS: ProcessStorage> {
+    process_storage: Arc<PS>,
 }
 
-impl<PM: ProcessManager> WaitForProcessUseCase<PM> {
-    pub fn new(manager: Arc<PM>) -> Self {
-        Self { manager }
+impl<PS: ProcessStorage> WaitForProcessUseCase<PS> {
+    pub fn new(process_storage: Arc<PS>) -> Self {
+        Self { process_storage }
     }
 }
 
 #[async_trait]
-impl<PM> AsyncUseCaseWithInputAndError for WaitForProcessUseCase<PM>
+impl<PS> AsyncUseCaseWithInputAndError for WaitForProcessUseCase<PS>
 where
-    PM: ProcessManager + Send + Sync,
+    PS: ProcessStorage + Send + Sync,
 {
     type Input = Uuid;
     type Output = ();
     type Error = crate::Error;
 
     async fn execute(&self, id: Self::Input) -> Result<Self::Output, Self::Error> {
-        self.manager.wait_for(id).await
+        self.process_storage.wait_for(id).await
     }
 }

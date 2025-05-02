@@ -7,7 +7,7 @@ use crate::{
         auth::CredentialsStorage,
         instance::InstanceStorage,
         minecraft::ReadMetadataStorage,
-        process::{MinecraftProcessMetadata, ProcessManager},
+        process::{MinecraftProcessMetadata, ProcessStorage},
         settings::SettingsStorage,
     },
     shared::domain::AsyncUseCaseWithInputAndError,
@@ -18,25 +18,25 @@ use super::LaunchWithCredentialsUseCase;
 pub struct LaunchWithActiveAccountUseCase<
     IS: InstanceStorage,
     MS: ReadMetadataStorage,
-    PM: ProcessManager,
+    PS: ProcessStorage,
     CS: CredentialsStorage,
     SS: SettingsStorage,
 > {
     credentials_storage: Arc<CS>,
-    launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PM, SS>,
+    launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS>,
 }
 
 impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        PM: ProcessManager,
+        PS: ProcessStorage,
         CS: CredentialsStorage,
         SS: SettingsStorage,
-    > LaunchWithActiveAccountUseCase<IS, MS, PM, CS, SS>
+    > LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS>
 {
     pub fn new(
         credentials_storage: Arc<CS>,
-        launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PM, SS>,
+        launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS>,
     ) -> Self {
         Self {
             credentials_storage,
@@ -46,12 +46,12 @@ impl<
 }
 
 #[async_trait]
-impl<IS, MS, PM, CS, SS> AsyncUseCaseWithInputAndError
-    for LaunchWithActiveAccountUseCase<IS, MS, PM, CS, SS>
+impl<IS, MS, PS, CS, SS> AsyncUseCaseWithInputAndError
+    for LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS>
 where
     IS: InstanceStorage + Send + Sync,
     MS: ReadMetadataStorage + Send + Sync,
-    PM: ProcessManager + Send + Sync,
+    PS: ProcessStorage + Send + Sync,
     CS: CredentialsStorage + Send + Sync,
     SS: SettingsStorage + Send + Sync,
 {

@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     features::{
         instance::{InstanceStorage, InstanceStorageExtensions},
-        process::ProcessManager,
+        process::ProcessStorage,
     },
     shared::domain::AsyncUseCaseWithInput,
 };
@@ -19,18 +19,18 @@ pub struct TrackProcessParams {
     pub instance_id: String,
 }
 
-pub struct TrackProcessUseCase<PM, IS> {
-    process_manager: Arc<PM>,
+pub struct TrackProcessUseCase<PS, IS> {
+    process_storage: Arc<PS>,
     instance_storage: Arc<IS>,
 }
 
-impl<PM, IS> TrackProcessUseCase<PM, IS>
+impl<PS, IS> TrackProcessUseCase<PS, IS>
 where
     IS: InstanceStorage + Send + Sync,
 {
-    pub fn new(process_manager: Arc<PM>, instance_storage: Arc<IS>) -> Self {
+    pub fn new(process_storage: Arc<PS>, instance_storage: Arc<IS>) -> Self {
         Self {
-            process_manager,
+            process_storage,
             instance_storage,
         }
     }
@@ -61,9 +61,9 @@ where
 }
 
 #[async_trait]
-impl<PM, IS> AsyncUseCaseWithInput for TrackProcessUseCase<PM, IS>
+impl<PS, IS> AsyncUseCaseWithInput for TrackProcessUseCase<PS, IS>
 where
-    PM: ProcessManager + Send + Sync,
+    PS: ProcessStorage + Send + Sync,
     IS: InstanceStorage + Send + Sync,
 {
     type Input = TrackProcessParams;
@@ -78,7 +78,7 @@ where
         let mut last_updated_playtime = Utc::now();
 
         loop {
-            match self.process_manager.try_wait(process_uuid) {
+            match self.process_storage.try_wait(process_uuid).await {
                 Ok(Some(Some(exit_status))) => {
                     // Process exited successfully
                     self.update_playtime(&mut last_updated_playtime, &instance_id, true)

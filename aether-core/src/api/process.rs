@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::{
     core::domain::LazyLocator,
     features::process::{
-        GetProcessByInstanceIdUseCase, KillProcessUseCase, ListProcessUseCase,
+        GetProcessMetadataByInstanceIdUseCase, KillProcessUseCase, ListProcessMetadataUseCase,
         MinecraftProcessMetadata, WaitForProcessUseCase,
     },
     shared::domain::{AsyncUseCase, AsyncUseCaseWithInput, AsyncUseCaseWithInputAndError},
@@ -14,7 +14,7 @@ pub async fn list() -> crate::Result<Vec<MinecraftProcessMetadata>> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
-        ListProcessUseCase::new(lazy_locator.get_process_manager().await)
+        ListProcessMetadataUseCase::new(lazy_locator.get_process_storage().await)
             .execute()
             .await,
     )
@@ -25,7 +25,7 @@ pub async fn get_by_instance_id(id: String) -> crate::Result<Vec<MinecraftProces
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
-        GetProcessByInstanceIdUseCase::new(lazy_locator.get_process_manager().await)
+        GetProcessMetadataByInstanceIdUseCase::new(lazy_locator.get_process_storage().await)
             .execute(id)
             .await,
     )
@@ -35,7 +35,7 @@ pub async fn get_by_instance_id(id: String) -> crate::Result<Vec<MinecraftProces
 pub async fn kill(uuid: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    KillProcessUseCase::new(lazy_locator.get_process_manager().await)
+    KillProcessUseCase::new(lazy_locator.get_process_storage().await)
         .execute(uuid)
         .await
 }
@@ -44,7 +44,7 @@ pub async fn kill(uuid: Uuid) -> crate::Result<()> {
 pub async fn wait_for(uuid: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    WaitForProcessUseCase::new(lazy_locator.get_process_manager().await)
+    WaitForProcessUseCase::new(lazy_locator.get_process_storage().await)
         .execute(uuid)
         .await
 }

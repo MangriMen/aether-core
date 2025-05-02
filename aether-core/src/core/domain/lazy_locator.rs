@@ -11,7 +11,7 @@ use crate::{
         },
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
-        process::InMemoryProcessManager,
+        process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
     },
     shared::infra::{ReqwestClient, REQWEST_CLIENT},
@@ -29,7 +29,7 @@ pub struct LazyLocator {
     api_client: OnceCell<Arc<ReqwestClient>>,
     credentials_storage: OnceCell<Arc<FsCredentialsStorage>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
-    process_manager: OnceCell<Arc<InMemoryProcessManager>>,
+    process_storage: OnceCell<Arc<InMemoryProcessStorage>>,
     instance_storage: OnceCell<Arc<EventEmittingInstanceStorage<FsInstanceStorage>>>,
     java_storage: OnceCell<Arc<FsJavaStorage>>,
     metadata_storage: OnceCell<
@@ -49,7 +49,7 @@ impl LazyLocator {
                     api_client: OnceCell::new(),
                     credentials_storage: OnceCell::new(),
                     settings_storage: OnceCell::new(),
-                    process_manager: OnceCell::new(),
+                    process_storage: OnceCell::new(),
                     instance_storage: OnceCell::new(),
                     java_storage: OnceCell::new(),
                     metadata_storage: OnceCell::new(),
@@ -140,9 +140,9 @@ impl LazyLocator {
             .clone()
     }
 
-    pub async fn get_process_manager(&self) -> Arc<InMemoryProcessManager> {
-        self.process_manager
-            .get_or_init(|| async { Arc::new(InMemoryProcessManager::default()) })
+    pub async fn get_process_storage(&self) -> Arc<InMemoryProcessStorage> {
+        self.process_storage
+            .get_or_init(|| async { Arc::new(InMemoryProcessStorage::default()) })
             .await
             .clone()
     }

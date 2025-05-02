@@ -6,8 +6,8 @@ use uuid::Uuid;
 use crate::{
     features::{
         events::{emit_process, ProcessPayloadType},
-        instance::{FsInstanceStorage, EventEmittingInstanceStorage},
-        process::ProcessManager,
+        instance::{EventEmittingInstanceStorage, FsInstanceStorage},
+        process::ProcessStorage,
         settings::LocationInfo,
     },
     shared::{
@@ -24,22 +24,23 @@ pub struct ManageProcessParams {
     pub post_exit_command: Option<String>,
 }
 
-pub struct ManageProcessUseCase<PM: ProcessManager> {
-    process_manager: Arc<PM>,
-    track_process_use_case: Arc<TrackProcessUseCase<PM, EventEmittingInstanceStorage<FsInstanceStorage>>>,
+pub struct ManageProcessUseCase<PS: ProcessStorage> {
+    process_storage: Arc<PS>,
+    track_process_use_case:
+        Arc<TrackProcessUseCase<PS, EventEmittingInstanceStorage<FsInstanceStorage>>>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<PM: ProcessManager> ManageProcessUseCase<PM> {
+impl<PS: ProcessStorage> ManageProcessUseCase<PS> {
     pub fn new(
-        process_manager: Arc<PM>,
+        process_storage: Arc<PS>,
         track_process_use_case: Arc<
-            TrackProcessUseCase<PM, EventEmittingInstanceStorage<FsInstanceStorage>>,
+            TrackProcessUseCase<PS, EventEmittingInstanceStorage<FsInstanceStorage>>,
         >,
         location_info: Arc<LocationInfo>,
     ) -> Self {
         Self {
-            process_manager,
+            process_storage,
             track_process_use_case,
             location_info,
         }
@@ -47,9 +48,9 @@ impl<PM: ProcessManager> ManageProcessUseCase<PM> {
 }
 
 #[async_trait]
-impl<PM> AsyncUseCaseWithInputAndError for ManageProcessUseCase<PM>
+impl<PS> AsyncUseCaseWithInputAndError for ManageProcessUseCase<PS>
 where
-    PM: ProcessManager + Send + Sync,
+    PS: ProcessStorage + Send + Sync,
 {
     type Input = ManageProcessParams;
     type Output = ();
@@ -70,7 +71,8 @@ where
             })
             .await;
 
-        self.process_manager.remove(process_uuid);
+        self.process_storage.remove(process_uuid).await;
+
         emit_process(
             &instance_id,
             process_uuid,

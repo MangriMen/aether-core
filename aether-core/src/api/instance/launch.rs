@@ -8,7 +8,9 @@ use crate::{
             GetVersionManifestUseCase, InstallMinecraftUseCase, LaunchMinecraftUseCase,
             LaunchWithActiveAccountUseCase, LaunchWithCredentialsUseCase, LoaderVersionResolver,
         },
-        process::{GetProcessByInstanceIdUseCase, MinecraftProcessMetadata},
+        process::{
+            GetProcessMetadataByInstanceIdUseCase, MinecraftProcessMetadata, StartProcessUseCase,
+        },
     },
     shared::domain::AsyncUseCaseWithInputAndError,
 };
@@ -33,8 +35,12 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
         state.locations.clone(),
     ));
 
-    let get_process_by_instance_id_use_case = Arc::new(GetProcessByInstanceIdUseCase::new(
-        lazy_locator.get_process_manager().await,
+    let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(
+        lazy_locator.get_process_storage().await,
+    ));
+
+    let start_process_use_case = Arc::new(StartProcessUseCase::new(
+        lazy_locator.get_process_storage().await,
     ));
 
     let launch_minecraft_use_case = LaunchMinecraftUseCase::new(
@@ -43,6 +49,7 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
         install_minecraft_use_case,
         get_version_manifest_use_case,
         get_process_by_instance_id_use_case,
+        start_process_use_case,
     );
 
     let launch_with_credentials_use_case = LaunchWithCredentialsUseCase::new(
@@ -82,8 +89,12 @@ pub async fn run_credentials(
         state.locations.clone(),
     ));
 
-    let get_process_by_instance_id_use_case = Arc::new(GetProcessByInstanceIdUseCase::new(
-        lazy_locator.get_process_manager().await,
+    let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(
+        lazy_locator.get_process_storage().await,
+    ));
+
+    let start_process_use_case = Arc::new(StartProcessUseCase::new(
+        lazy_locator.get_process_storage().await,
     ));
 
     let launch_minecraft_use_case = LaunchMinecraftUseCase::new(
@@ -92,6 +103,7 @@ pub async fn run_credentials(
         install_minecraft_use_case,
         get_version_manifest_use_case,
         get_process_by_instance_id_use_case,
+        start_process_use_case,
     );
 
     LaunchWithCredentialsUseCase::new(

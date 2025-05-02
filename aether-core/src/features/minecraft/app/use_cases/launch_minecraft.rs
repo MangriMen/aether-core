@@ -3,10 +3,7 @@ use std::{path::Path, sync::Arc};
 use async_trait::async_trait;
 
 use crate::{
-    core::{
-        domain::{LazyLocator, ServiceLocator},
-        LauncherState,
-    },
+    core::{domain::ServiceLocator, LauncherState},
     features::{
         auth::Credentials,
         instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
@@ -15,7 +12,10 @@ use crate::{
             ReadMetadataStorage,
         },
         plugins::PluginEvent,
-        process::{GetProcessByInstanceIdUseCase, MinecraftProcessMetadata, ProcessManager},
+        process::{
+            GetProcessMetadataByInstanceIdUseCase, MinecraftProcessMetadata, ProcessStorage,
+            StartProcessUseCase,
+        },
     },
     shared::{
         domain::{
@@ -29,24 +29,26 @@ use crate::{
 
 use super::InstallMinecraftUseCase;
 
-pub struct LaunchMinecraftUseCase<IS: InstanceStorage, MS: ReadMetadataStorage, PM: ProcessManager>
+pub struct LaunchMinecraftUseCase<IS: InstanceStorage, MS: ReadMetadataStorage, PS: ProcessStorage>
 {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
     install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
     get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
-    get_process_by_instance_id_use_case: Arc<GetProcessByInstanceIdUseCase<PM>>,
+    get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
+    start_process_use_case: Arc<StartProcessUseCase<PS>>,
 }
 
-impl<IS: InstanceStorage, MS: ReadMetadataStorage, PM: ProcessManager>
-    LaunchMinecraftUseCase<IS, MS, PM>
+impl<IS: InstanceStorage, MS: ReadMetadataStorage, PS: ProcessStorage>
+    LaunchMinecraftUseCase<IS, MS, PS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
         install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
         get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
-        get_process_by_instance_id_use_case: Arc<GetProcessByInstanceIdUseCase<PM>>,
+        get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
+        start_process_use_case: Arc<StartProcessUseCase<PS>>,
     ) -> Self {
         Self {
             instance_storage,
@@ -54,16 +56,17 @@ impl<IS: InstanceStorage, MS: ReadMetadataStorage, PM: ProcessManager>
             install_minecraft_use_case,
             get_version_manifest_use_case,
             get_process_by_instance_id_use_case,
+            start_process_use_case,
         }
     }
 }
 
 #[async_trait]
-impl<IS, MS, PM> AsyncUseCaseWithInputAndError for LaunchMinecraftUseCase<IS, MS, PM>
+impl<IS, MS, PS> AsyncUseCaseWithInputAndError for LaunchMinecraftUseCase<IS, MS, PS>
 where
     IS: InstanceStorage + Send + Sync,
     MS: ReadMetadataStorage + Send + Sync,
-    PM: ProcessManager + Send + Sync,
+    PS: ProcessStorage + Send + Sync,
 {
     type Input = (String, LaunchSettings, Credentials);
     type Output = MinecraftProcessMetadata;
@@ -249,16 +252,13 @@ where
             })
             .await?;
 
-        let lazy_locator = LazyLocator::get().await?;
-
-        let metadata = lazy_locator
-            .get_process_manager()
-            .await
-            .insert_new_process(
-                &instance.id,
+        let metadata = self
+            .start_process_use_case
+            .execute((
+                instance.id.clone(),
                 command,
                 launch_settings.hooks.post_exit.clone(),
-            )
+            ))
             .await;
 
         if let Some(pack_info) = &instance.pack_info {
