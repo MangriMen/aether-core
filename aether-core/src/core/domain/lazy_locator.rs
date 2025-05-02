@@ -5,7 +5,7 @@ use tokio::sync::OnceCell;
 use crate::{
     features::{
         auth::FsCredentialsStorage,
-        instance::{EventEmittingInstanceStorage, FsInstanceStorage},
+        instance::{EventEmittingInstanceStorage, FsInstanceStorage, FsPackStorage},
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         process::InMemoryProcessManager,
@@ -32,6 +32,7 @@ pub struct LazyLocator {
     metadata_storage: OnceCell<
         Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>>,
     >,
+    pack_storage: OnceCell<Arc<FsPackStorage>>,
 }
 
 impl LazyLocator {
@@ -48,6 +49,7 @@ impl LazyLocator {
                     instance_storage: OnceCell::new(),
                     java_storage: OnceCell::new(),
                     metadata_storage: OnceCell::new(),
+                    pack_storage: OnceCell::new(),
                 })
             })
             .await;
@@ -172,6 +174,13 @@ impl LazyLocator {
                     ModrinthMetadataStorage::new(self.get_request_client().await),
                 ))
             })
+            .await
+            .clone()
+    }
+
+    pub async fn get_pack_storage(&self) -> Arc<FsPackStorage> {
+        self.pack_storage
+            .get_or_init(|| async { Arc::new(FsPackStorage::new(self.state.locations.clone())) })
             .await
             .clone()
     }

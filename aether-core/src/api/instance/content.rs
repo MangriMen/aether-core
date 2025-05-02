@@ -1,87 +1,101 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::PathBuf};
 
 use dashmap::DashMap;
 
 use crate::{
-    core::{domain::ServiceLocator, LauncherState},
-    features::instance::{
-        ContentInstallParams, ContentSearchParams, ContentSearchResult, ContentService,
-        ContentType, FsPackStorage, InstanceFile,
+    core::{
+        domain::{LazyLocator, ServiceLocator},
+        LauncherState,
     },
+    features::instance::{
+        ChangeContentState, ChangeContentStateUseCase, ContentInstallParams, ContentSearchParams,
+        ContentSearchResult, ContentStateAction, ContentType, ImportContent, ImportContentUseCase,
+        InstanceFile, ListContentUseCase, RemoveContent, RemoveContentUseCase,
+    },
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
-fn get_pack_storage(state: &LauncherState) -> FsPackStorage {
-    FsPackStorage::new(state.locations.clone())
-}
-
-fn get_service(state: &LauncherState) -> ContentService<FsPackStorage> {
-    ContentService::new(get_pack_storage(state), state.locations.clone())
-}
-
-pub async fn get_contents(instance_id: &str) -> crate::Result<DashMap<String, InstanceFile>> {
+pub async fn get_contents(instance_id: String) -> crate::Result<DashMap<String, InstanceFile>> {
     let state = LauncherState::get().await?;
-    let content_service = get_service(&state);
+    let lazy_locator = LazyLocator::get().await?;
 
-    content_service.list(instance_id).await
+    ListContentUseCase::new(
+        lazy_locator.get_pack_storage().await,
+        state.locations.clone(),
+    )
+    .execute(instance_id)
+    .await
 }
 
-pub async fn remove_content(instance_id: &str, content_path: &str) -> crate::Result<()> {
+pub async fn remove_content(instance_id: String, content_path: String) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    let content_service = get_service(&state);
+    let lazy_locator = LazyLocator::get().await?;
 
-    content_service.remove(instance_id, content_path).await
+    RemoveContentUseCase::new(
+        lazy_locator.get_pack_storage().await,
+        state.locations.clone(),
+    )
+    .execute(RemoveContent::single(instance_id, content_path))
+    .await
 }
 
-pub async fn remove_contents(instance_id: &str, content_paths: &[String]) -> crate::Result<()> {
+pub async fn remove_contents(instance_id: String, content_paths: Vec<String>) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    let content_service = get_service(&state);
+    let lazy_locator = LazyLocator::get().await?;
 
-    content_service
-        .remove_many(instance_id, content_paths)
+    RemoveContentUseCase::new(
+        lazy_locator.get_pack_storage().await,
+        state.locations.clone(),
+    )
+    .execute(RemoveContent::multiple(instance_id, content_paths))
+    .await
+}
+
+pub async fn enable_contents(instance_id: String, content_paths: Vec<String>) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+
+    ChangeContentStateUseCase::new(state.locations.clone())
+        .execute(ChangeContentState::multiple(
+            instance_id,
+            content_paths,
+            ContentStateAction::Enable,
+        ))
         .await
 }
 
-pub async fn toggle_disable_content(
-    instance_id: &str,
-    content_path: &str,
-) -> crate::Result<String> {
+pub async fn disable_contents(
+    instance_id: String,
+    content_paths: Vec<String>,
+) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    let content_service = get_service(&state);
 
-    content_service
-        .toggle_disable_content(instance_id, content_path)
-        .await
-}
-
-pub async fn enable_contents(instance_id: &str, content_paths: &[String]) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let content_service = get_service(&state);
-
-    content_service
-        .enable_many(instance_id, content_paths)
-        .await
-}
-
-pub async fn disable_contents(instance_id: &str, content_paths: &[String]) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let content_service = get_service(&state);
-
-    content_service
-        .disable_many(instance_id, content_paths)
+    ChangeContentStateUseCase::new(state.locations.clone())
+        .execute(ChangeContentState::multiple(
+            instance_id,
+            content_paths,
+            ContentStateAction::Disable,
+        ))
         .await
 }
 
 pub async fn import_contents(
-    instance_id: &str,
+    instance_id: String,
     content_type: ContentType,
-    content_paths: Vec<&Path>,
+    source_paths: Vec<PathBuf>,
 ) -> crate::Result<()> {
     let state = LauncherState::get().await?;
-    let content_service = get_service(&state);
+    let lazy_locator = LazyLocator::get().await?;
 
-    content_service
-        .import_many(instance_id, content_type, &content_paths)
-        .await
+    ImportContentUseCase::new(
+        lazy_locator.get_pack_storage().await,
+        state.locations.clone(),
+    )
+    .execute(ImportContent::multiple(
+        instance_id,
+        content_type,
+        source_paths,
+    ))
+    .await
 }
 
 pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {

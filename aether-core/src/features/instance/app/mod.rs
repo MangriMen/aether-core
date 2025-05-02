@@ -1,19 +1,7 @@
-pub mod create_instance;
-pub mod dto;
-pub mod edit_instance;
-pub mod get_instance;
-pub mod install_instance;
-pub mod list_instances;
-pub mod remove_instance;
 pub mod resolve_launch_settings;
 pub mod services;
+pub mod use_cases;
 
-pub use create_instance::*;
-pub use dto::*;
-pub use edit_instance::*;
-pub use get_instance::*;
-pub use install_instance::*;
-pub use list_instances::*;
-pub use remove_instance::*;
 pub use resolve_launch_settings::*;
 pub use services::*;
+pub use use_cases::*;
