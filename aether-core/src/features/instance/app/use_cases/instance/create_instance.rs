@@ -15,7 +15,9 @@ use crate::{
         instance::{
             watch_instance, FsWatcher, Instance, InstanceInstallStage, InstanceStorage, PackInfo,
         },
-        minecraft::{self, LoaderVersionResolver, ModLoader, ReadMetadataStorage},
+        minecraft::{
+            InstallMinecraftUseCase, LoaderVersionResolver, ModLoader, ReadMetadataStorage,
+        },
         settings::{Hooks, LocationInfo},
     },
     shared::domain::AsyncUseCaseWithInputAndError,
@@ -34,26 +36,30 @@ pub struct NewInstance {
     pub pack_info: Option<PackInfo>,
 }
 
-pub struct CreateInstanceUseCase<IS, MS> {
+pub struct CreateInstanceUseCase<IS: InstanceStorage, MS: ReadMetadataStorage> {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
     location_info: Arc<LocationInfo>,
     fs_watcher: Arc<FsWatcher>,
 }
 
-impl<IS, MS: ReadMetadataStorage> CreateInstanceUseCase<IS, MS>
+impl<IS, MS> CreateInstanceUseCase<IS, MS>
 where
     IS: InstanceStorage + Send + Sync,
+    MS: ReadMetadataStorage + Send + Sync,
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
         location_info: Arc<LocationInfo>,
         fs_watcher: Arc<FsWatcher>,
     ) -> Self {
         Self {
             instance_storage,
             loader_version_resolver,
+            install_minecraft_use_case,
             location_info,
             fs_watcher,
         }
@@ -68,14 +74,9 @@ where
         watch_instance(&instance.id, &self.fs_watcher, &self.location_info).await;
 
         if !skip_install_instance.unwrap_or(false) {
-            minecraft::install_minecraft(
-                self.instance_storage.clone(),
-                &self.loader_version_resolver,
-                instance,
-                None,
-                false,
-            )
-            .await?;
+            self.install_minecraft_use_case
+                .execute((instance.id.clone(), None, false))
+                .await?;
         }
 
         Ok(instance.id.clone())

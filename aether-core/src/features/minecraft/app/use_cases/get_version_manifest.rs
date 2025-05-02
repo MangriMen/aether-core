@@ -6,12 +6,12 @@ use daedalus::minecraft;
 use crate::{features::minecraft::ReadMetadataStorage, shared::domain::AsyncUseCaseWithError};
 
 pub struct GetVersionManifestUseCase<MS: ReadMetadataStorage> {
-    storage: Arc<MS>,
+    metadata_storage: Arc<MS>,
 }
 
 impl<MS: ReadMetadataStorage> GetVersionManifestUseCase<MS> {
-    pub fn new(storage: Arc<MS>) -> Self {
-        Self { storage }
+    pub fn new(metadata_storage: Arc<MS>) -> Self {
+        Self { metadata_storage }
     }
 }
 
@@ -24,6 +24,6 @@ where
     type Error = crate::Error;
 
     async fn execute(&self) -> Result<Self::Output, Self::Error> {
-        Ok(self.storage.get_version_manifest().await?.value)
+        Ok(self.metadata_storage.get_version_manifest().await?.value)
     }
 }

@@ -27,7 +27,7 @@ pub struct LazyLocator {
     state: Arc<LauncherState>,
     request_client: OnceCell<Arc<ReqwestClient>>,
     api_client: OnceCell<Arc<ReqwestClient>>,
-    auth_storage: OnceCell<Arc<FsCredentialsStorage>>,
+    credentials_storage: OnceCell<Arc<FsCredentialsStorage>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
     process_manager: OnceCell<Arc<InMemoryProcessManager>>,
     instance_storage: OnceCell<Arc<EventEmittingInstanceStorage<FsInstanceStorage>>>,
@@ -47,7 +47,7 @@ impl LazyLocator {
                     state,
                     request_client: OnceCell::new(),
                     api_client: OnceCell::new(),
-                    auth_storage: OnceCell::new(),
+                    credentials_storage: OnceCell::new(),
                     settings_storage: OnceCell::new(),
                     process_manager: OnceCell::new(),
                     instance_storage: OnceCell::new(),
@@ -120,8 +120,8 @@ impl LazyLocator {
             .clone()
     }
 
-    pub async fn get_auth_storage(&self) -> Arc<FsCredentialsStorage> {
-        self.auth_storage
+    pub async fn get_credentials_storage(&self) -> Arc<FsCredentialsStorage> {
+        self.credentials_storage
             .get_or_init(|| async {
                 Arc::new(FsCredentialsStorage::new(
                     &self.state.locations.settings_dir,

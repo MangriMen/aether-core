@@ -2,9 +2,12 @@ use std::path::PathBuf;
 
 use daedalus::minecraft::VersionInfo;
 
-use crate::features::{events::LoadingBarId, instance::Instance, java::Java, minecraft::ModLoader};
-
-use super::processors::run_forge_processors;
+use crate::features::{
+    events::LoadingBarId,
+    instance::Instance,
+    java::Java,
+    minecraft::{run_forge_processors, ModLoader},
+};
 
 pub async fn run_mod_loader_post_install(
     instance: &Instance,

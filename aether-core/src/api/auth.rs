@@ -13,7 +13,7 @@ use crate::{
 pub async fn create_offline_account(username: String) -> crate::Result<Uuid> {
     let lazy_locator = LazyLocator::get().await?;
 
-    CreateOfflineAccountUseCase::new(lazy_locator.get_auth_storage().await)
+    CreateOfflineAccountUseCase::new(lazy_locator.get_credentials_storage().await)
         .execute(username)
         .await
 }
@@ -22,7 +22,7 @@ pub async fn create_offline_account(username: String) -> crate::Result<Uuid> {
 pub async fn get_accounts() -> crate::Result<Vec<Account>> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetAccountsUseCase::new(lazy_locator.get_auth_storage().await)
+    GetAccountsUseCase::new(lazy_locator.get_credentials_storage().await)
         .execute()
         .await
 }
@@ -31,7 +31,7 @@ pub async fn get_accounts() -> crate::Result<Vec<Account>> {
 pub async fn change_account(id: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    SetActiveAccountUseCase::new(lazy_locator.get_auth_storage().await)
+    SetActiveAccountUseCase::new(lazy_locator.get_credentials_storage().await)
         .execute(id)
         .await
 }
@@ -40,7 +40,7 @@ pub async fn change_account(id: Uuid) -> crate::Result<()> {
 pub async fn logout(id: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    LogoutUseCase::new(lazy_locator.get_auth_storage().await)
+    LogoutUseCase::new(lazy_locator.get_credentials_storage().await)
         .execute(id)
         .await
 }

@@ -11,7 +11,7 @@ use crate::{
             InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
             RemoveInstanceUseCase,
         },
-        minecraft::LoaderVersionResolver,
+        minecraft::{GetVersionManifestUseCase, InstallMinecraftUseCase, LoaderVersionResolver},
     },
     shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
@@ -25,9 +25,21 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         lazy_locator.get_metadata_storage().await,
     ));
 
+    let get_loader_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
+
+    let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver.clone(),
+        get_loader_manifest_use_case.clone(),
+        state.locations.clone(),
+    ));
+
     CreateInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
         loader_version_resolver,
+        install_minecraft_use_case,
         state.locations.clone(),
         state.file_watcher.clone(),
     )
@@ -37,15 +49,27 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
 
 #[tracing::instrument]
 pub async fn install(id: String, force: bool) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
     let lazy_locator = LazyLocator::get().await?;
 
     let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
         lazy_locator.get_metadata_storage().await,
     ));
 
+    let get_loader_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
+
+    let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver.clone(),
+        get_loader_manifest_use_case.clone(),
+        state.locations.clone(),
+    ));
+
     InstallInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
-        loader_version_resolver,
+        install_minecraft_use_case,
     )
     .execute((id, force))
     .await

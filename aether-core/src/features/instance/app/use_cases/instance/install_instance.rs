@@ -5,24 +5,24 @@ use async_trait::async_trait;
 use crate::{
     features::{
         instance::{Instance, InstanceInstallStage, InstanceStorage},
-        minecraft::{self, LoaderVersionResolver, ReadMetadataStorage},
+        minecraft::{InstallMinecraftUseCase, ReadMetadataStorage},
     },
     shared::domain::AsyncUseCaseWithInputAndError,
 };
 
-pub struct InstallInstanceUseCase<IS, MS: ReadMetadataStorage> {
+pub struct InstallInstanceUseCase<IS: InstanceStorage, MS: ReadMetadataStorage> {
     instance_storage: Arc<IS>,
-    loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
 }
 
 impl<IS: InstanceStorage, MS: ReadMetadataStorage> InstallInstanceUseCase<IS, MS> {
     pub fn new(
         instance_storage: Arc<IS>,
-        loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
     ) -> Self {
         Self {
             instance_storage,
-            loader_version_resolver,
+            install_minecraft_use_case,
         }
     }
 
@@ -46,17 +46,15 @@ where
     type Error = crate::Error;
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let mut instance = self.instance_storage.get(&input.0).await?;
+        let (instance_id, force) = input;
 
-        if minecraft::install_minecraft(
-            self.instance_storage.clone(),
-            &*self.loader_version_resolver,
-            &instance,
-            None,
-            input.1,
-        )
-        .await
-        .is_err()
+        let mut instance = self.instance_storage.get(&instance_id).await?;
+
+        if self
+            .install_minecraft_use_case
+            .execute((instance_id.clone(), None, force))
+            .await
+            .is_err()
         {
             self.handle_failed_installation(&mut instance).await?;
         }
