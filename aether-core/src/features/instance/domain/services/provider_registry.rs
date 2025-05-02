@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::ContentProvider;
+use crate::features::instance::ContentProvider;
 
 #[derive(Default)]
 pub struct ProviderRegistry<CP> {
