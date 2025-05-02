@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     features::{
         events::{emit_process, ProcessPayloadType},
-        instance::{FsInstanceStorage, InstanceManagerImpl},
+        instance::{FsInstanceStorage, EventEmittingInstanceStorage},
         process::ProcessManager,
         settings::LocationInfo,
     },
@@ -26,7 +26,7 @@ pub struct ManageProcessParams {
 
 pub struct ManageProcessUseCase<PM: ProcessManager> {
     process_manager: Arc<PM>,
-    track_process_use_case: Arc<TrackProcessUseCase<PM, InstanceManagerImpl<FsInstanceStorage>>>,
+    track_process_use_case: Arc<TrackProcessUseCase<PM, EventEmittingInstanceStorage<FsInstanceStorage>>>,
     location_info: Arc<LocationInfo>,
 }
 
@@ -34,7 +34,7 @@ impl<PM: ProcessManager> ManageProcessUseCase<PM> {
     pub fn new(
         process_manager: Arc<PM>,
         track_process_use_case: Arc<
-            TrackProcessUseCase<PM, InstanceManagerImpl<FsInstanceStorage>>,
+            TrackProcessUseCase<PM, EventEmittingInstanceStorage<FsInstanceStorage>>,
         >,
         location_info: Arc<LocationInfo>,
     ) -> Self {

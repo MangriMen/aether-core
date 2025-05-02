@@ -101,7 +101,7 @@ async fn manage_process(
 
     let track_process_use_case = Arc::new(TrackProcessUseCase::new(
         lazy_locator.get_process_manager().await,
-        lazy_locator.get_instance_manager().await,
+        lazy_locator.get_instance_storage().await,
     ));
 
     let manage_process_use_case = ManageProcessUseCase::new(

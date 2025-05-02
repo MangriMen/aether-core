@@ -2,28 +2,28 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::{features::instance::InstanceManager, shared::domain::AsyncUseCaseWithInputAndError};
+use crate::{features::instance::InstanceStorage, shared::domain::AsyncUseCaseWithInputAndError};
 
-pub struct RemoveInstanceUseCase<IM: InstanceManager> {
-    instance_manager: Arc<IM>,
+pub struct RemoveInstanceUseCase<IS> {
+    instance_storage: Arc<IS>,
 }
 
-impl<IM: InstanceManager> RemoveInstanceUseCase<IM> {
-    pub fn new(instance_manager: Arc<IM>) -> Self {
-        Self { instance_manager }
+impl<IM> RemoveInstanceUseCase<IM> {
+    pub fn new(instance_storage: Arc<IM>) -> Self {
+        Self { instance_storage }
     }
 }
 
 #[async_trait]
-impl<IM> AsyncUseCaseWithInputAndError for RemoveInstanceUseCase<IM>
+impl<IS> AsyncUseCaseWithInputAndError for RemoveInstanceUseCase<IS>
 where
-    IM: InstanceManager + Send + Sync,
+    IS: InstanceStorage + Send + Sync,
 {
     type Input = String;
     type Output = ();
     type Error = crate::Error;
 
     async fn execute(&self, id: Self::Input) -> Result<Self::Output, Self::Error> {
-        self.instance_manager.remove(&id).await
+        Ok(self.instance_storage.remove(&id).await?)
     }
 }

@@ -1,25 +1,25 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use crate::{
     api,
     core::LauncherState,
     features::{
         events::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
-        instance::{Instance, InstanceInstallStage, InstanceManager},
+        instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
         minecraft::{self, LoaderVersionResolver, ModLoader, ReadMetadataStorage},
     },
 };
 
-#[tracing::instrument(skip(instance_manager, loader_version_resolver))]
-pub async fn install_minecraft<IM, MS>(
-    instance_manager: &IM,
+#[tracing::instrument(skip(instance_storage, loader_version_resolver))]
+pub async fn install_minecraft<IS, MS>(
+    instance_storage: Arc<IS>,
     loader_version_resolver: &LoaderVersionResolver<MS>,
     instance: &Instance,
     loading_bar: Option<LoadingBarId>,
     force: bool,
 ) -> crate::Result<()>
 where
-    IM: InstanceManager + ?Sized,
+    IS: InstanceStorage + Send + Sync,
     MS: ReadMetadataStorage,
 {
     log::info!(
@@ -40,7 +40,7 @@ where
     )
     .await?;
 
-    instance_manager
+    instance_storage
         .upsert_with(&instance.id, |instance| {
             instance.install_stage = InstanceInstallStage::Installing;
             Ok(())
@@ -80,7 +80,7 @@ where
                         )
                         .await?;
 
-                    instance_manager
+                    instance_storage
                         .upsert_with(&instance.id, |instance| {
                             instance.loader_version =
                                 stable_loader_version.clone().map(|x| x.id.clone());
@@ -139,7 +139,7 @@ where
         )
         .await?;
 
-        instance_manager
+        instance_storage
             .upsert_with(&instance.id, |instance| {
                 instance.install_stage = InstanceInstallStage::Installed;
                 Ok(())
@@ -163,7 +163,7 @@ where
             Ok(())
         }
         Err(e) => {
-            instance_manager
+            instance_storage
                 .upsert_with(&instance.id, |instance| {
                     instance.install_stage = InstanceInstallStage::NotInstalled;
                     Ok(())

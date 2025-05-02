@@ -10,7 +10,7 @@ use log::{error, info};
 use crate::{
     features::{
         instance::{
-            watch_instance, FsWatcher, Instance, InstanceInstallStage, InstanceManager, PackInfo,
+            watch_instance, FsWatcher, Instance, InstanceInstallStage, InstanceStorage, PackInfo,
         },
         minecraft::{self, LoaderVersionResolver, ModLoader, ReadMetadataStorage},
         settings::{Hooks, LocationInfo},
@@ -20,22 +20,25 @@ use crate::{
 
 use super::NewInstance;
 
-pub struct CreateInstanceUseCase<IM: InstanceManager, MS: ReadMetadataStorage> {
-    instance_manager: Arc<IM>,
+pub struct CreateInstanceUseCase<IS, MS> {
+    instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
     location_info: Arc<LocationInfo>,
     fs_watcher: Arc<FsWatcher>,
 }
 
-impl<IM: InstanceManager, MS: ReadMetadataStorage> CreateInstanceUseCase<IM, MS> {
+impl<IS, MS: ReadMetadataStorage> CreateInstanceUseCase<IS, MS>
+where
+    IS: InstanceStorage + Send + Sync,
+{
     pub fn new(
-        instance_manager: Arc<IM>,
+        instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
         location_info: Arc<LocationInfo>,
         fs_watcher: Arc<FsWatcher>,
     ) -> Self {
         Self {
-            instance_manager,
+            instance_storage,
             loader_version_resolver,
             location_info,
             fs_watcher,
@@ -46,13 +49,13 @@ impl<IM: InstanceManager, MS: ReadMetadataStorage> CreateInstanceUseCase<IM, MS>
         instance: &Instance,
         skip_install_instance: Option<bool>,
     ) -> crate::Result<String> {
-        self.instance_manager.upsert(instance).await?;
+        self.instance_storage.upsert(instance).await?;
 
         watch_instance(&instance.id, &self.fs_watcher, &self.location_info).await;
 
         if !skip_install_instance.unwrap_or(false) {
             minecraft::install_minecraft(
-                &*self.instance_manager,
+                self.instance_storage.clone(),
                 &self.loader_version_resolver,
                 instance,
                 None,
@@ -66,9 +69,9 @@ impl<IM: InstanceManager, MS: ReadMetadataStorage> CreateInstanceUseCase<IM, MS>
 }
 
 #[async_trait]
-impl<IM, MS> AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IM, MS>
+impl<IS, MS> AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS>
 where
-    IM: InstanceManager + Send + Sync,
+    IS: InstanceStorage + Send + Sync,
     MS: ReadMetadataStorage + Send + Sync,
 {
     type Input = NewInstance;
@@ -124,7 +127,7 @@ where
                     "Failed to create instance \"{}\". Rolling back",
                     &instance.name
                 );
-                if let Err(cleanup_err) = self.instance_manager.remove(&instance.id).await {
+                if let Err(cleanup_err) = self.instance_storage.remove(&instance.id).await {
                     error!("Failed to cleanup instance: {}", cleanup_err);
                 }
                 Err(err)

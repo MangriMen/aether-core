@@ -8,7 +8,7 @@ use crate::{
     },
     features::{
         auth::Credentials,
-        instance::{Instance, InstanceInstallStage, InstanceManager},
+        instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
         minecraft::{self, LaunchSettings, LoaderVersionResolver, ModLoader, ReadMetadataStorage},
         plugins::PluginEvent,
         process::{MinecraftProcessMetadata, ProcessManager},
@@ -19,16 +19,16 @@ use crate::{
 
 use super::{install_minecraft, resolve_loader_version};
 
-#[tracing::instrument(skip(instance_manager, metadata_storage))]
-pub async fn launch_minecraft<IM, MS>(
-    instance_manager: &IM,
+#[tracing::instrument(skip(instance_storage, metadata_storage))]
+pub async fn launch_minecraft<IS, MS>(
+    instance_storage: Arc<IS>,
     metadata_storage: Arc<MS>,
     instance: &Instance,
     launch_settings: &LaunchSettings,
     credentials: &Credentials,
 ) -> crate::Result<MinecraftProcessMetadata>
 where
-    IM: InstanceManager + ?Sized,
+    IS: InstanceStorage + Send + Sync,
     MS: ReadMetadataStorage,
 {
     if instance.install_stage == InstanceInstallStage::PackInstalling
@@ -43,7 +43,7 @@ where
         let loader_version_resolver = LoaderVersionResolver::new(metadata_storage.clone());
 
         install_minecraft(
-            instance_manager,
+            instance_storage.clone(),
             &loader_version_resolver,
             instance,
             None,
@@ -209,7 +209,7 @@ where
 
     // authentication credentials
 
-    instance_manager
+    instance_storage
         .upsert_with(&instance.id, |instance| {
             instance.last_played = Some(chrono::Utc::now());
 

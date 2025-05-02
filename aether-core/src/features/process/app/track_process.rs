@@ -5,7 +5,10 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::{
-    features::{instance::InstanceManager, process::ProcessManager},
+    features::{
+        instance::{InstanceStorage, InstanceStorageExtensions},
+        process::ProcessManager,
+    },
     shared::domain::AsyncUseCaseWithInput,
 };
 
@@ -16,16 +19,19 @@ pub struct TrackProcessParams {
     pub instance_id: String,
 }
 
-pub struct TrackProcessUseCase<PM: ProcessManager, IM: InstanceManager> {
+pub struct TrackProcessUseCase<PM, IS> {
     process_manager: Arc<PM>,
-    instance_manager: Arc<IM>,
+    instance_storage: Arc<IS>,
 }
 
-impl<PM: ProcessManager, IM: InstanceManager> TrackProcessUseCase<PM, IM> {
-    pub fn new(process_manager: Arc<PM>, instance_manager: Arc<IM>) -> Self {
+impl<PM, IS> TrackProcessUseCase<PM, IS>
+where
+    IS: InstanceStorage + Send + Sync,
+{
+    pub fn new(process_manager: Arc<PM>, instance_storage: Arc<IS>) -> Self {
         Self {
             process_manager,
-            instance_manager,
+            instance_storage,
         }
     }
 
@@ -36,7 +42,7 @@ impl<PM: ProcessManager, IM: InstanceManager> TrackProcessUseCase<PM, IM> {
 
         if elapsed_seconds >= 60 || force {
             let result = async {
-                self.instance_manager
+                self.instance_storage
                     .upsert_with(id, |instance| {
                         instance.time_played += elapsed_seconds as u64;
                         Ok(())
@@ -55,10 +61,10 @@ impl<PM: ProcessManager, IM: InstanceManager> TrackProcessUseCase<PM, IM> {
 }
 
 #[async_trait]
-impl<PM, IM> AsyncUseCaseWithInput for TrackProcessUseCase<PM, IM>
+impl<PM, IS> AsyncUseCaseWithInput for TrackProcessUseCase<PM, IS>
 where
     PM: ProcessManager + Send + Sync,
-    IM: InstanceManager + Send + Sync,
+    IS: InstanceStorage + Send + Sync,
 {
     type Input = TrackProcessParams;
     type Output = ExitStatus;

@@ -26,7 +26,7 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
     ));
 
     CreateInstanceUseCase::new(
-        lazy_locator.get_instance_manager().await,
+        lazy_locator.get_instance_storage().await,
         loader_version_resolver,
         state.locations.clone(),
         state.file_watcher.clone(),
@@ -44,7 +44,7 @@ pub async fn install(id: String, force: bool) -> crate::Result<()> {
     ));
 
     InstallInstanceUseCase::new(
-        lazy_locator.get_instance_manager().await,
+        lazy_locator.get_instance_storage().await,
         loader_version_resolver,
     )
     .execute((id, force))
@@ -97,7 +97,7 @@ pub async fn update(id: String) -> crate::Result<()> {
 pub async fn list() -> crate::Result<Vec<Instance>> {
     let lazy_locator = LazyLocator::get().await?;
 
-    ListInstancesUseCase::new(lazy_locator.get_instance_manager().await)
+    ListInstancesUseCase::new(lazy_locator.get_instance_storage().await)
         .execute()
         .await
 }
@@ -106,7 +106,7 @@ pub async fn list() -> crate::Result<Vec<Instance>> {
 pub async fn get(id: String) -> crate::Result<Instance> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetInstanceUseCase::new(lazy_locator.get_instance_manager().await)
+    GetInstanceUseCase::new(lazy_locator.get_instance_storage().await)
         .execute(id)
         .await
 }
@@ -115,7 +115,7 @@ pub async fn get(id: String) -> crate::Result<Instance> {
 pub async fn edit(id: String, edit_instance: EditInstance) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    EditInstanceUseCase::new(lazy_locator.get_instance_manager().await)
+    EditInstanceUseCase::new(lazy_locator.get_instance_storage().await)
         .execute((id, edit_instance))
         .await
 }
@@ -124,7 +124,7 @@ pub async fn edit(id: String, edit_instance: EditInstance) -> crate::Result<()> 
 pub async fn remove(id: String) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    RemoveInstanceUseCase::new(lazy_locator.get_instance_manager().await)
+    RemoveInstanceUseCase::new(lazy_locator.get_instance_storage().await)
         .execute(id)
         .await
 }

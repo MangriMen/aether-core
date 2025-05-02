@@ -3,29 +3,29 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    features::instance::{Instance, InstanceManager},
+    features::instance::{Instance, InstanceStorage},
     shared::domain::AsyncUseCaseWithError,
 };
 
-pub struct ListInstancesUseCase<IM: InstanceManager> {
-    instance_manager: Arc<IM>,
+pub struct ListInstancesUseCase<IS> {
+    instance_storage: Arc<IS>,
 }
 
-impl<IM: InstanceManager> ListInstancesUseCase<IM> {
-    pub fn new(instance_manager: Arc<IM>) -> Self {
-        Self { instance_manager }
+impl<IS> ListInstancesUseCase<IS> {
+    pub fn new(instance_storage: Arc<IS>) -> Self {
+        Self { instance_storage }
     }
 }
 
 #[async_trait]
-impl<IM> AsyncUseCaseWithError for ListInstancesUseCase<IM>
+impl<IS> AsyncUseCaseWithError for ListInstancesUseCase<IS>
 where
-    IM: InstanceManager + Send + Sync,
+    IS: InstanceStorage + Send + Sync,
 {
     type Output = Vec<Instance>;
     type Error = crate::Error;
 
     async fn execute(&self) -> Result<Self::Output, Self::Error> {
-        self.instance_manager.list().await
+        Ok(self.instance_storage.list().await?)
     }
 }

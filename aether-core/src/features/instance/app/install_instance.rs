@@ -4,24 +4,24 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
-        instance::{Instance, InstanceInstallStage, InstanceManager},
+        instance::{Instance, InstanceInstallStage, InstanceStorage},
         minecraft::{self, LoaderVersionResolver, ReadMetadataStorage},
     },
     shared::domain::AsyncUseCaseWithInputAndError,
 };
 
-pub struct InstallInstanceUseCase<IM: InstanceManager, MS: ReadMetadataStorage> {
-    instance_manager: Arc<IM>,
+pub struct InstallInstanceUseCase<IS, MS: ReadMetadataStorage> {
+    instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
 }
 
-impl<IM: InstanceManager, MS: ReadMetadataStorage> InstallInstanceUseCase<IM, MS> {
+impl<IS: InstanceStorage, MS: ReadMetadataStorage> InstallInstanceUseCase<IS, MS> {
     pub fn new(
-        instance_manager: Arc<IM>,
+        instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
     ) -> Self {
         Self {
-            instance_manager,
+            instance_storage,
             loader_version_resolver,
         }
     }
@@ -29,16 +29,16 @@ impl<IM: InstanceManager, MS: ReadMetadataStorage> InstallInstanceUseCase<IM, MS
     async fn handle_failed_installation(&self, instance: &mut Instance) -> crate::Result<()> {
         if instance.install_stage != InstanceInstallStage::Installed {
             instance.install_stage = InstanceInstallStage::NotInstalled;
-            self.instance_manager.upsert(instance).await?;
+            self.instance_storage.upsert(instance).await?;
         }
         Ok(())
     }
 }
 
 #[async_trait]
-impl<IM, MS> AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IM, MS>
+impl<IS, MS> AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IS, MS>
 where
-    IM: InstanceManager + Send + Sync,
+    IS: InstanceStorage + Send + Sync,
     MS: ReadMetadataStorage + Send + Sync,
 {
     type Input = (String, bool);
@@ -46,10 +46,10 @@ where
     type Error = crate::Error;
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let mut instance = self.instance_manager.get(&input.0).await?;
+        let mut instance = self.instance_storage.get(&input.0).await?;
 
         if minecraft::install_minecraft(
-            &*self.instance_manager,
+            self.instance_storage.clone(),
             &*self.loader_version_resolver,
             &instance,
             None,

@@ -4,26 +4,26 @@ use async_trait::async_trait;
 use chrono::Utc;
 
 use crate::{
-    features::instance::{Instance, InstanceManager},
+    features::instance::{Instance, InstanceStorage},
     shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 use super::EditInstance;
 
-pub struct EditInstanceUseCase<IM: InstanceManager> {
-    instance_manager: Arc<IM>,
+pub struct EditInstanceUseCase<IS> {
+    instance_storage: Arc<IS>,
 }
 
-impl<IM: InstanceManager> EditInstanceUseCase<IM> {
-    pub fn new(instance_manager: Arc<IM>) -> Self {
-        Self { instance_manager }
+impl<IS> EditInstanceUseCase<IS> {
+    pub fn new(instance_storage: Arc<IS>) -> Self {
+        Self { instance_storage }
     }
 }
 
 #[async_trait]
-impl<IM> AsyncUseCaseWithInputAndError for EditInstanceUseCase<IM>
+impl<IS> AsyncUseCaseWithInputAndError for EditInstanceUseCase<IS>
 where
-    IM: InstanceManager + Send + Sync,
+    IS: InstanceStorage + Send + Sync,
 {
     type Input = (String, EditInstance);
     type Output = ();
@@ -32,9 +32,9 @@ where
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
         let (id, edit_instance) = input;
         validate_edit(&edit_instance)?;
-        let mut instance = self.instance_manager.get(&id).await?;
+        let mut instance = self.instance_storage.get(&id).await?;
         apply_edit_changes(&mut instance, &edit_instance);
-        self.instance_manager.upsert(&instance).await
+        Ok(self.instance_storage.upsert(&instance).await?)
     }
 }
 

@@ -14,7 +14,7 @@ pub async fn run(instance_id: &str) -> crate::Result<MinecraftProcessMetadata> {
     minecraft::run(
         &*lazy_locator.get_settings_storage().await,
         &*lazy_locator.get_auth_storage().await,
-        &*lazy_locator.get_instance_manager().await,
+        lazy_locator.get_instance_storage().await,
         lazy_locator.get_metadata_storage().await,
         instance_id,
     )
@@ -30,7 +30,7 @@ pub async fn run_credentials(
 
     minecraft::run_credentials(
         &*lazy_locator.get_settings_storage().await,
-        &*lazy_locator.get_instance_manager().await,
+        lazy_locator.get_instance_storage().await,
         lazy_locator.get_metadata_storage().await,
         id,
         credentials,

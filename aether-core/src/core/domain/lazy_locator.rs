@@ -5,7 +5,7 @@ use tokio::sync::OnceCell;
 use crate::{
     features::{
         auth::FsCredentialsStorage,
-        instance::{FsInstanceStorage, InstanceManagerImpl},
+        instance::{EventEmittingInstanceStorage, FsInstanceStorage},
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         process::InMemoryProcessManager,
@@ -27,7 +27,7 @@ pub struct LazyLocator {
     auth_storage: OnceCell<Arc<FsCredentialsStorage>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
     process_manager: OnceCell<Arc<InMemoryProcessManager>>,
-    instance_manager: OnceCell<Arc<InstanceManagerImpl<FsInstanceStorage>>>,
+    instance_storage: OnceCell<Arc<EventEmittingInstanceStorage<FsInstanceStorage>>>,
     java_storage: OnceCell<Arc<FsJavaStorage>>,
     metadata_storage: OnceCell<
         Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>>,
@@ -45,7 +45,7 @@ impl LazyLocator {
                     auth_storage: OnceCell::new(),
                     settings_storage: OnceCell::new(),
                     process_manager: OnceCell::new(),
-                    instance_manager: OnceCell::new(),
+                    instance_storage: OnceCell::new(),
                     java_storage: OnceCell::new(),
                     metadata_storage: OnceCell::new(),
                 })
@@ -140,10 +140,12 @@ impl LazyLocator {
             .clone()
     }
 
-    pub async fn get_instance_manager(&self) -> Arc<InstanceManagerImpl<FsInstanceStorage>> {
-        self.instance_manager
+    pub async fn get_instance_storage(
+        &self,
+    ) -> Arc<EventEmittingInstanceStorage<FsInstanceStorage>> {
+        self.instance_storage
             .get_or_init(|| async {
-                Arc::new(InstanceManagerImpl::new(FsInstanceStorage::new(
+                Arc::new(EventEmittingInstanceStorage::new(FsInstanceStorage::new(
                     self.state.locations.clone(),
                 )))
             })
