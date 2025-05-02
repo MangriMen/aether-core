@@ -64,7 +64,7 @@ pub fn plugin_path_to_host(id: &str, path: &str) -> crate::Result<PathBuf> {
     let cleaned_path_str = path.strip_prefix('#').unwrap_or(path);
     let cleaned_path_start_segment = get_first_segment(cleaned_path_str);
 
-    let allowed_paths = get_default_allowed_paths(&state.locations, id);
+    let allowed_paths = get_default_allowed_paths(&state.location_info, id);
     let base_dir = allowed_paths
         .get(cleaned_path_start_segment)
         .ok_or_else(|| {

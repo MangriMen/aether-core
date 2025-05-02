@@ -32,7 +32,7 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_version_manifest_use_case.clone(),
-        state.locations.clone(),
+        state.location_info.clone(),
     ));
 
     let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(
@@ -86,7 +86,7 @@ pub async fn run_credentials(
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_version_manifest_use_case.clone(),
-        state.locations.clone(),
+        state.location_info.clone(),
     ));
 
     let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(

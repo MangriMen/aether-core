@@ -100,7 +100,7 @@ where
             .as_ref()
             .or(launch_settings.hooks.pre_launch.as_ref());
 
-        let instance_path = state.locations.instance_dir(&instance.id);
+        let instance_path = state.location_info.instance_dir(&instance.id);
 
         run_pre_launch_command(&pre_launch_command, &instance_path).await?;
 
@@ -159,7 +159,7 @@ where
         }?;
 
         let client_path = state
-            .locations
+            .location_info
             .version_dir(&version_jar)
             .join(format!("{version_jar}.jar"));
 
@@ -188,7 +188,7 @@ where
             .as_error());
         }
 
-        let natives_dir = state.locations.version_natives_dir(&version_jar);
+        let natives_dir = state.location_info.version_natives_dir(&version_jar);
         if !natives_dir.exists() {
             tokio::fs::create_dir_all(&natives_dir).await?;
         }
@@ -196,7 +196,7 @@ where
         let jvm_arguments = minecraft::get_minecraft_jvm_arguments(
             args.get(&daedalus::minecraft::ArgumentType::Jvm)
                 .map(|x| x.as_slice()),
-            &state.locations.libraries_dir(),
+            &state.location_info.libraries_dir(),
             &version_info,
             &natives_dir,
             &client_path,
@@ -215,7 +215,7 @@ where
             &version.id,
             &version_info.asset_index.id,
             &instance_path,
-            &state.locations.assets_dir(),
+            &state.location_info.assets_dir(),
             &version.type_,
             launch_settings.game_resolution,
             &java.architecture,

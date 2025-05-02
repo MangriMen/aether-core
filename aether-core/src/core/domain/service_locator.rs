@@ -4,8 +4,7 @@ use tokio::sync::{OnceCell, RwLock};
 
 use crate::features::{
     plugins::{
-        ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, LoadConfigType,
-        PluginService, PluginSettingsManagerImpl,
+        ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, LoadConfigType, PluginService,
     },
     settings::FsSettingsStorage,
 };
@@ -14,16 +13,11 @@ use super::LauncherState;
 
 static SERVICE_LOCATOR: OnceCell<Arc<ServiceLocator>> = OnceCell::const_new();
 
-pub type PluginServiceType = PluginService<
-    FsSettingsStorage,
-    FsPluginStorage,
-    PluginSettingsManagerImpl<FsPluginSettingsStorage>,
-    ExtismPluginLoader,
->;
+pub type PluginServiceType =
+    PluginService<FsSettingsStorage, FsPluginStorage, FsPluginSettingsStorage, ExtismPluginLoader>;
 
 pub struct ServiceLocator {
     pub plugin_service: RwLock<PluginServiceType>,
-    pub plugin_settings_manager: Arc<PluginSettingsManagerImpl<FsPluginSettingsStorage>>,
 }
 
 impl ServiceLocator {
@@ -58,26 +52,23 @@ impl ServiceLocator {
     }
 
     pub async fn initialize(state: &LauncherState) -> crate::Result<Arc<Self>> {
-        let plugin_storage = FsPluginStorage::new(state.locations.clone());
-        let plugin_settings_manager = Arc::new(PluginSettingsManagerImpl::new(
-            FsPluginSettingsStorage::new(state.locations.clone()),
-        ));
-        let settings_storage = FsSettingsStorage::new(&state.locations.settings_dir);
+        let plugin_storage = FsPluginStorage::new(state.location_info.clone());
+        let plugin_settings_storage =
+            Arc::new(FsPluginSettingsStorage::new(state.location_info.clone()));
+
+        let settings_storage = FsSettingsStorage::new(&state.location_info.settings_dir);
         let loaders = HashMap::from([(
             LoadConfigType::Extism,
-            ExtismPluginLoader::new(state.locations.clone()),
+            ExtismPluginLoader::new(state.location_info.clone()),
         )]);
 
         let plugin_service = RwLock::new(PluginService::new(
             settings_storage,
             plugin_storage,
-            plugin_settings_manager.clone(),
+            plugin_settings_storage.clone(),
             loaders,
         ));
 
-        Ok(Arc::new(Self {
-            plugin_service,
-            plugin_settings_manager,
-        }))
+        Ok(Arc::new(Self { plugin_service }))
     }
 }

@@ -4,37 +4,37 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::features::plugins::{
-    LoadConfigType, Plugin, PluginLoader, PluginManifest, PluginSettingsManager, PluginStorage,
+    LoadConfigType, Plugin, PluginLoader, PluginManifest, PluginSettingsStorage, PluginStorage,
 };
 use crate::features::settings::SettingsStorage;
 use crate::{Error, ErrorKind, Result};
 
 #[derive(Debug)]
-pub struct PluginService<SS, PS, PSM, PL>
+pub struct PluginService<SS, PS, PSS, PL>
 where
     SS: SettingsStorage + Send + Sync,
     PS: PluginStorage + Send + Sync,
-    PSM: PluginSettingsManager + Send + Sync,
+    PSS: PluginSettingsStorage + Send + Sync,
     PL: PluginLoader + Send + Sync,
 {
     settings_storage: SS,
     plugin_storage: PS,
-    plugin_settings_manager: Arc<PSM>,
+    plugin_settings_manager: Arc<PSS>,
     loaders: HashMap<LoadConfigType, PL>,
     plugins: HashMap<String, Plugin>,
 }
 
-impl<SS, PS, PSM, PL> PluginService<SS, PS, PSM, PL>
+impl<SS, PS, PSS, PL> PluginService<SS, PS, PSS, PL>
 where
     SS: SettingsStorage + Send + Sync,
     PS: PluginStorage + Send + Sync,
-    PSM: PluginSettingsManager + Send + Sync,
+    PSS: PluginSettingsStorage + Send + Sync,
     PL: PluginLoader + Send + Sync,
 {
     pub fn new(
         settings_storage: SS,
         plugin_storage: PS,
-        plugin_settings_manager: Arc<PSM>,
+        plugin_settings_manager: Arc<PSS>,
         loaders: HashMap<LoadConfigType, PL>,
     ) -> Self {
         Self {

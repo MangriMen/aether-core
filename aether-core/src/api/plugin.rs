@@ -1,8 +1,10 @@
 use crate::{
-    core::domain::ServiceLocator,
+    core::domain::{LazyLocator, ServiceLocator},
     features::plugins::{
-        EditPluginSettings, PluginManifest, PluginSettings, PluginSettingsManager,
+        EditPluginSettings, EditPluginSettingsUseCase, GetPluginSettingsUseCase, PluginManifest,
+        PluginSettings,
     },
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 #[tracing::instrument]
@@ -68,16 +70,19 @@ pub async fn call(id: &str, data: &str) -> crate::Result<()> {
 }
 
 #[tracing::instrument]
-pub async fn get_settings(id: &str) -> crate::Result<Option<PluginSettings>> {
-    let service_locator = ServiceLocator::get().await?;
-    service_locator.plugin_settings_manager.get(id).await
+pub async fn get_settings(id: String) -> crate::Result<Option<PluginSettings>> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
+        .execute(id)
+        .await
 }
 
 #[tracing::instrument]
-pub async fn edit_settings(id: &str, edit_settings: &EditPluginSettings) -> crate::Result<()> {
-    let service_locator = ServiceLocator::get().await?;
-    service_locator
-        .plugin_settings_manager
-        .edit(id, edit_settings)
+pub async fn edit_settings(id: String, edit_settings: EditPluginSettings) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    EditPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
+        .execute((id, edit_settings))
         .await
 }

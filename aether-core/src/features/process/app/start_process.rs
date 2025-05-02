@@ -81,7 +81,7 @@ async fn manage_process(
     let manage_process_use_case = ManageProcessUseCase::new(
         lazy_locator.get_process_storage().await,
         track_process_use_case,
-        state.locations.clone(),
+        state.location_info.clone(),
     );
 
     manage_process_use_case

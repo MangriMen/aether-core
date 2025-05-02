@@ -1,7 +1,7 @@
 pub mod dto;
 pub mod plugin_service;
-pub mod plugin_settings_manager_impl;
+pub mod use_cases;
 
 pub use dto::*;
 pub use plugin_service::*;
-pub use plugin_settings_manager_impl::*;
+pub use use_cases::*;

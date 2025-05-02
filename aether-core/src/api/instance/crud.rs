@@ -33,14 +33,14 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),
-        state.locations.clone(),
+        state.location_info.clone(),
     ));
 
     CreateInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
         loader_version_resolver,
         install_minecraft_use_case,
-        state.locations.clone(),
+        state.location_info.clone(),
         state.file_watcher.clone(),
     )
     .execute(new_instance)
@@ -64,7 +64,7 @@ pub async fn install(id: String, force: bool) -> crate::Result<()> {
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),
-        state.locations.clone(),
+        state.location_info.clone(),
     ));
 
     InstallInstanceUseCase::new(

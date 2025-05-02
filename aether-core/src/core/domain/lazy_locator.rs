@@ -11,6 +11,7 @@ use crate::{
         },
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
+        plugins::FsPluginSettingsStorage,
         process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
     },
@@ -37,6 +38,7 @@ pub struct LazyLocator {
     >,
     pack_storage: OnceCell<Arc<FsPackStorage>>,
     provider_registry: OnceCell<Arc<ProviderRegistry<ModrinthContentProvider<ReqwestClient>>>>,
+    plugin_settings_storage: OnceCell<Arc<FsPluginSettingsStorage>>,
 }
 
 impl LazyLocator {
@@ -55,6 +57,7 @@ impl LazyLocator {
                     metadata_storage: OnceCell::new(),
                     pack_storage: OnceCell::new(),
                     provider_registry: OnceCell::new(),
+                    plugin_settings_storage: OnceCell::new(),
                 })
             })
             .await;
@@ -124,7 +127,7 @@ impl LazyLocator {
         self.credentials_storage
             .get_or_init(|| async {
                 Arc::new(FsCredentialsStorage::new(
-                    &self.state.locations.settings_dir,
+                    &self.state.location_info.settings_dir,
                 ))
             })
             .await
@@ -134,7 +137,9 @@ impl LazyLocator {
     pub async fn get_settings_storage(&self) -> Arc<FsSettingsStorage> {
         self.settings_storage
             .get_or_init(|| async {
-                Arc::new(FsSettingsStorage::new(&self.state.locations.settings_dir))
+                Arc::new(FsSettingsStorage::new(
+                    &self.state.location_info.settings_dir,
+                ))
             })
             .await
             .clone()
@@ -153,7 +158,7 @@ impl LazyLocator {
         self.instance_storage
             .get_or_init(|| async {
                 Arc::new(EventEmittingInstanceStorage::new(FsInstanceStorage::new(
-                    self.state.locations.clone(),
+                    self.state.location_info.clone(),
                 )))
             })
             .await
@@ -163,7 +168,7 @@ impl LazyLocator {
     pub async fn get_java_storage(&self) -> Arc<FsJavaStorage> {
         self.java_storage
             .get_or_init(|| async {
-                Arc::new(FsJavaStorage::new(&self.state.locations.java_dir()))
+                Arc::new(FsJavaStorage::new(&self.state.location_info.java_dir()))
             })
             .await
             .clone()
@@ -175,7 +180,7 @@ impl LazyLocator {
         self.metadata_storage
             .get_or_init(|| async {
                 Arc::new(CachedMetadataStorage::new(
-                    FsMetadataStorage::new(&self.state.locations.cache_dir(), Some(CACHE_TTL)),
+                    FsMetadataStorage::new(&self.state.location_info.cache_dir(), Some(CACHE_TTL)),
                     ModrinthMetadataStorage::new(self.get_request_client().await),
                 ))
             })
@@ -185,7 +190,9 @@ impl LazyLocator {
 
     pub async fn get_pack_storage(&self) -> Arc<FsPackStorage> {
         self.pack_storage
-            .get_or_init(|| async { Arc::new(FsPackStorage::new(self.state.locations.clone())) })
+            .get_or_init(|| async {
+                Arc::new(FsPackStorage::new(self.state.location_info.clone()))
+            })
             .await
             .clone()
     }
@@ -198,13 +205,24 @@ impl LazyLocator {
                 let providers = HashMap::from([(
                     "modrinth".to_string(),
                     ModrinthContentProvider::new(
-                        self.state.locations.clone(),
+                        self.state.location_info.clone(),
                         None,
                         self.get_request_client().await,
                     ),
                 )]);
 
                 Arc::new(ProviderRegistry::new(providers))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_plugin_settings_storage(&self) -> Arc<FsPluginSettingsStorage> {
+        self.plugin_settings_storage
+            .get_or_init(|| async {
+                Arc::new(FsPluginSettingsStorage::new(
+                    self.state.location_info.clone(),
+                ))
             })
             .await
             .clone()

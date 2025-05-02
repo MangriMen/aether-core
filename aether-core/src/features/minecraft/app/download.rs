@@ -65,7 +65,7 @@ pub async fn download_assets_index(
     loading_bar: Option<&LoadingBarId>,
 ) -> crate::Result<AssetsIndex> {
     let path = state
-        .locations
+        .location_info
         .assets_index_dir()
         .join(format!("{}.json", &version_info.asset_index.id));
 
@@ -105,7 +105,7 @@ pub async fn download_version_info(
     let version_id = loader.map_or(version.id.clone(), |it| format!("{}-{}", version.id, it.id));
 
     let path = state
-        .locations
+        .location_info
         .version_dir(&version_id)
         .join(format!("{version_id}.json"));
 
@@ -171,7 +171,7 @@ pub async fn download_client(
         )?;
 
     let path = state
-        .locations
+        .location_info
         .version_dir(version_id)
         .join(format!("{version_id}.jar"));
 
@@ -213,7 +213,7 @@ pub async fn download_asset(
     );
     log::trace!("Downloading asset \"{}\"\n\tfrom {}", name, url);
 
-    let asset_path = state.locations.object_dir(hash);
+    let asset_path = state.location_info.object_dir(hash);
 
     let fetch_cell = tokio::sync::OnceCell::<Bytes>::new();
 
@@ -240,7 +240,7 @@ pub async fn download_asset(
         },
         // Download legacy asset
         async {
-            let legacy_path = state.locations.legacy_assets_dir().join(name.replace('/', &String::from(std::path::MAIN_SEPARATOR)));
+            let legacy_path = state.location_info.legacy_assets_dir().join(name.replace('/', &String::from(std::path::MAIN_SEPARATOR)));
 
             if with_legacy && !legacy_path.exists() || force {
                 let asset_resource = fetch_cell.get_or_try_init(|| {
@@ -328,7 +328,7 @@ pub async fn download_java_library(
     log::debug!("Downloading java library \"{}\"", &library.name);
 
     let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
-    let library_path = state.locations.libraries_dir().join(&library_path_part);
+    let library_path = state.location_info.libraries_dir().join(&library_path_part);
 
     if library_path.exists() && !force {
         return Ok::<(), crate::Error>(());
@@ -435,7 +435,7 @@ pub async fn download_native_library_files(
             let reader = std::io::Cursor::new(&bytes);
 
             if let Ok(mut archive) = zip::ZipArchive::new(reader) {
-                match archive.extract(state.locations.version_natives_dir(&version_info.id)) {
+                match archive.extract(state.location_info.version_natives_dir(&version_info.id)) {
                     Ok(_) => log::debug!("Extracted native library {}", &library.name),
                     Err(err) => {
                         log::error!(
@@ -502,8 +502,8 @@ pub async fn download_libraries(
     log::info!("Downloading libraries for {}", version_info.id);
 
     tokio::try_join! {
-        tokio::fs::create_dir_all(state.locations.libraries_dir()),
-        tokio::fs::create_dir_all(state.locations.version_natives_dir(&version_info.id)),
+        tokio::fs::create_dir_all(state.location_info.libraries_dir()),
+        tokio::fs::create_dir_all(state.location_info.version_natives_dir(&version_info.id)),
     }?;
 
     let libraries_stream =

@@ -75,7 +75,7 @@ pub instance_get_dir(user_data: PluginContext; id: String) -> extism::Result<Str
             crate::api::instance::get_dir(&id)
        )?;
 
-       Ok(dir.strip_prefix(&state.locations.config_dir)?.to_path_buf())
+       Ok(dir.strip_prefix(&state.location_info.config_dir)?.to_path_buf())
    })?;
 
    Ok(format!("/{}",res.to_slash_lossy()))
@@ -91,9 +91,9 @@ pub instance_plugin_get_dir(user_data: PluginContext; instance_id: String) -> ex
             LauncherState::get()
         )})?;
 
-    let dir = state.locations.instance_plugin_dir(&instance_id, &id);
+    let dir = state.location_info.instance_plugin_dir(&instance_id, &id);
 
-    let dir = dir.strip_prefix(&state.locations.config_dir)?.to_path_buf();
+    let dir = dir.strip_prefix(&state.location_info.config_dir)?.to_path_buf();
 
     Ok(format!("/{}",dir.to_slash_lossy()))
 });

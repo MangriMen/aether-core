@@ -36,11 +36,11 @@ pub async fn run_forge_processors(
 
     if let Some(processors) = &version_info.processors {
         let client_path = state
-            .locations
+            .location_info
             .version_dir(&version_jar)
             .join(format!("{version_jar}.jar"));
 
-        let libraries_dir = state.locations.libraries_dir();
+        let libraries_dir = state.location_info.libraries_dir();
 
         if let Some(ref mut data) = version_info.data {
             processor_rules! {

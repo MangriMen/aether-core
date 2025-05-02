@@ -22,7 +22,7 @@ pub async fn get_contents(instance_id: String) -> crate::Result<DashMap<String, 
 
     ListContentUseCase::new(
         lazy_locator.get_pack_storage().await,
-        state.locations.clone(),
+        state.location_info.clone(),
     )
     .execute(instance_id)
     .await
@@ -34,7 +34,7 @@ pub async fn remove_content(instance_id: String, content_path: String) -> crate:
 
     RemoveContentUseCase::new(
         lazy_locator.get_pack_storage().await,
-        state.locations.clone(),
+        state.location_info.clone(),
     )
     .execute(RemoveContent::single(instance_id, content_path))
     .await
@@ -46,7 +46,7 @@ pub async fn remove_contents(instance_id: String, content_paths: Vec<String>) ->
 
     RemoveContentUseCase::new(
         lazy_locator.get_pack_storage().await,
-        state.locations.clone(),
+        state.location_info.clone(),
     )
     .execute(RemoveContent::multiple(instance_id, content_paths))
     .await
@@ -55,7 +55,7 @@ pub async fn remove_contents(instance_id: String, content_paths: Vec<String>) ->
 pub async fn enable_contents(instance_id: String, content_paths: Vec<String>) -> crate::Result<()> {
     let state = LauncherState::get().await?;
 
-    ChangeContentStateUseCase::new(state.locations.clone())
+    ChangeContentStateUseCase::new(state.location_info.clone())
         .execute(ChangeContentState::multiple(
             instance_id,
             content_paths,
@@ -70,7 +70,7 @@ pub async fn disable_contents(
 ) -> crate::Result<()> {
     let state = LauncherState::get().await?;
 
-    ChangeContentStateUseCase::new(state.locations.clone())
+    ChangeContentStateUseCase::new(state.location_info.clone())
         .execute(ChangeContentState::multiple(
             instance_id,
             content_paths,
@@ -89,7 +89,7 @@ pub async fn import_contents(
 
     ImportContentUseCase::new(
         lazy_locator.get_pack_storage().await,
-        state.locations.clone(),
+        state.location_info.clone(),
     )
     .execute(ImportContent::multiple(
         instance_id,
