@@ -6,6 +6,7 @@ use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::{
         auth::Credentials,
+        events::{EventEmitter, ProgressBarStorage},
         instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
         minecraft::{
             self, GetVersionManifestUseCase, LaunchSettings, LoaderVersionResolver, ModLoader,
@@ -29,26 +30,36 @@ use crate::{
 
 use super::InstallMinecraftUseCase;
 
-pub struct LaunchMinecraftUseCase<IS: InstanceStorage, MS: ReadMetadataStorage, PS: ProcessStorage>
-{
+pub struct LaunchMinecraftUseCase<
+    IS: InstanceStorage,
+    MS: ReadMetadataStorage,
+    PS: ProcessStorage,
+    E: EventEmitter,
+    PBS: ProgressBarStorage,
+> {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
     get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
     get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
-    start_process_use_case: Arc<StartProcessUseCase<PS>>,
+    start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
 }
 
-impl<IS: InstanceStorage, MS: ReadMetadataStorage, PS: ProcessStorage>
-    LaunchMinecraftUseCase<IS, MS, PS>
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        PS: ProcessStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+    > LaunchMinecraftUseCase<IS, MS, PS, E, PBS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
         get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
         get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
-        start_process_use_case: Arc<StartProcessUseCase<PS>>,
+        start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
     ) -> Self {
         Self {
             instance_storage,
@@ -62,11 +73,13 @@ impl<IS: InstanceStorage, MS: ReadMetadataStorage, PS: ProcessStorage>
 }
 
 #[async_trait]
-impl<IS, MS, PS> AsyncUseCaseWithInputAndError for LaunchMinecraftUseCase<IS, MS, PS>
-where
-    IS: InstanceStorage + Send + Sync,
-    MS: ReadMetadataStorage + Send + Sync,
-    PS: ProcessStorage + Send + Sync,
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        PS: ProcessStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+    > AsyncUseCaseWithInputAndError for LaunchMinecraftUseCase<IS, MS, PS, E, PBS>
 {
     type Input = (String, LaunchSettings, Credentials);
     type Output = MinecraftProcessMetadata;

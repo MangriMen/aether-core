@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
-        events::{emit_instance, InstancePayloadType},
+        events::{EventEmitter, EventEmitterExt, InstanceEventType},
         instance::{ContentType, PackFile, PackStorage},
         settings::LocationInfo,
     },
@@ -42,14 +42,20 @@ impl ImportContent {
     }
 }
 
-pub struct ImportContentUseCase<PS: PackStorage> {
+pub struct ImportContentUseCase<E: EventEmitter, PS: PackStorage> {
+    event_emitter: Arc<E>,
     pack_storage: Arc<PS>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<PS: PackStorage> ImportContentUseCase<PS> {
-    pub fn new(pack_storage: Arc<PS>, location_info: Arc<LocationInfo>) -> Self {
+impl<E: EventEmitter, PS: PackStorage> ImportContentUseCase<E, PS> {
+    pub fn new(
+        event_emitter: Arc<E>,
+        pack_storage: Arc<PS>,
+        location_info: Arc<LocationInfo>,
+    ) -> Self {
         Self {
+            event_emitter,
             pack_storage,
             location_info,
         }
@@ -139,8 +145,9 @@ impl<PS: PackStorage> ImportContentUseCase<PS> {
 }
 
 #[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for ImportContentUseCase<PS>
+impl<E, PS> AsyncUseCaseWithInputAndError for ImportContentUseCase<E, PS>
 where
+    E: EventEmitter,
     PS: PackStorage + Send + Sync,
 {
     type Input = ImportContent;
@@ -165,7 +172,8 @@ where
             .update_pack_file_many(&instance_id, &content_paths, &pack_files)
             .await?;
 
-        emit_instance(&instance_id, InstancePayloadType::Edited).await?;
+        self.event_emitter
+            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)?;
 
         Ok(())
     }

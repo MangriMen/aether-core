@@ -1,7 +1,7 @@
 use crate::{
     core::LauncherState,
-    features::events::{emit_loading, loading_try_for_each_concurrent, LoadingBarId},
-    shared::{self, fetch_advanced, fetch_json, write_async},
+    features::events::{loading_try_for_each_concurrent, ProgressBarId},
+    shared::{self, write_async},
 };
 use bytes::Bytes;
 use daedalus::{
@@ -23,7 +23,7 @@ pub async fn download_minecraft(
     java_arch: &str,
     force: bool,
     minecraft_updated: bool,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<()> {
     log::info!(
         "---------------- Downloading minecraft {} ----------------------------",
@@ -62,7 +62,7 @@ pub async fn download_assets_index(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
     force: bool,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<AssetsIndex> {
     let path = state
         .location_info
@@ -100,7 +100,7 @@ pub async fn download_version_info(
     version: &minecraft::Version,
     loader: Option<&modded::LoaderVersion>,
     force: Option<bool>,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<minecraft::VersionInfo> {
     let version_id = loader.map_or(version.id.clone(), |it| format!("{}-{}", version.id, it.id));
 
@@ -154,7 +154,7 @@ pub async fn download_client(
     state: &LauncherState,
     version_info: &minecraft::VersionInfo,
     force: bool,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<()> {
     log::info!("Downloading client {}", version_info.id);
 
@@ -281,7 +281,7 @@ pub async fn download_assets(
     with_legacy: bool,
     force: bool,
     loading_amount: f64,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<()> {
     log::info!("Downloading assets");
 
@@ -497,7 +497,7 @@ pub async fn download_libraries(
     force: bool,
     minecraft_updated: bool,
     loading_amount: f64,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<()> {
     log::info!("Downloading libraries for {}", version_info.id);
 

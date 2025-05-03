@@ -5,7 +5,9 @@ use async_trait::async_trait;
 use crate::{
     core::LauncherState,
     features::{
-        events::{emit_loading, init_or_edit_loading, LoadingBarId, LoadingBarType},
+        events::{
+            EventEmitter, ProgressBarId, ProgressBarStorage, ProgressEventType, ProgressService,
+        },
         instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
         minecraft::{
             self, GetVersionManifestUseCase, LoaderVersionResolver, ModLoader, ReadMetadataStorage,
@@ -15,21 +17,31 @@ use crate::{
     shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
-pub struct InstallMinecraftUseCase<IS: InstanceStorage, MS: ReadMetadataStorage> {
+pub struct InstallMinecraftUseCase<
+    E: EventEmitter,
+    PS: ProgressBarStorage,
+    IS: InstanceStorage,
+    MS: ReadMetadataStorage,
+> {
+    progress_service: Arc<ProgressService<E, PS>>,
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
     get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<IS: InstanceStorage, MS: ReadMetadataStorage> InstallMinecraftUseCase<IS, MS> {
+impl<E: EventEmitter, PS: ProgressBarStorage, IS: InstanceStorage, MS: ReadMetadataStorage>
+    InstallMinecraftUseCase<E, PS, IS, MS>
+{
     pub fn new(
+        progress_service: Arc<ProgressService<E, PS>>,
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
         get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
         location_info: Arc<LocationInfo>,
     ) -> Self {
         Self {
+            progress_service,
             instance_storage,
             loader_version_resolver,
             get_version_manifest_use_case,
@@ -39,12 +51,10 @@ impl<IS: InstanceStorage, MS: ReadMetadataStorage> InstallMinecraftUseCase<IS, M
 }
 
 #[async_trait]
-impl<IS, MS> AsyncUseCaseWithInputAndError for InstallMinecraftUseCase<IS, MS>
-where
-    IS: InstanceStorage + Send + Sync,
-    MS: ReadMetadataStorage + Send + Sync,
+impl<E: EventEmitter, PS: ProgressBarStorage, IS: InstanceStorage, MS: ReadMetadataStorage>
+    AsyncUseCaseWithInputAndError for InstallMinecraftUseCase<E, PS, IS, MS>
 {
-    type Input = (String, Option<LoadingBarId>, bool);
+    type Input = (String, Option<ProgressBarId>, bool);
     type Output = ();
     type Error = crate::Error;
 
@@ -60,16 +70,15 @@ where
             instance.loader_version.clone().unwrap_or_default()
         );
 
-        let loading_bar = init_or_edit_loading(
+        let loading_bar = self.progress_service.init_or_edit_progress(
             loading_bar,
-            LoadingBarType::MinecraftDownload {
-                instance_path: instance.id.clone(),
+            ProgressEventType::MinecraftDownload {
+                instance_id: instance.id.clone(),
                 instance_name: instance.name.clone(),
             },
             100.0,
-            "Downloading Minecraft",
-        )
-        .await?;
+            "Downloading Minecraft".to_string(),
+        )?;
 
         self.instance_storage
             .upsert_with(&instance.id, |instance| {
@@ -179,7 +188,11 @@ where
                 })
                 .await?;
 
-            emit_loading(&loading_bar, 1.000_000_000_01, Some("Finished installing")).await?;
+            self.progress_service.emit_progress(
+                &loading_bar,
+                1.000_000_000_01,
+                Some("Finished installing"),
+            )?;
 
             Ok(())
         }

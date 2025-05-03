@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     features::{
+        events::{EventEmitter, ProgressBarStorage},
         instance::{
             watch_instance, FsWatcher, Instance, InstanceInstallStage, InstanceStorage, PackInfo,
         },
@@ -36,23 +37,26 @@ pub struct NewInstance {
     pub pack_info: Option<PackInfo>,
 }
 
-pub struct CreateInstanceUseCase<IS: InstanceStorage, MS: ReadMetadataStorage> {
+pub struct CreateInstanceUseCase<
+    IS: InstanceStorage,
+    MS: ReadMetadataStorage,
+    E: EventEmitter,
+    PBS: ProgressBarStorage,
+> {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
     location_info: Arc<LocationInfo>,
     fs_watcher: Arc<FsWatcher>,
 }
 
-impl<IS, MS> CreateInstanceUseCase<IS, MS>
-where
-    IS: InstanceStorage + Send + Sync,
-    MS: ReadMetadataStorage + Send + Sync,
+impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
+    CreateInstanceUseCase<IS, MS, E, PBS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
         location_info: Arc<LocationInfo>,
         fs_watcher: Arc<FsWatcher>,
     ) -> Self {
@@ -84,10 +88,8 @@ where
 }
 
 #[async_trait]
-impl<IS, MS> AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS>
-where
-    IS: InstanceStorage + Send + Sync,
-    MS: ReadMetadataStorage + Send + Sync,
+impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
+    AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, PBS>
 {
     type Input = NewInstance;
     type Output = String;

@@ -4,21 +4,29 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
+        events::{EventEmitter, ProgressBarStorage},
         instance::{Instance, InstanceInstallStage, InstanceStorage},
         minecraft::{InstallMinecraftUseCase, ReadMetadataStorage},
     },
     shared::domain::AsyncUseCaseWithInputAndError,
 };
 
-pub struct InstallInstanceUseCase<IS: InstanceStorage, MS: ReadMetadataStorage> {
+pub struct InstallInstanceUseCase<
+    IS: InstanceStorage,
+    MS: ReadMetadataStorage,
+    E: EventEmitter,
+    PBS: ProgressBarStorage,
+> {
     instance_storage: Arc<IS>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
 }
 
-impl<IS: InstanceStorage, MS: ReadMetadataStorage> InstallInstanceUseCase<IS, MS> {
+impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
+    InstallInstanceUseCase<IS, MS, E, PBS>
+{
     pub fn new(
         instance_storage: Arc<IS>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
     ) -> Self {
         Self {
             instance_storage,
@@ -36,10 +44,8 @@ impl<IS: InstanceStorage, MS: ReadMetadataStorage> InstallInstanceUseCase<IS, MS
 }
 
 #[async_trait]
-impl<IS, MS> AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IS, MS>
-where
-    IS: InstanceStorage + Send + Sync,
-    MS: ReadMetadataStorage + Send + Sync,
+impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
+    AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IS, MS, E, PBS>
 {
     type Input = (String, bool);
     type Output = ();

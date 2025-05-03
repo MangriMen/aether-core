@@ -27,6 +27,7 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
     ));
 
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),
@@ -58,6 +59,7 @@ pub async fn install(id: String, force: bool) -> crate::Result<()> {
     ));
 
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),

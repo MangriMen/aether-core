@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use daedalus::minecraft::VersionInfo;
 
 use crate::features::{
-    events::LoadingBarId,
+    events::ProgressBarId,
     instance::Instance,
     java::Java,
     minecraft::{run_forge_processors, ModLoader},
@@ -15,7 +15,7 @@ pub async fn run_mod_loader_post_install(
     instance_path: &PathBuf,
     version_info: &mut VersionInfo,
     java_version: &Java,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<()> {
     match instance.loader {
         ModLoader::Vanilla => Ok(()),

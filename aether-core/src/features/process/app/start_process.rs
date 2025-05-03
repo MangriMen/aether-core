@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::{
-        events::{emit_process, ProcessPayloadType},
+        events::{EventEmitter, EventEmitterExt, ProcessEventType},
         process::{MinecraftProcess, MinecraftProcessMetadata, ProcessStorage},
     },
     shared::{domain::AsyncUseCaseWithInputAndError, IOError},
@@ -15,23 +15,23 @@ use crate::{
 
 use super::{ManageProcessParams, ManageProcessUseCase, TrackProcessUseCase};
 
-pub struct StartProcessUseCase<PS: ProcessStorage> {
+pub struct StartProcessUseCase<E: EventEmitter, PS: ProcessStorage> {
+    event_emitter: Arc<E>,
     process_storage: Arc<PS>,
 }
 
-impl<PS> StartProcessUseCase<PS>
-where
-    PS: ProcessStorage + Send + Sync,
-{
-    pub fn new(process_storage: Arc<PS>) -> Self {
-        Self { process_storage }
+impl<E: EventEmitter, PS: ProcessStorage> StartProcessUseCase<E, PS> {
+    pub fn new(event_emitter: Arc<E>, process_storage: Arc<PS>) -> Self {
+        Self {
+            event_emitter,
+            process_storage,
+        }
     }
 }
 
 #[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for StartProcessUseCase<PS>
-where
-    PS: ProcessStorage + Send + Sync,
+impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
+    for StartProcessUseCase<E, PS>
 {
     type Input = (String, Command, Option<String>);
     type Output = MinecraftProcessMetadata;
@@ -53,13 +53,12 @@ where
 
         self.process_storage.insert(process).await;
 
-        emit_process(
-            &instance_id,
-            metadata.uuid,
-            ProcessPayloadType::Launched,
-            "Launched Minecraft",
-        )
-        .await?;
+        self.event_emitter.emit_process(
+            instance_id.clone(),
+            metadata.uuid.clone(),
+            "Launched Minecraft".to_string(),
+            ProcessEventType::Launched,
+        )?;
 
         Ok(metadata)
     }
@@ -79,6 +78,7 @@ async fn manage_process(
     ));
 
     let manage_process_use_case = ManageProcessUseCase::new(
+        lazy_locator.get_event_emitter().await,
         lazy_locator.get_process_storage().await,
         track_process_use_case,
         state.location_info.clone(),

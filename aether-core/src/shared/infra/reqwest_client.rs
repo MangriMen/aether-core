@@ -5,31 +5,36 @@ use bytes::Bytes;
 use reqwest::Response;
 
 use crate::{
-    features::events::{emit_loading, LoadingBarId},
+    features::events::{EventEmitter, ProgressBarId, ProgressBarStorage, ProgressService},
     shared::{
-        domain::{Request, RequestClient},
+        domain::{FetchSemaphore, Request, RequestClient},
         sha1_async,
     },
 };
 
-use super::FetchSemaphore;
-
-pub struct ReqwestClient {
+pub struct ReqwestClient<E: EventEmitter, PBS: ProgressBarStorage> {
+    progress_service: Arc<ProgressService<E, PBS>>,
     client: Arc<reqwest_middleware::ClientWithMiddleware>,
     semaphore: Arc<FetchSemaphore>,
 }
 
-impl ReqwestClient {
+impl<E: EventEmitter, PBS: ProgressBarStorage> ReqwestClient<E, PBS> {
     pub fn new(
+        progress_service: Arc<ProgressService<E, PBS>>,
         client: Arc<reqwest_middleware::ClientWithMiddleware>,
         semaphore: Arc<FetchSemaphore>,
     ) -> Self {
-        Self { client, semaphore }
+        Self {
+            progress_service,
+            client,
+            semaphore,
+        }
     }
 
     async fn fetch_chunks(
+        &self,
         response: Response,
-        loading_bar: (&LoadingBarId, f64),
+        loading_bar: (&ProgressBarId, f64),
     ) -> crate::Result<Bytes> {
         if let Some(total_size) = response.content_length() {
             use futures::StreamExt;
@@ -43,7 +48,8 @@ impl ReqwestClient {
                 bytes.extend_from_slice(&chunk);
 
                 let progress = (chunk.len() as f64 / total_size as f64) * total;
-                emit_loading(loading_bar_id, progress, None).await?;
+                self.progress_service
+                    .emit_progress(loading_bar_id, progress, None)?;
             }
 
             Ok(bytes.into())
@@ -54,11 +60,15 @@ impl ReqwestClient {
 }
 
 #[async_trait]
-impl RequestClient for ReqwestClient {
-    async fn fetch_bytes(
+impl<E: EventEmitter, PBS: ProgressBarStorage> RequestClient for ReqwestClient<E, PBS> {
+    async fn fetch_bytes(&self, request: Request) -> crate::Result<Bytes> {
+        self.fetch_bytes_with_progress(request, None).await
+    }
+
+    async fn fetch_bytes_with_progress(
         &self,
         request: Request,
-        loading_bar: Option<(&LoadingBarId, f64)>,
+        loading_bar: Option<(&ProgressBarId, f64)>,
     ) -> crate::Result<Bytes> {
         let Request {
             method,
@@ -88,7 +98,7 @@ impl RequestClient for ReqwestClient {
         })?;
 
         let bytes = match loading_bar {
-            Some(loading_bar) => Self::fetch_chunks(response, loading_bar).await,
+            Some(loading_bar) => self.fetch_chunks(response, loading_bar).await,
             None => Ok(response.bytes().await?),
         }?;
 

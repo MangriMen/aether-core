@@ -8,7 +8,9 @@ use bytes::Bytes;
 
 use crate::{
     features::{
-        events::{emit_loading, init_loading, LoadingBarId, LoadingBarType},
+        events::{
+            EventEmitter, ProgressBarId, ProgressBarStorage, ProgressEventType, ProgressService,
+        },
         java::ports::JreProvider,
     },
     shared::{
@@ -30,16 +32,17 @@ const AZUL_PACKAGES_BASE_API_URL: &str = "https://api.azul.com/metadata/v1/zulu/
 const AZUL_PACKAGES_DEFAULT_QUERY_PARAMS: &str =
     "archive_type=zip&javafx_bundled=false&java_package_type=jre&page_size=1";
 
-pub struct AzulJreProvider<RC: RequestClient> {
+pub struct AzulJreProvider<E: EventEmitter, PBS: ProgressBarStorage, RC: RequestClient> {
+    progress_service: Arc<ProgressService<E, PBS>>,
     request_client: Arc<RC>,
 }
 
-impl<RC> AzulJreProvider<RC>
-where
-    RC: RequestClient + Send + Sync,
-{
-    pub fn new(request_client: Arc<RC>) -> Self {
-        Self { request_client }
+impl<E: EventEmitter, PBS: ProgressBarStorage, RC: RequestClient> AzulJreProvider<E, PBS, RC> {
+    pub fn new(progress_service: Arc<ProgressService<E, PBS>>, request_client: Arc<RC>) -> Self {
+        Self {
+            progress_service,
+            request_client,
+        }
     }
 
     fn build_packages_url(version: u32) -> String {
@@ -55,7 +58,7 @@ where
         let packages_url = Self::build_packages_url(version);
         let packages: Vec<Package> = self
             .request_client
-            .fetch_json(Request::get(packages_url), None)
+            .fetch_json_with_progress(Request::get(packages_url), None)
             .await?;
 
         packages.first().cloned().ok_or_else(|| {
@@ -72,10 +75,10 @@ where
     async fn download_package(
         &self,
         package: &Package,
-        loading_bar_id: &LoadingBarId,
+        loading_bar_id: &ProgressBarId,
     ) -> crate::Result<Bytes> {
         self.request_client
-            .fetch_bytes(
+            .fetch_bytes_with_progress(
                 Request::get(&package.download_url),
                 Some((loading_bar_id, 80.0)),
             )
@@ -85,12 +88,17 @@ where
     async fn download_jre(
         &self,
         version: u32,
-        loading_bar_id: &LoadingBarId,
+        loading_bar_id: &ProgressBarId,
     ) -> crate::Result<(Package, Bytes)> {
-        emit_loading(loading_bar_id, 0.0, Some("Fetching java version")).await?;
+        self.progress_service
+            .emit_progress(loading_bar_id, 0.0, Some("Fetching java version"))?;
         let package = self.fetch_package(version).await?;
 
-        emit_loading(loading_bar_id, 10.0, Some("Downloading java version")).await?;
+        self.progress_service.emit_progress(
+            loading_bar_id,
+            10.0,
+            Some("Downloading java version"),
+        )?;
         let file = self.download_package(&package, loading_bar_id).await?;
 
         Ok((package, file))
@@ -123,11 +131,12 @@ where
     }
 
     async fn unpack_jre(
+        &self,
         path: &Path,
         file: Bytes,
         package: &Package,
         version: u32,
-        loading_bar_id: &LoadingBarId,
+        loading_bar_id: &ProgressBarId,
     ) -> crate::Result<PathBuf> {
         let mut archive = zip::ZipArchive::new(std::io::Cursor::new(file)).map_err(|_| {
             crate::Error::from(crate::ErrorKind::InputError(
@@ -146,34 +155,35 @@ where
             }
         }
 
-        emit_loading(loading_bar_id, 0.0, Some("Extracting java")).await?;
+        self.progress_service
+            .emit_progress(loading_bar_id, 0.0, Some("Extracting java"))?;
         archive.extract(path).map_err(|_| {
             crate::Error::from(crate::ErrorKind::InputError(
                 "Failed to extract java zip".to_string(),
             ))
         })?;
 
-        emit_loading(loading_bar_id, 10.0, Some("Done extracting java")).await?;
+        self.progress_service
+            .emit_progress(loading_bar_id, 10.0, Some("Done extracting java"))?;
 
         Ok(Self::resolve_java_executable_path(path, package, version))
     }
 }
 
 #[async_trait]
-impl<RC> JreProvider for AzulJreProvider<RC>
-where
-    RC: RequestClient + Send + Sync,
+impl<E: EventEmitter, PBS: ProgressBarStorage, RC: RequestClient> JreProvider
+    for AzulJreProvider<E, PBS, RC>
 {
     async fn install(&self, version: u32, install_dir: &Path) -> crate::Result<PathBuf> {
-        let loading_bar_id = init_loading(
-            LoadingBarType::JavaDownload { version },
+        let loading_bar_id = self.progress_service.init_progress(
+            ProgressEventType::JavaDownload { version },
             100.0,
-            "Downloading java version",
-        )
-        .await?;
+            "Downloading java version".to_string(),
+        )?;
 
         let (package, file) = self.download_jre(version, &loading_bar_id).await?;
 
-        Self::unpack_jre(install_dir, file, &package, version, &loading_bar_id).await
+        self.unpack_jre(install_dir, file, &package, version, &loading_bar_id)
+            .await
     }
 }

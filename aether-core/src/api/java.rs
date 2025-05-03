@@ -16,6 +16,7 @@ pub async fn install(version: u32) -> crate::Result<java::Java> {
     let lazy_locator = LazyLocator::get().await?;
 
     let jre_provider = Arc::new(AzulJreProvider::new(
+        lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
     ));
 

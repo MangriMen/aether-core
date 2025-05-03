@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::features::process::{MinecraftProcess, MinecraftProcessMetadata};
 
 #[async_trait]
-pub trait ProcessStorage {
+pub trait ProcessStorage: Send + Sync {
     async fn insert(&self, process: MinecraftProcess);
     async fn remove(&self, id: Uuid);
 

@@ -4,6 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
+        events::{EventEmitter, ProgressBarStorage},
         java::{infra::AzulJreProvider, Java, JavaInstallationService, JavaStorage},
         settings::LocationInfo,
     },
@@ -12,18 +13,27 @@ use crate::{
 
 use super::InstallJreUseCase;
 
-pub struct InstallJavaUseCase<JS: JavaStorage, JIS: JavaInstallationService> {
+pub struct InstallJavaUseCase<
+    JS: JavaStorage,
+    JIS: JavaInstallationService,
+    E: EventEmitter,
+    PBS: ProgressBarStorage,
+> {
     storage: Arc<JS>,
     java_installation_service: JIS,
-    install_jre_use_case: Arc<InstallJreUseCase<AzulJreProvider<ReqwestClient>>>,
+    install_jre_use_case: Arc<InstallJreUseCase<AzulJreProvider<E, PBS, ReqwestClient<E, PBS>>>>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<JS: JavaStorage, JIS: JavaInstallationService> InstallJavaUseCase<JS, JIS> {
+impl<JS: JavaStorage, JIS: JavaInstallationService, E: EventEmitter, PBS: ProgressBarStorage>
+    InstallJavaUseCase<JS, JIS, E, PBS>
+{
     pub fn new(
         storage: Arc<JS>,
         java_installation_service: JIS,
-        install_jre_use_case: Arc<InstallJreUseCase<AzulJreProvider<ReqwestClient>>>,
+        install_jre_use_case: Arc<
+            InstallJreUseCase<AzulJreProvider<E, PBS, ReqwestClient<E, PBS>>>,
+        >,
         location_info: Arc<LocationInfo>,
     ) -> Self {
         Self {
@@ -36,10 +46,8 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> InstallJavaUseCase<JS, JIS> 
 }
 
 #[async_trait]
-impl<JS, JIS> AsyncUseCaseWithInputAndError for InstallJavaUseCase<JS, JIS>
-where
-    JS: JavaStorage + Send + Sync,
-    JIS: JavaInstallationService + Send + Sync,
+impl<JS: JavaStorage, JIS: JavaInstallationService, E: EventEmitter, PBS: ProgressBarStorage>
+    AsyncUseCaseWithInputAndError for InstallJavaUseCase<JS, JIS, E, PBS>
 {
     type Input = u32;
     type Output = Java;

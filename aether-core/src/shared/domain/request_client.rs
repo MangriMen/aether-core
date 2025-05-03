@@ -2,14 +2,16 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use reqwest::Method;
 
-use crate::features::events::LoadingBarId;
+use crate::features::events::ProgressBarId;
 
 #[async_trait]
-pub trait RequestClient {
-    async fn fetch_bytes(
+pub trait RequestClient: Send + Sync {
+    async fn fetch_bytes(&self, request: Request) -> crate::Result<Bytes>;
+
+    async fn fetch_bytes_with_progress(
         &self,
         request: Request,
-        loading_bar: Option<(&LoadingBarId, f64)>,
+        loading_bar: Option<(&ProgressBarId, f64)>,
     ) -> crate::Result<Bytes>;
 }
 

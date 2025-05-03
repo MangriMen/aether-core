@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        events::{emit_process, ProcessPayloadType},
+        events::{EventEmitter, EventEmitterExt, ProcessEventType},
         instance::{EventEmittingInstanceStorage, FsInstanceStorage},
         process::ProcessStorage,
         settings::LocationInfo,
@@ -24,22 +24,25 @@ pub struct ManageProcessParams {
     pub post_exit_command: Option<String>,
 }
 
-pub struct ManageProcessUseCase<PS: ProcessStorage> {
+pub struct ManageProcessUseCase<E: EventEmitter, PS: ProcessStorage> {
+    event_emitter: Arc<E>,
     process_storage: Arc<PS>,
     track_process_use_case:
-        Arc<TrackProcessUseCase<PS, EventEmittingInstanceStorage<FsInstanceStorage>>>,
+        Arc<TrackProcessUseCase<PS, EventEmittingInstanceStorage<E, FsInstanceStorage>>>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<PS: ProcessStorage> ManageProcessUseCase<PS> {
+impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
     pub fn new(
+        event_emitter: Arc<E>,
         process_storage: Arc<PS>,
         track_process_use_case: Arc<
-            TrackProcessUseCase<PS, EventEmittingInstanceStorage<FsInstanceStorage>>,
+            TrackProcessUseCase<PS, EventEmittingInstanceStorage<E, FsInstanceStorage>>,
         >,
         location_info: Arc<LocationInfo>,
     ) -> Self {
         Self {
+            event_emitter,
             process_storage,
             track_process_use_case,
             location_info,
@@ -48,9 +51,8 @@ impl<PS: ProcessStorage> ManageProcessUseCase<PS> {
 }
 
 #[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for ManageProcessUseCase<PS>
-where
-    PS: ProcessStorage + Send + Sync,
+impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
+    for ManageProcessUseCase<E, PS>
 {
     type Input = ManageProcessParams;
     type Output = ();
@@ -73,13 +75,12 @@ where
 
         self.process_storage.remove(process_uuid).await;
 
-        emit_process(
-            &instance_id,
-            process_uuid,
-            ProcessPayloadType::Finished,
-            "Exited process",
-        )
-        .await?;
+        self.event_emitter.emit_process(
+            instance_id.clone(),
+            process_uuid.clone(),
+            "Exited process".to_string(),
+            ProcessEventType::Finished,
+        )?;
 
         if mc_exit_status.success() {
             if let Some(command) = post_exit_command {

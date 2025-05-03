@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use crate::{
     features::{
         auth::CredentialsStorage,
+        events::{EventEmitter, ProgressBarStorage},
         instance::InstanceStorage,
         minecraft::ReadMetadataStorage,
         process::{MinecraftProcessMetadata, ProcessStorage},
@@ -21,9 +22,11 @@ pub struct LaunchWithActiveAccountUseCase<
     PS: ProcessStorage,
     CS: CredentialsStorage,
     SS: SettingsStorage,
+    E: EventEmitter,
+    PBS: ProgressBarStorage,
 > {
     credentials_storage: Arc<CS>,
-    launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS>,
+    launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS>,
 }
 
 impl<
@@ -32,11 +35,13 @@ impl<
         PS: ProcessStorage,
         CS: CredentialsStorage,
         SS: SettingsStorage,
-    > LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS>
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+    > LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, PBS>
 {
     pub fn new(
         credentials_storage: Arc<CS>,
-        launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS>,
+        launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS>,
     ) -> Self {
         Self {
             credentials_storage,
@@ -46,14 +51,15 @@ impl<
 }
 
 #[async_trait]
-impl<IS, MS, PS, CS, SS> AsyncUseCaseWithInputAndError
-    for LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS>
-where
-    IS: InstanceStorage + Send + Sync,
-    MS: ReadMetadataStorage + Send + Sync,
-    PS: ProcessStorage + Send + Sync,
-    CS: CredentialsStorage + Send + Sync,
-    SS: SettingsStorage + Send + Sync,
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        PS: ProcessStorage,
+        CS: CredentialsStorage,
+        SS: SettingsStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+    > AsyncUseCaseWithInputAndError for LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, PBS>
 {
     type Input = String;
     type Output = MinecraftProcessMetadata;

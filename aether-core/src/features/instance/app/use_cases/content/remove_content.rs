@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
-        events::{emit_instance, InstancePayloadType},
+        events::{EventEmitter, EventEmitterExt, InstanceEventType},
         instance::PackStorage,
         settings::LocationInfo,
     },
@@ -32,14 +32,20 @@ impl RemoveContent {
     }
 }
 
-pub struct RemoveContentUseCase<PS: PackStorage> {
+pub struct RemoveContentUseCase<E, PS: PackStorage> {
+    event_emitter: Arc<E>,
     pack_storage: Arc<PS>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<PS: PackStorage> RemoveContentUseCase<PS> {
-    pub fn new(pack_storage: Arc<PS>, location_info: Arc<LocationInfo>) -> Self {
+impl<E: EventEmitter, PS: PackStorage> RemoveContentUseCase<E, PS> {
+    pub fn new(
+        event_emitter: Arc<E>,
+        pack_storage: Arc<PS>,
+        location_info: Arc<LocationInfo>,
+    ) -> Self {
         Self {
+            event_emitter,
             pack_storage,
             location_info,
         }
@@ -47,7 +53,7 @@ impl<PS: PackStorage> RemoveContentUseCase<PS> {
 }
 
 #[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for RemoveContentUseCase<PS>
+impl<E: EventEmitter, PS> AsyncUseCaseWithInputAndError for RemoveContentUseCase<E, PS>
 where
     PS: PackStorage + Send + Sync,
 {
@@ -71,7 +77,8 @@ where
             .remove_pack_file_many(&instance_id, content_paths.as_slice())
             .await?;
 
-        emit_instance(&instance_id, InstancePayloadType::Edited).await?;
+        self.event_emitter
+            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)?;
 
         Ok(())
     }

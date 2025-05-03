@@ -38,7 +38,7 @@ where
 {
     async fn get_version_manifest(&self) -> Result<CachedValue<VersionManifest>, StorageError> {
         self.request_client
-            .fetch_json(
+            .fetch_json_with_progress(
                 Request::get(daedalus::minecraft::VERSION_MANIFEST_URL),
                 None,
             )
@@ -52,7 +52,7 @@ where
         loader: &str,
     ) -> Result<CachedValue<modded::Manifest>, StorageError> {
         self.request_client
-            .fetch_json(Request::get(Self::get_loader_manifest_url(loader)), None)
+            .fetch_json_with_progress(Request::get(Self::get_loader_manifest_url(loader)), None)
             .await
             .map_err(|err| StorageError::ReadError(err.raw.to_string()))
             .map(CachedValue::new)

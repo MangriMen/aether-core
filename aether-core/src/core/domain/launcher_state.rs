@@ -11,7 +11,7 @@ use crate::{
             WindowSize,
         },
     },
-    shared::FetchSemaphore,
+    shared::domain::FetchSemaphore,
 };
 
 // Global state
@@ -38,9 +38,13 @@ pub struct LauncherState {
 }
 
 impl LauncherState {
-    pub async fn init(launcher_dir: PathBuf, metadata_dir: PathBuf) -> crate::Result<()> {
+    pub async fn init(
+        launcher_dir: PathBuf,
+        metadata_dir: PathBuf,
+        app_handle: tauri::AppHandle,
+    ) -> crate::Result<()> {
         LAUNCHER_STATE
-            .get_or_try_init(|| Self::initialize(launcher_dir, metadata_dir))
+            .get_or_try_init(|| Self::initialize(launcher_dir, metadata_dir, app_handle))
             .await?;
 
         Ok(())
@@ -69,7 +73,11 @@ impl LauncherState {
     }
 
     #[tracing::instrument]
-    async fn initialize(launcher_dir: PathBuf, metadata_dir: PathBuf) -> crate::Result<Arc<Self>> {
+    async fn initialize(
+        launcher_dir: PathBuf,
+        metadata_dir: PathBuf,
+        app_handle: tauri::AppHandle,
+    ) -> crate::Result<Arc<Self>> {
         log::info!("Initializing state");
 
         let settings_storage = FsSettingsStorage::new(&launcher_dir.clone());
@@ -127,7 +135,7 @@ impl LauncherState {
             file_watcher,
         });
 
-        LazyLocator::init(state.clone()).await?;
+        LazyLocator::init(state.clone(), app_handle).await?;
 
         Ok(state)
     }

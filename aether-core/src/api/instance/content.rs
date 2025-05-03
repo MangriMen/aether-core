@@ -33,6 +33,7 @@ pub async fn remove_content(instance_id: String, content_path: String) -> crate:
     let lazy_locator = LazyLocator::get().await?;
 
     RemoveContentUseCase::new(
+        lazy_locator.get_event_emitter().await,
         lazy_locator.get_pack_storage().await,
         state.location_info.clone(),
     )
@@ -45,6 +46,7 @@ pub async fn remove_contents(instance_id: String, content_paths: Vec<String>) ->
     let lazy_locator = LazyLocator::get().await?;
 
     RemoveContentUseCase::new(
+        lazy_locator.get_event_emitter().await,
         lazy_locator.get_pack_storage().await,
         state.location_info.clone(),
     )
@@ -54,14 +56,18 @@ pub async fn remove_contents(instance_id: String, content_paths: Vec<String>) ->
 
 pub async fn enable_contents(instance_id: String, content_paths: Vec<String>) -> crate::Result<()> {
     let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    ChangeContentStateUseCase::new(state.location_info.clone())
-        .execute(ChangeContentState::multiple(
-            instance_id,
-            content_paths,
-            ContentStateAction::Enable,
-        ))
-        .await
+    ChangeContentStateUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        state.location_info.clone(),
+    )
+    .execute(ChangeContentState::multiple(
+        instance_id,
+        content_paths,
+        ContentStateAction::Enable,
+    ))
+    .await
 }
 
 pub async fn disable_contents(
@@ -69,14 +75,18 @@ pub async fn disable_contents(
     content_paths: Vec<String>,
 ) -> crate::Result<()> {
     let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    ChangeContentStateUseCase::new(state.location_info.clone())
-        .execute(ChangeContentState::multiple(
-            instance_id,
-            content_paths,
-            ContentStateAction::Disable,
-        ))
-        .await
+    ChangeContentStateUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        state.location_info.clone(),
+    )
+    .execute(ChangeContentState::multiple(
+        instance_id,
+        content_paths,
+        ContentStateAction::Disable,
+    ))
+    .await
 }
 
 pub async fn import_contents(
@@ -88,6 +98,7 @@ pub async fn import_contents(
     let lazy_locator = LazyLocator::get().await?;
 
     ImportContentUseCase::new(
+        lazy_locator.get_event_emitter().await,
         lazy_locator.get_pack_storage().await,
         state.location_info.clone(),
     )

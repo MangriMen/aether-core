@@ -46,7 +46,9 @@ where
             request = request.with_headers(base_headers);
         }
 
-        self.request_client.fetch_json(request, None).await
+        self.request_client
+            .fetch_json_with_progress(request, None)
+            .await
     }
 
     pub async fn get_project_version(
@@ -60,7 +62,9 @@ where
             request = request.with_headers(base_headers);
         }
 
-        self.request_client.fetch_json(request, None).await
+        self.request_client
+            .fetch_json_with_progress(request, None)
+            .await
     }
 
     pub async fn get_project_version_for_game_version(
@@ -85,8 +89,10 @@ where
             request = request.with_headers(base_headers);
         }
 
-        let response: ListProjectsVersionsResponse =
-            self.request_client.fetch_json(request, None).await?;
+        let response: ListProjectsVersionsResponse = self
+            .request_client
+            .fetch_json_with_progress(request, None)
+            .await?;
 
         let version = response
             .iter()
@@ -109,6 +115,6 @@ where
             request = request.with_headers(base_headers);
         }
 
-        self.request_client.fetch_bytes(request, None).await
+        self.request_client.fetch_bytes_with_progress(request, None).await
     }
 }

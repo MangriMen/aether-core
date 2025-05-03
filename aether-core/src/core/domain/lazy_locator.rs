@@ -5,6 +5,7 @@ use tokio::sync::OnceCell;
 use crate::{
     features::{
         auth::FsCredentialsStorage,
+        events::{InMemoryProgressBarStorage, ProgressService, TauriEventEmitter},
         instance::{
             ContentProviderRegistry, EventEmittingInstanceStorage, FsInstanceStorage,
             FsPackStorage, ModrinthContentProvider,
@@ -18,7 +19,7 @@ use crate::{
         process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
     },
-    shared::infra::{ReqwestClient, REQWEST_CLIENT},
+    shared::{ReqwestClient, REQWEST_CLIENT},
 };
 
 use super::{ErrorKind, LauncherState};
@@ -29,31 +30,54 @@ const CACHE_TTL: Duration = Duration::from_secs(120);
 
 pub struct LazyLocator {
     state: Arc<LauncherState>,
-    request_client: OnceCell<Arc<ReqwestClient>>,
-    api_client: OnceCell<Arc<ReqwestClient>>,
+    app_handle: tauri::AppHandle,
+    request_client: OnceCell<Arc<ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>>>,
+    api_client: OnceCell<Arc<ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>>>,
     credentials_storage: OnceCell<Arc<FsCredentialsStorage>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
     process_storage: OnceCell<Arc<InMemoryProcessStorage>>,
-    instance_storage: OnceCell<Arc<EventEmittingInstanceStorage<FsInstanceStorage>>>,
+    instance_storage:
+        OnceCell<Arc<EventEmittingInstanceStorage<TauriEventEmitter, FsInstanceStorage>>>,
     java_storage: OnceCell<Arc<FsJavaStorage>>,
     metadata_storage: OnceCell<
-        Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>>,
+        Arc<
+            CachedMetadataStorage<
+                FsMetadataStorage,
+                ModrinthMetadataStorage<
+                    ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>,
+                >,
+            >,
+        >,
     >,
     pack_storage: OnceCell<Arc<FsPackStorage>>,
-    content_provider_registry:
-        OnceCell<Arc<ContentProviderRegistry<ModrinthContentProvider<ReqwestClient>>>>,
+    content_provider_registry: OnceCell<
+        Arc<
+            ContentProviderRegistry<
+                ModrinthContentProvider<
+                    ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>,
+                >,
+            >,
+        >,
+    >,
     plugin_settings_storage: OnceCell<Arc<FsPluginSettingsStorage>>,
     plugin_registry: OnceCell<Arc<PluginRegistry>>,
     plugin_loader_registry: OnceCell<Arc<PluginLoaderRegistry<ExtismPluginLoader>>>,
     plugin_storage: OnceCell<Arc<FsPluginStorage>>,
+    event_emitter: OnceCell<Arc<TauriEventEmitter>>,
+    progress_bar_storage: OnceCell<Arc<InMemoryProgressBarStorage>>,
+    progress_service: OnceCell<Arc<ProgressService<TauriEventEmitter, InMemoryProgressBarStorage>>>,
 }
 
 impl LazyLocator {
-    pub async fn init(state: Arc<LauncherState>) -> crate::Result<()> {
+    pub async fn init(
+        state: Arc<LauncherState>,
+        app_handle: tauri::AppHandle,
+    ) -> crate::Result<()> {
         LAZY_LOCATOR
             .get_or_init(|| async {
                 Arc::new(Self {
                     state,
+                    app_handle,
                     request_client: OnceCell::new(),
                     api_client: OnceCell::new(),
                     credentials_storage: OnceCell::new(),
@@ -68,6 +92,9 @@ impl LazyLocator {
                     plugin_registry: OnceCell::new(),
                     plugin_loader_registry: OnceCell::new(),
                     plugin_storage: OnceCell::new(),
+                    event_emitter: OnceCell::new(),
+                    progress_bar_storage: OnceCell::new(),
+                    progress_service: OnceCell::new(),
                 })
             })
             .await;
@@ -109,10 +136,13 @@ impl LazyLocator {
         Ok(())
     }
 
-    pub async fn get_request_client(&self) -> Arc<ReqwestClient> {
+    pub async fn get_request_client(
+        &self,
+    ) -> Arc<ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>> {
         self.request_client
             .get_or_init(|| async {
                 Arc::new(ReqwestClient::new(
+                    self.get_progress_service().await,
                     (*REQWEST_CLIENT).clone(),
                     self.state.fetch_semaphore.clone(),
                 ))
@@ -121,10 +151,13 @@ impl LazyLocator {
             .clone()
     }
 
-    pub async fn get_api_client(&self) -> Arc<ReqwestClient> {
+    pub async fn get_api_client(
+        &self,
+    ) -> Arc<ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>> {
         self.api_client
             .get_or_init(|| async {
                 Arc::new(ReqwestClient::new(
+                    self.get_progress_service().await,
                     (*REQWEST_CLIENT).clone(),
                     self.state.api_semaphore.clone(),
                 ))
@@ -164,12 +197,13 @@ impl LazyLocator {
 
     pub async fn get_instance_storage(
         &self,
-    ) -> Arc<EventEmittingInstanceStorage<FsInstanceStorage>> {
+    ) -> Arc<EventEmittingInstanceStorage<TauriEventEmitter, FsInstanceStorage>> {
         self.instance_storage
             .get_or_init(|| async {
-                Arc::new(EventEmittingInstanceStorage::new(FsInstanceStorage::new(
-                    self.state.location_info.clone(),
-                )))
+                Arc::new(EventEmittingInstanceStorage::new(
+                    self.get_event_emitter().await,
+                    FsInstanceStorage::new(self.state.location_info.clone()),
+                ))
             })
             .await
             .clone()
@@ -186,7 +220,12 @@ impl LazyLocator {
 
     pub async fn get_metadata_storage(
         &self,
-    ) -> Arc<CachedMetadataStorage<FsMetadataStorage, ModrinthMetadataStorage<ReqwestClient>>> {
+    ) -> Arc<
+        CachedMetadataStorage<
+            FsMetadataStorage,
+            ModrinthMetadataStorage<ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>>,
+        >,
+    > {
         self.metadata_storage
             .get_or_init(|| async {
                 Arc::new(CachedMetadataStorage::new(
@@ -209,7 +248,11 @@ impl LazyLocator {
 
     pub async fn get_content_provider_registry(
         &self,
-    ) -> Arc<ContentProviderRegistry<ModrinthContentProvider<ReqwestClient>>> {
+    ) -> Arc<
+        ContentProviderRegistry<
+            ModrinthContentProvider<ReqwestClient<TauriEventEmitter, InMemoryProgressBarStorage>>,
+        >,
+    > {
         self.content_provider_registry
             .get_or_init(|| async {
                 let providers = HashMap::from([(
@@ -265,6 +308,34 @@ impl LazyLocator {
         self.plugin_storage
             .get_or_init(|| async {
                 Arc::new(FsPluginStorage::new(self.state.location_info.clone()))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_event_emitter(&self) -> Arc<TauriEventEmitter> {
+        self.event_emitter
+            .get_or_init(|| async { Arc::new(TauriEventEmitter::new(self.app_handle.clone())) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_progress_bar_storage(&self) -> Arc<InMemoryProgressBarStorage> {
+        self.progress_bar_storage
+            .get_or_init(|| async { Arc::new(InMemoryProgressBarStorage::default()) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_progress_service(
+        &self,
+    ) -> Arc<ProgressService<TauriEventEmitter, InMemoryProgressBarStorage>> {
+        self.progress_service
+            .get_or_init(|| async {
+                Arc::new(ProgressService::new(
+                    self.get_event_emitter().await,
+                    self.get_progress_bar_storage().await,
+                ))
             })
             .await
             .clone()

@@ -13,7 +13,7 @@ use tokio::process::Command;
 use crate::{
     core::LauncherState,
     features::{
-        events::{emit_loading, LoadingBarId},
+        events::{emit_loading, ProgressBarId},
         instance::Instance,
         java::Java,
         minecraft,
@@ -30,7 +30,7 @@ pub async fn run_forge_processors(
     instance_path: &PathBuf,
     version_info: &mut VersionInfo,
     java_version: &Java,
-    loading_bar: Option<&LoadingBarId>,
+    loading_bar: Option<&ProgressBarId>,
 ) -> crate::Result<()> {
     let state = LauncherState::get().await?;
 

@@ -1,15 +1,17 @@
-#[derive(serde::Serialize, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceEvent {
+    pub event: InstanceEventType,
+    pub instance_id: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum InstancePayloadType {
+pub enum InstanceEventType {
     Created,
     Synced,
     Edited,
     Removed,
-}
-
-#[derive(serde::Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct InstancePayload {
-    pub instance_path_id: String,
-    pub event: InstancePayloadType,
 }

@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use futures::{channel::mpsc::channel, SinkExt, StreamExt};
 
 use crate::{
-    features::events::{emit_instance, emit_warning, InstancePayloadType},
+    // features::events::InstanceEventType,
     features::{
         instance::{ContentType, InstanceInstallStage},
         settings::{location_info::INSTANCES_FOLDER_NAME, LocationInfo},
@@ -45,10 +45,10 @@ fn handle_events(res: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify:
                     if is_crash_report(&event.path) {
                         crash_task(instance_path.to_string());
                     } else if !visited_profiles.contains(&instance_path) {
-                        let path = instance_path.to_string();
-                        tokio::spawn(async move {
-                            let _ = emit_instance(&path, InstancePayloadType::Synced).await;
-                        });
+                        let _path = instance_path.to_string();
+                        // tokio::spawn(async move {
+                        //     let _ = emit_instance(&path, InstanceEventType::Synced).await;
+                        // });
                         visited_profiles.push(instance_path);
                     }
                 }
@@ -133,11 +133,11 @@ fn crash_task(id: String) {
             if let Ok(instance) = instance {
                 // Hide warning if profile is not yet installed
                 if instance.install_stage == InstanceInstallStage::Installed {
-                    emit_warning(&format!(
-                        "Profile {} has crashed! Visit the logs page to see a crash report.",
-                        instance.name
-                    ))
-                    .await?;
+                    // emit_warning(&format!(
+                    //     "Profile {} has crashed! Visit the logs page to see a crash report.",
+                    //     instance.name
+                    // ))
+                    // .await?;
                 }
             }
 

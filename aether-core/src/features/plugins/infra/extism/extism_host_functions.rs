@@ -2,18 +2,17 @@ use std::{path::PathBuf, process::Output};
 
 use extism::host_fn;
 use path_slash::PathBufExt;
-use reqwest::Method;
 
 use crate::{
     core::LauncherState,
     features::{
         instance::NewInstance,
         plugins::{
-            plugin_utils::{self, plugin_path_to_host},
+            plugin_utils::{self},
             PluginContext, SerializableOutput,
         },
     },
-    shared::{domain::SerializableCommand, fetch_advanced},
+    shared::domain::SerializableCommand,
 };
 
 host_fn!(
@@ -33,36 +32,36 @@ pub get_id(user_data: PluginContext;) -> extism::Result<String> {
     Ok(id)
 });
 
-host_fn!(
-pub download_file(user_data: PluginContext; url: String, path: String) -> extism::Result<()> {
-    let context = user_data.get()?;
-    let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
+// host_fn!(
+// pub download_file(user_data: PluginContext; url: String, path: String) -> extism::Result<()> {
+//     let context = user_data.get()?;
+//     let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
 
-    tokio::task::block_in_place(|| -> crate::Result<()> {
-        let state = tokio::runtime::Handle::current()
-            .block_on(LauncherState::get())?;
+//     tokio::task::block_in_place(|| -> crate::Result<()> {
+//         let state = tokio::runtime::Handle::current()
+//             .block_on(LauncherState::get())?;
 
-        let validated_path = plugin_path_to_host(&id, &path)?;
+//         let validated_path = plugin_path_to_host(&id, &path)?;
 
-        let response = tokio::runtime::Handle::current()
-            .block_on(fetch_advanced(
-                Method::GET,
-                &url,
-                None,
-                None,
-                None,
-                &state.fetch_semaphore,
-                None,
-            ))?;
+//         let response = tokio::runtime::Handle::current()
+//             .block_on(fetch_advanced(
+//                 Method::GET,
+//                 &url,
+//                 None,
+//                 None,
+//                 None,
+//                 &state.fetch_semaphore,
+//                 None,
+//             ))?;
 
-        tokio::runtime::Handle::current()
-            .block_on(crate::shared::write_async(&validated_path, response))?;
+//         tokio::runtime::Handle::current()
+//             .block_on(crate::shared::write_async(&validated_path, response))?;
 
-        Ok(())
-    })?;
+//         Ok(())
+//     })?;
 
-    Ok(())
-});
+//     Ok(())
+// });
 
 host_fn!(
 pub instance_get_dir(user_data: PluginContext; id: String) -> extism::Result<String> {

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
-        events::{emit_instance, InstancePayloadType},
+        events::{EventEmitter, EventEmitterExt, InstanceEventType},
         settings::LocationInfo,
     },
     shared::{domain::AsyncUseCaseWithInputAndError, rename},
@@ -43,13 +43,17 @@ impl ChangeContentState {
     }
 }
 
-pub struct ChangeContentStateUseCase {
+pub struct ChangeContentStateUseCase<E: EventEmitter> {
+    event_emitter: Arc<E>,
     location_info: Arc<LocationInfo>,
 }
 
-impl ChangeContentStateUseCase {
-    pub fn new(location_info: Arc<LocationInfo>) -> Self {
-        Self { location_info }
+impl<E: EventEmitter> ChangeContentStateUseCase<E> {
+    pub fn new(event_emitter: Arc<E>, location_info: Arc<LocationInfo>) -> Self {
+        Self {
+            event_emitter,
+            location_info,
+        }
     }
 
     pub async fn enable_many(
@@ -61,7 +65,8 @@ impl ChangeContentStateUseCase {
             self.enable(instance_id, content_path).await?;
         }
 
-        emit_instance(instance_id, InstancePayloadType::Edited).await?;
+        self.event_emitter
+            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)?;
 
         Ok(())
     }
@@ -75,7 +80,8 @@ impl ChangeContentStateUseCase {
             self.disable(instance_id, content_path).await?;
         }
 
-        emit_instance(instance_id, InstancePayloadType::Edited).await?;
+        self.event_emitter
+            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)?;
 
         Ok(())
     }
@@ -120,7 +126,7 @@ impl ChangeContentStateUseCase {
 }
 
 #[async_trait]
-impl AsyncUseCaseWithInputAndError for ChangeContentStateUseCase {
+impl<E: EventEmitter> AsyncUseCaseWithInputAndError for ChangeContentStateUseCase<E> {
     type Input = ChangeContentState;
     type Output = ();
     type Error = crate::Error;

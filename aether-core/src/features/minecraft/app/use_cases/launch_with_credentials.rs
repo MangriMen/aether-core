@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use crate::{
     features::{
         auth::Credentials,
+        events::{EventEmitter, ProgressBarStorage},
         instance::{resolve_launch_settings, InstanceStorage},
         minecraft::ReadMetadataStorage,
         process::{MinecraftProcessMetadata, ProcessStorage},
@@ -20,19 +21,27 @@ pub struct LaunchWithCredentialsUseCase<
     MS: ReadMetadataStorage,
     PS: ProcessStorage,
     SS: SettingsStorage,
+    E: EventEmitter,
+    PBS: ProgressBarStorage,
 > {
     instance_storage: Arc<IS>,
     settings_storage: Arc<SS>,
-    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS>,
+    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS>,
 }
 
-impl<IS: InstanceStorage, MS: ReadMetadataStorage, PS: ProcessStorage, SS: SettingsStorage>
-    LaunchWithCredentialsUseCase<IS, MS, PS, SS>
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        PS: ProcessStorage,
+        SS: SettingsStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+    > LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         settings_storage: Arc<SS>,
-        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS>,
+        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS>,
     ) -> Self {
         Self {
             instance_storage,
@@ -43,12 +52,14 @@ impl<IS: InstanceStorage, MS: ReadMetadataStorage, PS: ProcessStorage, SS: Setti
 }
 
 #[async_trait]
-impl<IS, MS, PS, SS> AsyncUseCaseWithInputAndError for LaunchWithCredentialsUseCase<IS, MS, PS, SS>
-where
-    IS: InstanceStorage + Send + Sync,
-    MS: ReadMetadataStorage + Send + Sync,
-    PS: ProcessStorage + Send + Sync,
-    SS: SettingsStorage + Send + Sync,
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        PS: ProcessStorage,
+        SS: SettingsStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+    > AsyncUseCaseWithInputAndError for LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS>
 {
     type Input = (String, Credentials);
     type Output = MinecraftProcessMetadata;

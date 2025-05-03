@@ -1,4 +1,4 @@
 #[derive(serde::Serialize, Clone)]
-pub struct WarningPayload {
+pub struct WarningEvent {
     pub message: String,
 }

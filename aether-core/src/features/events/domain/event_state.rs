@@ -4,13 +4,13 @@ use dashmap::DashMap;
 use tokio::sync::OnceCell;
 use uuid::Uuid;
 
-use super::{EventError, LoadingBar};
+use super::{EventError, ProgressBar};
 
 static EVENT_STATE: OnceCell<Arc<EventState>> = OnceCell::const_new();
 pub struct EventState {
     // pub event_emitter: Option<&dyn Fn(&str, S) -> anyhow::Result<()>>,
     pub app: Option<tauri::AppHandle>,
-    pub loading_bars: DashMap<Uuid, LoadingBar>,
+    pub progress_bars: DashMap<Uuid, ProgressBar>,
 }
 
 impl EventState {
@@ -19,7 +19,7 @@ impl EventState {
             .get_or_try_init(|| async {
                 Ok(Arc::new(Self {
                     app: None,
-                    loading_bars: DashMap::new(),
+                    progress_bars: DashMap::new(),
                 }))
             })
             .await
@@ -46,7 +46,7 @@ impl EventState {
             .get_or_try_init(|| async {
                 Ok(Arc::new(Self {
                     app: Some(app),
-                    loading_bars: DashMap::new(),
+                    progress_bars: DashMap::new(),
                 }))
             })
             .await
@@ -58,8 +58,8 @@ impl EventState {
     }
 
     // Values provided should not be used directly, as they are clones and are not guaranteed to be up-to-date
-    pub async fn list_progress_bars() -> crate::Result<DashMap<Uuid, LoadingBar>> {
+    pub async fn list_progress_bars() -> crate::Result<DashMap<Uuid, ProgressBar>> {
         let value = Self::get()?;
-        Ok(value.loading_bars.clone())
+        Ok(value.progress_bars.clone())
     }
 }

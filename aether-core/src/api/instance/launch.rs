@@ -29,6 +29,7 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
     ));
 
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_version_manifest_use_case.clone(),
@@ -40,6 +41,7 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
     ));
 
     let start_process_use_case = Arc::new(StartProcessUseCase::new(
+        lazy_locator.get_event_emitter().await,
         lazy_locator.get_process_storage().await,
     ));
 
@@ -83,6 +85,7 @@ pub async fn run_credentials(
     ));
 
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_version_manifest_use_case.clone(),
@@ -94,6 +97,7 @@ pub async fn run_credentials(
     ));
 
     let start_process_use_case = Arc::new(StartProcessUseCase::new(
+        lazy_locator.get_event_emitter().await,
         lazy_locator.get_process_storage().await,
     ));
 
