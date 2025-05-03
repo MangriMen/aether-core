@@ -17,11 +17,12 @@ impl ProcessStorage for InMemoryProcessStorage {
         self.processes.insert(process.metadata.uuid, process);
     }
 
+    async fn remove(&self, id: Uuid) {
+        self.processes.remove(&id);
+    }
+
     async fn list_metadata(&self) -> Vec<MinecraftProcessMetadata> {
-        self.processes
-            .iter()
-            .map(|x| x.value().metadata.clone())
-            .collect()
+        self.processes.iter().map(|x| x.metadata.clone()).collect()
     }
 
     async fn get_metadata(&self, id: Uuid) -> Option<MinecraftProcessMetadata> {
@@ -30,27 +31,22 @@ impl ProcessStorage for InMemoryProcessStorage {
 
     async fn try_wait(&self, id: Uuid) -> crate::Result<Option<Option<ExitStatus>>> {
         if let Some(mut process) = self.processes.get_mut(&id) {
-            Ok(Some(process.child.try_wait()?))
-        } else {
-            Ok(None)
+            return Ok(Some(process.try_wait()?));
         }
+        Ok(None)
     }
 
     async fn wait_for(&self, id: Uuid) -> crate::Result<()> {
         if let Some(mut process) = self.processes.get_mut(&id) {
-            process.child.wait().await?;
+            process.wait().await?;
         }
         Ok(())
     }
 
     async fn kill(&self, id: Uuid) -> crate::Result<()> {
         if let Some(mut process) = self.processes.get_mut(&id) {
-            process.child.kill().await?;
+            process.kill().await?;
         }
         Ok(())
-    }
-
-    async fn remove(&self, id: Uuid) {
-        self.processes.remove(&id);
     }
 }

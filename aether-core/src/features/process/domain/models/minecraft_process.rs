@@ -1,3 +1,5 @@
+use std::process::ExitStatus;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::process::Child;
@@ -6,7 +8,7 @@ use uuid::Uuid;
 #[derive(Debug)]
 pub struct MinecraftProcess {
     pub metadata: MinecraftProcessMetadata,
-    pub child: Child,
+    child: Child,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -22,6 +24,18 @@ impl MinecraftProcess {
             metadata: MinecraftProcessMetadata::from_instance_id(instance_id),
             child,
         }
+    }
+
+    pub fn try_wait(&mut self) -> crate::Result<Option<ExitStatus>> {
+        Ok(self.child.try_wait()?)
+    }
+
+    pub async fn wait(&mut self) -> crate::Result<ExitStatus> {
+        Ok(self.child.wait().await?)
+    }
+
+    pub async fn kill(&mut self) -> crate::Result<()> {
+        Ok(self.child.kill().await?)
     }
 }
 
