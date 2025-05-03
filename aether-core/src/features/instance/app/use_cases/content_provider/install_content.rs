@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::instance::{
-        ContentInstallParams, ContentProvider, PackFile, PackStorage, ContentProviderRegistry,
+        ContentInstallParams, ContentProvider, ContentProviderRegistry, PackFile, PackStorage,
     },
     shared::domain::AsyncUseCaseWithInputAndError,
 };

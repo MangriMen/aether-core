@@ -8,7 +8,7 @@ use crate::{
         instance::{Instance, InstanceInstallStage, InstanceStorage},
         minecraft::{InstallMinecraftUseCase, ReadMetadataStorage},
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
+    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
 };
 
 pub struct InstallInstanceUseCase<
@@ -16,17 +16,23 @@ pub struct InstallInstanceUseCase<
     MS: ReadMetadataStorage,
     E: EventEmitter,
     PBS: ProgressBarStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
 }
 
-impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
-    InstallInstanceUseCase<IS, MS, E, PBS>
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+        RC: RequestClient,
+    > InstallInstanceUseCase<IS, MS, E, PBS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
     ) -> Self {
         Self {
             instance_storage,
@@ -44,8 +50,13 @@ impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: Progres
 }
 
 #[async_trait]
-impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
-    AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IS, MS, E, PBS>
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+        RC: RequestClient,
+    > AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IS, MS, E, PBS, RC>
 {
     type Input = (String, bool);
     type Output = ();

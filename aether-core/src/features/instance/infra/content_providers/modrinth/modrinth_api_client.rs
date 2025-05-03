@@ -115,6 +115,8 @@ where
             request = request.with_headers(base_headers);
         }
 
-        self.request_client.fetch_bytes_with_progress(request, None).await
+        self.request_client
+            .fetch_bytes_with_progress(request, None)
+            .await
     }
 }

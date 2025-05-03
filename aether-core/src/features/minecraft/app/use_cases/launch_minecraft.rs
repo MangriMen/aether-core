@@ -9,8 +9,8 @@ use crate::{
         events::{EventEmitter, ProgressBarStorage},
         instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
         minecraft::{
-            self, GetVersionManifestUseCase, LaunchSettings, LoaderVersionResolver, ModLoader,
-            ReadMetadataStorage,
+            self, GetVersionManifestUseCase, LaunchSettings, LoaderVersionResolver,
+            MinecraftDownloadService, ModLoader, ReadMetadataStorage,
         },
         plugins::PluginEvent,
         process::{
@@ -23,7 +23,7 @@ use crate::{
             AsyncUseCaseWithError, AsyncUseCaseWithInput, AsyncUseCaseWithInputAndError,
             SerializableCommand,
         },
-        IOError,
+        IOError, RequestClient,
     },
     with_mut_ref,
 };
@@ -36,13 +36,15 @@ pub struct LaunchMinecraftUseCase<
     PS: ProcessStorage,
     E: EventEmitter,
     PBS: ProgressBarStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
     get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
     get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
     start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
+    minecraft_download_service: MinecraftDownloadService<RC, E, PBS>,
 }
 
 impl<
@@ -51,15 +53,17 @@ impl<
         PS: ProcessStorage,
         E: EventEmitter,
         PBS: ProgressBarStorage,
-    > LaunchMinecraftUseCase<IS, MS, PS, E, PBS>
+        RC: RequestClient,
+    > LaunchMinecraftUseCase<IS, MS, PS, E, PBS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
         get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
         get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
         start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
+        minecraft_download_service: MinecraftDownloadService<RC, E, PBS>,
     ) -> Self {
         Self {
             instance_storage,
@@ -68,6 +72,7 @@ impl<
             get_version_manifest_use_case,
             get_process_by_instance_id_use_case,
             start_process_use_case,
+            minecraft_download_service,
         }
     }
 }
@@ -79,7 +84,8 @@ impl<
         PS: ProcessStorage,
         E: EventEmitter,
         PBS: ProgressBarStorage,
-    > AsyncUseCaseWithInputAndError for LaunchMinecraftUseCase<IS, MS, PS, E, PBS>
+        RC: RequestClient,
+    > AsyncUseCaseWithInputAndError for LaunchMinecraftUseCase<IS, MS, PS, E, PBS, RC>
 {
     type Input = (String, LaunchSettings, Credentials);
     type Output = MinecraftProcessMetadata;
@@ -159,9 +165,10 @@ impl<
             format!("{}-{}", version.id.clone(), it.id.clone())
         });
 
-        let version_info =
-            minecraft::download_version_info(&state, &version, loader_version.as_ref(), None, None)
-                .await?;
+        let version_info = self
+            .minecraft_download_service
+            .download_version_info(&version, loader_version.as_ref(), None, None)
+            .await?;
 
         let java = if let Some(java_path) = instance.java_path.as_ref() {
             crate::features::java::get_java_from_path(Path::new(java_path)).await

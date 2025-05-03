@@ -21,5 +21,8 @@ pub trait ProgressBarStorage: Send + Sync {
         progress_bar_id: Uuid,
         progress_bar: ProgressBar,
     ) -> Result<(), ProgressBarStorageError>;
-    fn remove(&self, progress_bar_id: Uuid) -> Result<(), ProgressBarStorageError>;
+    fn remove(
+        &self,
+        progress_bar_id: Uuid,
+    ) -> Result<Option<(Uuid, ProgressBar)>, ProgressBarStorageError>;
 }

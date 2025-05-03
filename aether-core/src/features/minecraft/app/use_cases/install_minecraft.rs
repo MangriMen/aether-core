@@ -3,42 +3,53 @@ use std::{path::Path, sync::Arc};
 use async_trait::async_trait;
 
 use crate::{
-    core::LauncherState,
     features::{
         events::{
             EventEmitter, ProgressBarId, ProgressBarStorage, ProgressEventType, ProgressService,
         },
         instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
         minecraft::{
-            self, GetVersionManifestUseCase, LoaderVersionResolver, ModLoader, ReadMetadataStorage,
+            self, GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloadService,
+            ModLoader, ReadMetadataStorage,
         },
         settings::LocationInfo,
     },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
+    shared::{
+        domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
+        RequestClient,
+    },
 };
 
 pub struct InstallMinecraftUseCase<
     E: EventEmitter,
-    PS: ProgressBarStorage,
+    PBS: ProgressBarStorage,
     IS: InstanceStorage,
     MS: ReadMetadataStorage,
+    RC: RequestClient,
 > {
-    progress_service: Arc<ProgressService<E, PS>>,
+    progress_service: Arc<ProgressService<E, PBS>>,
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
     get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
     location_info: Arc<LocationInfo>,
+    minecraft_download_service: MinecraftDownloadService<RC, E, PBS>,
 }
 
-impl<E: EventEmitter, PS: ProgressBarStorage, IS: InstanceStorage, MS: ReadMetadataStorage>
-    InstallMinecraftUseCase<E, PS, IS, MS>
+impl<
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        RC: RequestClient,
+    > InstallMinecraftUseCase<E, PBS, IS, MS, RC>
 {
     pub fn new(
-        progress_service: Arc<ProgressService<E, PS>>,
+        progress_service: Arc<ProgressService<E, PBS>>,
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
         get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
         location_info: Arc<LocationInfo>,
+        minecraft_download_service: MinecraftDownloadService<RC, E, PBS>,
     ) -> Self {
         Self {
             progress_service,
@@ -46,13 +57,19 @@ impl<E: EventEmitter, PS: ProgressBarStorage, IS: InstanceStorage, MS: ReadMetad
             loader_version_resolver,
             get_version_manifest_use_case,
             location_info,
+            minecraft_download_service,
         }
     }
 }
 
 #[async_trait]
-impl<E: EventEmitter, PS: ProgressBarStorage, IS: InstanceStorage, MS: ReadMetadataStorage>
-    AsyncUseCaseWithInputAndError for InstallMinecraftUseCase<E, PS, IS, MS>
+impl<
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        RC: RequestClient,
+    > AsyncUseCaseWithInputAndError for InstallMinecraftUseCase<E, PBS, IS, MS, RC>
 {
     type Input = (String, Option<ProgressBarId>, bool);
     type Output = ();
@@ -137,16 +154,15 @@ impl<E: EventEmitter, PS: ProgressBarStorage, IS: InstanceStorage, MS: ReadMetad
                 format!("{}-{}", version.id.clone(), it.id.clone())
             });
 
-            let state = LauncherState::get().await?;
-
-            let mut version_info = minecraft::download_version_info(
-                &state,
-                &version,
-                loader_version.as_ref(),
-                Some(force),
-                Some(&loading_bar),
-            )
-            .await?;
+            let mut version_info = self
+                .minecraft_download_service
+                .download_version_info(
+                    &version,
+                    loader_version.as_ref(),
+                    Some(force),
+                    Some(&loading_bar),
+                )
+                .await?;
 
             let java = if let Some(java_path) = instance.java_path.as_ref() {
                 crate::features::java::get_java_from_path(Path::new(java_path)).await
@@ -161,15 +177,15 @@ impl<E: EventEmitter, PS: ProgressBarStorage, IS: InstanceStorage, MS: ReadMetad
                 }
             }?;
 
-            minecraft::download_minecraft(
-                &state,
-                &version_info,
-                &java.architecture,
-                force,
-                minecraft_updated,
-                Some(&loading_bar),
-            )
-            .await?;
+            self.minecraft_download_service
+                .download_minecraft(
+                    &version_info,
+                    &java.architecture,
+                    force,
+                    minecraft_updated,
+                    Some(&loading_bar),
+                )
+                .await?;
 
             minecraft::run_mod_loader_post_install(
                 &instance,

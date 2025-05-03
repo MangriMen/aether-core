@@ -1,0 +1,132 @@
+use std::sync::Arc;
+
+use crate::{
+    features::{
+        events::{EventEmitter, ProgressBarId, ProgressBarStorage, ProgressService},
+        settings::LocationInfo,
+    },
+    shared::{read_json_async, write_async, Request, RequestClient, RequestClientExt},
+};
+
+use super::{AssetsService, ClientService, LibrariesService};
+
+pub struct MinecraftDownloadService<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage> {
+    client_service: ClientService<RC, E, PBS>,
+    assets_service: AssetsService<RC, E, PBS>,
+    libraries_service: LibrariesService<RC, E, PBS>,
+    location_info: Arc<LocationInfo>,
+    request_client: Arc<RC>,
+    progress_service: Arc<ProgressService<E, PBS>>,
+}
+
+impl<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage>
+    MinecraftDownloadService<RC, E, PBS>
+{
+    pub fn new(
+        client_service: ClientService<RC, E, PBS>,
+        assets_service: AssetsService<RC, E, PBS>,
+        libraries_service: LibrariesService<RC, E, PBS>,
+        location_info: Arc<LocationInfo>,
+        request_client: Arc<RC>,
+        progress_service: Arc<ProgressService<E, PBS>>,
+    ) -> Self {
+        Self {
+            client_service,
+            assets_service,
+            libraries_service,
+            location_info,
+            request_client,
+            progress_service,
+        }
+    }
+
+    pub async fn download_minecraft(
+        &self,
+        version_info: &daedalus::minecraft::VersionInfo,
+        java_arch: &str,
+        force: bool,
+        minecraft_updated: bool,
+        loading_bar: Option<&ProgressBarId>,
+    ) -> crate::Result<()> {
+        log::info!(
+            "---------------- Downloading minecraft {} ----------------------------",
+            version_info.id
+        );
+
+        let assets_index = self
+            .assets_service
+            .download_assets_index(version_info, force, loading_bar)
+            .await?;
+
+        let amount = if version_info
+            .processors
+            .as_ref()
+            .map(|x| !x.is_empty())
+            .unwrap_or(false)
+        {
+            25.0
+        } else {
+            40.0
+        };
+
+        tokio::try_join! {
+            self.client_service.download_client(version_info, force, loading_bar),
+            self.assets_service.download_assets(&assets_index, version_info.assets == "legacy", force, amount, loading_bar),
+            self.libraries_service.download_libraries( version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated, amount, loading_bar)
+        }?;
+
+        log::info!(
+            "---------------- Downloaded minecraft {} successfully ----------------",
+            version_info.id
+        );
+
+        Ok(())
+    }
+
+    pub async fn download_version_info(
+        &self,
+        version: &daedalus::minecraft::Version,
+        loader: Option<&daedalus::modded::LoaderVersion>,
+        force: Option<bool>,
+        loading_bar: Option<&ProgressBarId>,
+    ) -> crate::Result<daedalus::minecraft::VersionInfo> {
+        let version_id =
+            loader.map_or(version.id.clone(), |it| format!("{}-{}", version.id, it.id));
+
+        let path = self
+            .location_info
+            .version_dir(&version_id)
+            .join(format!("{version_id}.json"));
+
+        let res = if path.exists() && !force.unwrap_or(false) {
+            read_json_async(path).await
+        } else {
+            let mut version_info = self
+                .request_client
+                .fetch_json(Request::get(&version.url))
+                .await?;
+
+            if let Some(loader) = loader {
+                let modded_info = self
+                    .request_client
+                    .fetch_json(Request::get(&loader.url))
+                    .await?;
+
+                version_info = daedalus::modded::merge_partial_version(modded_info, version_info);
+            }
+
+            version_info.id.clone_from(&version_id);
+
+            write_async(&path, &serde_json::to_vec(&version_info)?).await?;
+
+            Ok(version_info)
+        }?;
+
+        if let Some(loading_bar) = loading_bar {
+            self.progress_service
+                .emit_progress(loading_bar, 5.0, None)?;
+        }
+
+        Ok(res)
+    }
+}

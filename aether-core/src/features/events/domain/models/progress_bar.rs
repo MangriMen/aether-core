@@ -1,9 +1,11 @@
 use log::error;
 use serde::Serialize;
-use tauri::Emitter;
 use uuid::Uuid;
 
-use crate::features::events::EventState;
+use crate::{
+    core::domain::LazyLocator,
+    features::events::{EventEmitter, ProgressBarStorage},
+};
 
 use super::{LauncherEvent, ProgressEvent, ProgressEventType};
 
@@ -28,30 +30,34 @@ impl Drop for ProgressBarId {
     fn drop(&mut self) {
         let progress_bar_id = self.0;
         tokio::spawn(async move {
-            match EventState::get() {
-                Ok(event_state) => {
-                    if let Some(app_handle) = &event_state.app {
-                        let removed_progress_bar =
-                            event_state.progress_bars.remove(&progress_bar_id);
+            let lazy_locator = LazyLocator::get().await;
 
-                        if let Some((_, progress_bar)) = removed_progress_bar {
-                            let completion_event = ProgressEvent {
-                                fraction: None,
-                                message: "Completed".to_string(),
-                                event: progress_bar.progress_type,
-                                progress_bar_id: progress_bar.id,
-                            };
+            match lazy_locator {
+                Ok(lazy_locator) => {
+                    let progress_bar_storage = lazy_locator.get_progress_bar_storage().await;
+                    let event_emitter = lazy_locator.get_event_emitter().await;
 
-                            if let Err(e) =
-                                app_handle.emit(LauncherEvent::Loading.as_str(), completion_event)
-                            {
-                                error!(
-                                    "Exited at {:.2}% for progress bar: {}: {:?}",
-                                    (progress_bar.current / progress_bar.total) * 100.0,
-                                    progress_bar.id,
-                                    e
-                                );
-                            }
+                    // TODO: remove unwrap
+                    let removed_progress_bar =
+                        progress_bar_storage.remove(progress_bar_id).unwrap();
+
+                    if let Some((_, progress_bar)) = removed_progress_bar {
+                        let completion_event = ProgressEvent {
+                            fraction: None,
+                            message: "Completed".to_string(),
+                            event: progress_bar.progress_type,
+                            progress_bar_id: progress_bar.id,
+                        };
+
+                        if let Err(e) =
+                            event_emitter.emit(LauncherEvent::Loading.as_str(), completion_event)
+                        {
+                            error!(
+                                "Exited at {:.2}% for progress bar: {}: {:?}",
+                                (progress_bar.current / progress_bar.total) * 100.0,
+                                progress_bar.id,
+                                e
+                            );
                         }
                     }
                 }

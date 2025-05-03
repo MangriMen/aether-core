@@ -12,12 +12,7 @@ use tokio::process::Command;
 
 use crate::{
     core::LauncherState,
-    features::{
-        events::{emit_loading, ProgressBarId},
-        instance::Instance,
-        java::Java,
-        minecraft,
-    },
+    features::{events::ProgressBarId, instance::Instance, java::Java, minecraft},
     processor_rules,
     shared::IOError,
     with_mut_ref,
@@ -62,14 +57,15 @@ pub async fn run_forge_processors(
                     server => "";
             }
 
-            if let Some(loading_bar) = loading_bar {
-                emit_loading(loading_bar, 0.0, Some("Running forge processors")).await?;
+            if let Some(_loading_bar) = loading_bar {
+                // TODO: FIX
+                // emit_loading(loading_bar, 0.0, Some("Running forge processors")).await?;
             };
 
-            let total_length = processors.len();
+            let _total_length = processors.len();
 
             // Forge processors (90-100)
-            for (index, processor) in processors.iter().enumerate() {
+            for (_index, processor) in processors.iter().enumerate() {
                 if let Some(sides) = &processor.sides {
                     if !sides.contains(&String::from("client")) {
                         continue;
@@ -78,16 +74,17 @@ pub async fn run_forge_processors(
 
                 run_forge_processor(processor, data, &libraries_dir, java_version).await?;
 
-                if let Some(loading_bar) = loading_bar {
-                    emit_loading(
-                        loading_bar,
-                        30.0 / total_length as f64,
-                        Some(&format!(
-                            "Running forge processor {}/{}",
-                            index, total_length
-                        )),
-                    )
-                    .await?;
+                if let Some(_loading_bar) = loading_bar {
+                    // TODO: FIX
+                    // emit_loading(
+                    //     loading_bar,
+                    //     30.0 / total_length as f64,
+                    //     Some(&format!(
+                    //         "Running forge processor {}/{}",
+                    //         index, total_length
+                    //     )),
+                    // )
+                    // .await?;
                 }
             }
         }

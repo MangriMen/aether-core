@@ -1,4 +1,3 @@
-pub mod download;
 pub mod get_compatible_java_version;
 pub mod get_minecraft_jvm_arguments;
 pub mod jvm_arguments;
@@ -10,7 +9,6 @@ pub mod rules;
 pub mod run_mod_loader_post_install;
 pub mod use_cases;
 
-pub use download::*;
 pub use get_compatible_java_version::*;
 pub use get_minecraft_jvm_arguments::*;
 pub use jvm_arguments::*;

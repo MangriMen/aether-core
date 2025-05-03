@@ -49,8 +49,10 @@ impl ProgressBarStorage for InMemoryProgressBarStorage {
         Ok(())
     }
 
-    fn remove(&self, progress_bar_id: Uuid) -> Result<(), ProgressBarStorageError> {
-        self.progress_bars.remove(&progress_bar_id);
-        Ok(())
+    fn remove(
+        &self,
+        progress_bar_id: Uuid,
+    ) -> Result<Option<(Uuid, ProgressBar)>, ProgressBarStorageError> {
+        Ok(self.progress_bars.remove(&progress_bar_id))
     }
 }

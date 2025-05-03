@@ -21,7 +21,7 @@ use crate::{
         },
         settings::{Hooks, LocationInfo},
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
+    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
 };
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -42,21 +42,27 @@ pub struct CreateInstanceUseCase<
     MS: ReadMetadataStorage,
     E: EventEmitter,
     PBS: ProgressBarStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
     location_info: Arc<LocationInfo>,
     fs_watcher: Arc<FsWatcher>,
 }
 
-impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
-    CreateInstanceUseCase<IS, MS, E, PBS>
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+        RC: RequestClient,
+    > CreateInstanceUseCase<IS, MS, E, PBS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
         location_info: Arc<LocationInfo>,
         fs_watcher: Arc<FsWatcher>,
     ) -> Self {
@@ -88,8 +94,13 @@ impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: Progres
 }
 
 #[async_trait]
-impl<IS: InstanceStorage, MS: ReadMetadataStorage, E: EventEmitter, PBS: ProgressBarStorage>
-    AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, PBS>
+impl<
+        IS: InstanceStorage,
+        MS: ReadMetadataStorage,
+        E: EventEmitter,
+        PBS: ProgressBarStorage,
+        RC: RequestClient,
+    > AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, PBS, RC>
 {
     type Input = NewInstance;
     type Output = String;

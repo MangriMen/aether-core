@@ -8,7 +8,10 @@ use crate::{
             InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
             RemoveInstanceUseCase,
         },
-        minecraft::{GetVersionManifestUseCase, InstallMinecraftUseCase, LoaderVersionResolver},
+        minecraft::{
+            AssetsService, ClientService, GetVersionManifestUseCase, InstallMinecraftUseCase,
+            LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
+        },
     },
     shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
@@ -26,12 +29,37 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         lazy_locator.get_metadata_storage().await,
     ));
 
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
+    );
+
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
+        minecraft_download_service,
     ));
 
     CreateInstanceUseCase::new(
@@ -58,12 +86,37 @@ pub async fn install(id: String, force: bool) -> crate::Result<()> {
         lazy_locator.get_metadata_storage().await,
     ));
 
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
+    );
+
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
+        minecraft_download_service,
     ));
 
     InstallInstanceUseCase::new(

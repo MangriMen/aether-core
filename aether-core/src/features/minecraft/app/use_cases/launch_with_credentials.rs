@@ -11,7 +11,7 @@ use crate::{
         process::{MinecraftProcessMetadata, ProcessStorage},
         settings::SettingsStorage,
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
+    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
 };
 
 use super::LaunchMinecraftUseCase;
@@ -23,10 +23,11 @@ pub struct LaunchWithCredentialsUseCase<
     SS: SettingsStorage,
     E: EventEmitter,
     PBS: ProgressBarStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
     settings_storage: Arc<SS>,
-    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS>,
+    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS, RC>,
 }
 
 impl<
@@ -36,12 +37,13 @@ impl<
         SS: SettingsStorage,
         E: EventEmitter,
         PBS: ProgressBarStorage,
-    > LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS>
+        RC: RequestClient,
+    > LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         settings_storage: Arc<SS>,
-        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS>,
+        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS, RC>,
     ) -> Self {
         Self {
             instance_storage,
@@ -59,7 +61,8 @@ impl<
         SS: SettingsStorage,
         E: EventEmitter,
         PBS: ProgressBarStorage,
-    > AsyncUseCaseWithInputAndError for LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS>
+        RC: RequestClient,
+    > AsyncUseCaseWithInputAndError for LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS, RC>
 {
     type Input = (String, Credentials);
     type Output = MinecraftProcessMetadata;
