@@ -3,7 +3,7 @@ use std::{path::Path, sync::Arc};
 use async_trait::async_trait;
 
 use crate::{
-    core::{domain::ServiceLocator, LauncherState},
+    core::{domain::LazyLocator, LauncherState},
     features::{
         auth::Credentials,
         instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
@@ -104,11 +104,11 @@ where
 
         run_pre_launch_command(&pre_launch_command, &instance_path).await?;
 
-        let service_locator = ServiceLocator::get().await?;
-        let plugin_service = &service_locator.plugin_service.read().await;
+        let lazy_locator = LazyLocator::get().await?;
+        let plugin_registry = lazy_locator.get_plugin_registry().await;
 
         if let Some(pack_info) = &instance.pack_info {
-            if let Ok(plugin) = plugin_service.get(&pack_info.pack_type) {
+            if let Ok(plugin) = plugin_registry.get(&pack_info.pack_type) {
                 if let Some(plugin) = &plugin.instance {
                     let mut plugin = plugin.lock().await;
                     if plugin.supports_handle_events() {
@@ -262,7 +262,7 @@ where
             .await;
 
         if let Some(pack_info) = &instance.pack_info {
-            if let Ok(plugin) = plugin_service.get(&pack_info.pack_type) {
+            if let Ok(plugin) = plugin_registry.get(&pack_info.pack_type) {
                 if let Some(plugin) = &plugin.instance {
                     let mut plugin = plugin.lock().await;
                     if plugin.supports_handle_events() {

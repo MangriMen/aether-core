@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    core::{
-        domain::{LazyLocator, ServiceLocator},
-        LauncherState,
-    },
+    core::{domain::LazyLocator, LauncherState},
     features::{
         instance::{
             CreateInstanceUseCase, EditInstance, EditInstanceUseCase, GetInstanceUseCase,
@@ -79,10 +76,10 @@ pub async fn install(id: String, force: bool) -> crate::Result<()> {
 pub async fn update(id: String) -> crate::Result<()> {
     if let Ok(instance) = get(id.clone()).await {
         if let Some(pack_info) = instance.pack_info {
-            let service_locator = ServiceLocator::get().await?;
-            let plugin_service = service_locator.plugin_service.read().await;
+            let lazy_locator = LazyLocator::get().await?;
+            let plugin_registry = lazy_locator.get_plugin_registry().await;
 
-            if let Ok(plugin) = plugin_service.get(&pack_info.pack_type) {
+            if let Ok(plugin) = plugin_registry.get(&pack_info.pack_type) {
                 if let Some(plugin) = &plugin.instance {
                     plugin.lock().await.update(&id).map_err(|_| {
                         crate::ErrorKind::InstanceUpdateError(format!(

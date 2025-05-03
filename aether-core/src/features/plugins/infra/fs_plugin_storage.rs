@@ -57,7 +57,13 @@ impl FsPluginStorage {
 #[async_trait]
 impl PluginStorage for FsPluginStorage {
     async fn list(&self) -> crate::Result<HashMap<String, Plugin>> {
-        let mut dir_entries = tokio::fs::read_dir(&self.location_info.plugins_dir()).await?;
+        let plugins_dir = self.location_info.plugins_dir();
+
+        if !plugins_dir.exists() {
+            tokio::fs::create_dir_all(&plugins_dir).await?;
+        }
+
+        let mut dir_entries = tokio::fs::read_dir(&plugins_dir).await?;
         let mut plugins = HashMap::new();
 
         while let Some(dir_entry) = dir_entries.next_entry().await? {

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use dashmap::DashMap;
 
 use crate::{
@@ -38,6 +40,13 @@ impl PluginRegistry {
 
     pub fn remove(&self, plugin_id: &str) {
         self.plugins.remove(plugin_id);
+    }
+
+    pub fn get_ids(&self) -> HashSet<String> {
+        self.plugins
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     pub fn list_manifests(&self) -> crate::Result<Vec<PluginManifest>> {

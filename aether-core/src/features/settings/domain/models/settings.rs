@@ -1,11 +1,11 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
-    pub launcher_dir: Option<String>,
-    pub metadata_dir: Option<String>,
+    pub launcher_dir: PathBuf,
+    pub metadata_dir: PathBuf,
 
     pub max_concurrent_downloads: usize,
 

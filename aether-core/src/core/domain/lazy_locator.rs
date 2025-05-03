@@ -12,8 +12,8 @@ use crate::{
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         plugins::{
-            ExtismPluginLoader, FsPluginSettingsStorage, LoadConfigType, PluginLoaderRegistry,
-            PluginRegistry,
+            ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, LoadConfigType,
+            PluginLoaderRegistry, PluginRegistry,
         },
         process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
@@ -45,6 +45,7 @@ pub struct LazyLocator {
     plugin_settings_storage: OnceCell<Arc<FsPluginSettingsStorage>>,
     plugin_registry: OnceCell<Arc<PluginRegistry>>,
     plugin_loader_registry: OnceCell<Arc<PluginLoaderRegistry<ExtismPluginLoader>>>,
+    plugin_storage: OnceCell<Arc<FsPluginStorage>>,
 }
 
 impl LazyLocator {
@@ -66,6 +67,7 @@ impl LazyLocator {
                     plugin_settings_storage: OnceCell::new(),
                     plugin_registry: OnceCell::new(),
                     plugin_loader_registry: OnceCell::new(),
+                    plugin_storage: OnceCell::new(),
                 })
             })
             .await;
@@ -254,6 +256,15 @@ impl LazyLocator {
                 )]);
 
                 Arc::new(PluginLoaderRegistry::new(loaders))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_plugin_storage(&self) -> Arc<FsPluginStorage> {
+        self.plugin_storage
+            .get_or_init(|| async {
+                Arc::new(FsPluginStorage::new(self.state.location_info.clone()))
             })
             .await
             .clone()

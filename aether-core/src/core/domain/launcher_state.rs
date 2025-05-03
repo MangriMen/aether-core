@@ -1,12 +1,15 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use tokio::sync::{OnceCell, Semaphore};
 
 use crate::{
-    core::domain::{LazyLocator, ServiceLocator},
+    core::domain::LazyLocator,
     features::{
         instance::{fs_watcher, FsWatcher},
-        settings::{LocationInfo, Settings},
+        settings::{
+            FsSettingsStorage, Hooks, LocationInfo, MemorySettings, Settings, SettingsStorage,
+            WindowSize,
+        },
     },
     shared::FetchSemaphore,
 };
@@ -35,9 +38,9 @@ pub struct LauncherState {
 }
 
 impl LauncherState {
-    pub async fn init(settings: &Settings) -> crate::Result<()> {
+    pub async fn init(launcher_dir: PathBuf, metadata_dir: PathBuf) -> crate::Result<()> {
         LAUNCHER_STATE
-            .get_or_try_init(|| Self::initialize(settings))
+            .get_or_try_init(|| Self::initialize(launcher_dir, metadata_dir))
             .await?;
 
         Ok(())
@@ -66,13 +69,37 @@ impl LauncherState {
     }
 
     #[tracing::instrument]
-    async fn initialize(settings: &Settings) -> crate::Result<Arc<Self>> {
+    async fn initialize(launcher_dir: PathBuf, metadata_dir: PathBuf) -> crate::Result<Arc<Self>> {
         log::info!("Initializing state");
+
+        let settings_storage = FsSettingsStorage::new(&launcher_dir.clone());
+
+        let settings = if let Ok(settings) = settings_storage.get().await {
+            settings
+        } else {
+            let settings = Settings {
+                launcher_dir,
+                metadata_dir,
+                max_concurrent_downloads: 10,
+
+                memory: MemorySettings { maximum: 2048 },
+                game_resolution: WindowSize(960, 540),
+                custom_env_vars: vec![],
+                extra_launch_args: vec![],
+                hooks: Hooks::default(),
+
+                enabled_plugins: HashSet::default(),
+            };
+
+            settings_storage.upsert(&settings).await?;
+
+            settings
+        };
 
         log::info!("Initialize locations");
         let location_info = Arc::new(LocationInfo {
-            settings_dir: PathBuf::from(settings.launcher_dir.clone().unwrap()),
-            config_dir: PathBuf::from(settings.metadata_dir.clone().unwrap()),
+            settings_dir: settings.launcher_dir.clone(),
+            config_dir: settings.metadata_dir.clone(),
         });
 
         log::info!("Initialize fetch semaphore");
@@ -100,7 +127,6 @@ impl LauncherState {
             file_watcher,
         });
 
-        ServiceLocator::init(&state).await?;
         LazyLocator::init(state.clone()).await?;
 
         Ok(state)
