@@ -1,5 +1,7 @@
-pub mod resolve_launch_settings;
-pub mod use_cases;
+mod content;
+mod content_provider;
+mod instance;
 
-pub use resolve_launch_settings::*;
-pub use use_cases::{content::*, instance::*};
+pub use content::*;
+pub use content_provider::*;
+pub use instance::*;
