@@ -4,11 +4,11 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
-        events::{EventEmitter, ProgressBarStorage},
+        events::ProgressService,
         java::{infra::AzulJreProvider, Java, JavaInstallationService, JavaStorage},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, infra::ReqwestClient},
+    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
 };
 
 use super::InstallJreUseCase;
@@ -16,24 +16,22 @@ use super::InstallJreUseCase;
 pub struct InstallJavaUseCase<
     JS: JavaStorage,
     JIS: JavaInstallationService,
-    E: EventEmitter,
-    PBS: ProgressBarStorage,
+    PS: ProgressService,
+    RC: RequestClient,
 > {
     storage: Arc<JS>,
     java_installation_service: JIS,
-    install_jre_use_case: Arc<InstallJreUseCase<AzulJreProvider<E, PBS, ReqwestClient<E, PBS>>>>,
+    install_jre_use_case: Arc<InstallJreUseCase<AzulJreProvider<PS, RC>>>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<JS: JavaStorage, JIS: JavaInstallationService, E: EventEmitter, PBS: ProgressBarStorage>
-    InstallJavaUseCase<JS, JIS, E, PBS>
+impl<JS: JavaStorage, JIS: JavaInstallationService, PS: ProgressService, RC: RequestClient>
+    InstallJavaUseCase<JS, JIS, PS, RC>
 {
     pub fn new(
         storage: Arc<JS>,
         java_installation_service: JIS,
-        install_jre_use_case: Arc<
-            InstallJreUseCase<AzulJreProvider<E, PBS, ReqwestClient<E, PBS>>>,
-        >,
+        install_jre_use_case: Arc<InstallJreUseCase<AzulJreProvider<PS, RC>>>,
         location_info: Arc<LocationInfo>,
     ) -> Self {
         Self {
@@ -46,8 +44,8 @@ impl<JS: JavaStorage, JIS: JavaInstallationService, E: EventEmitter, PBS: Progre
 }
 
 #[async_trait]
-impl<JS: JavaStorage, JIS: JavaInstallationService, E: EventEmitter, PBS: ProgressBarStorage>
-    AsyncUseCaseWithInputAndError for InstallJavaUseCase<JS, JIS, E, PBS>
+impl<JS: JavaStorage, JIS: JavaInstallationService, PS: ProgressService, RC: RequestClient>
+    AsyncUseCaseWithInputAndError for InstallJavaUseCase<JS, JIS, PS, RC>
 {
     type Input = u32;
     type Output = Java;

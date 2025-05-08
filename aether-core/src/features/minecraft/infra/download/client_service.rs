@@ -2,21 +2,21 @@ use std::sync::Arc;
 
 use crate::{
     features::{
-        events::{EventEmitter, ProgressBarId, ProgressBarStorage, ProgressService},
+        events::{ProgressBarId, ProgressService},
         settings::LocationInfo,
     },
     shared::{write_async, Request, RequestClient},
 };
 
-pub struct ClientService<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage> {
-    progress_service: Arc<ProgressService<E, PBS>>,
+pub struct ClientService<RC: RequestClient, PS: ProgressService> {
+    progress_service: Arc<PS>,
     request_client: Arc<RC>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage> ClientService<RC, E, PBS> {
+impl<RC: RequestClient, PS: ProgressService> ClientService<RC, PS> {
     pub fn new(
-        progress_service: Arc<ProgressService<E, PBS>>,
+        progress_service: Arc<PS>,
         request_client: Arc<RC>,
         location_info: Arc<LocationInfo>,
     ) -> Self {

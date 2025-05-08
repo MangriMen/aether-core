@@ -3,16 +3,16 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::features::events::{
-    EventEmitter, EventError, LauncherEvent, ProgressBar, ProgressBarId, ProgressBarStorage,
-    ProgressBarStorageExt, ProgressEvent, ProgressEventType,
+    progress_service::ProgressService, EventEmitter, EventError, LauncherEvent, ProgressBar,
+    ProgressBarId, ProgressBarStorage, ProgressBarStorageExt, ProgressEvent, ProgressEventType,
 };
 
-pub struct ProgressService<E: EventEmitter, PS: ProgressBarStorage> {
+pub struct ProgressServiceImpl<E: EventEmitter, PS: ProgressBarStorage> {
     pub event_emitter: Arc<E>,
     progress_storage: Arc<PS>,
 }
 
-impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService<E, PS> {
+impl<E: EventEmitter, PS: ProgressBarStorage> ProgressServiceImpl<E, PS> {
     pub fn new(event_emitter: Arc<E>, progress_storage: Arc<PS>) -> Self {
         Self {
             event_emitter,
@@ -20,7 +20,27 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService<E, PS> {
         }
     }
 
-    pub fn init_progress(
+    fn emit_progress_inner(
+        &self,
+        progress_bar_id: Uuid,
+        fraction: Option<f64>,
+        message: String,
+        event_type: ProgressEventType,
+    ) -> Result<(), EventError> {
+        self.event_emitter.emit(
+            LauncherEvent::Loading.as_str(),
+            ProgressEvent {
+                fraction,
+                message,
+                event: event_type,
+                progress_bar_id,
+            },
+        )
+    }
+}
+
+impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService for ProgressServiceImpl<E, PS> {
+    fn init_progress(
         &self,
         event_type: ProgressEventType,
         total: f64,
@@ -45,7 +65,7 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService<E, PS> {
         Ok(progress_bar_id)
     }
 
-    pub fn init_or_edit_progress(
+    fn init_or_edit_progress(
         &self,
         progress_bar_id: Option<ProgressBarId>,
         event_type: ProgressEventType,
@@ -61,7 +81,7 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService<E, PS> {
         }
     }
 
-    pub fn emit_progress(
+    fn emit_progress(
         &self,
         progress_bar_id: &ProgressBarId,
         increment_frac: f64,
@@ -96,7 +116,7 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService<E, PS> {
         Ok(())
     }
 
-    pub fn edit_progress(
+    fn edit_progress(
         &self,
         progress_bar_id: &ProgressBarId,
         event_type: ProgressEventType,
@@ -117,23 +137,5 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService<E, PS> {
         self.emit_progress(progress_bar_id, 0.0, None)?;
 
         Ok(())
-    }
-
-    fn emit_progress_inner(
-        &self,
-        progress_bar_id: Uuid,
-        fraction: Option<f64>,
-        message: String,
-        event_type: ProgressEventType,
-    ) -> Result<(), EventError> {
-        self.event_emitter.emit(
-            LauncherEvent::Loading.as_str(),
-            ProgressEvent {
-                fraction,
-                message,
-                event: event_type,
-                progress_bar_id,
-            },
-        )
     }
 }

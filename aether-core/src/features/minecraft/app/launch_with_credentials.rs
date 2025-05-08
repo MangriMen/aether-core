@@ -5,13 +5,13 @@ use async_trait::async_trait;
 use crate::{
     features::{
         auth::Credentials,
-        events::{EventEmitter, ProgressBarStorage},
+        events::{EventEmitter, ProgressService},
         instance::{resolve_launch_settings, InstanceStorage},
-        minecraft::ReadMetadataStorage,
+        minecraft::{MinecraftDownloader, ReadMetadataStorage},
         process::{MinecraftProcessMetadata, ProcessStorage},
         settings::SettingsStorage,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 use super::LaunchMinecraftUseCase;
@@ -22,12 +22,12 @@ pub struct LaunchWithCredentialsUseCase<
     PS: ProcessStorage,
     SS: SettingsStorage,
     E: EventEmitter,
-    PBS: ProgressBarStorage,
-    RC: RequestClient,
+    MD: MinecraftDownloader,
+    PGS: ProgressService,
 > {
     instance_storage: Arc<IS>,
     settings_storage: Arc<SS>,
-    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS, RC>,
+    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, MD, PGS>,
 }
 
 impl<
@@ -36,14 +36,14 @@ impl<
         PS: ProcessStorage,
         SS: SettingsStorage,
         E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
-    > LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS, RC>
+        MD: MinecraftDownloader,
+        PGS: ProgressService,
+    > LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         settings_storage: Arc<SS>,
-        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, PBS, RC>,
+        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, MD, PGS>,
     ) -> Self {
         Self {
             instance_storage,
@@ -60,9 +60,9 @@ impl<
         PS: ProcessStorage,
         SS: SettingsStorage,
         E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
-    > AsyncUseCaseWithInputAndError for LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS, RC>
+        MD: MinecraftDownloader,
+        PGS: ProgressService,
+    > AsyncUseCaseWithInputAndError for LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS>
 {
     type Input = (String, Credentials);
     type Output = MinecraftProcessMetadata;

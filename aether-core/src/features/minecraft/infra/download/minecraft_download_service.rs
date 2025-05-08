@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
+
 use crate::{
     features::{
-        events::{EventEmitter, ProgressBarId, ProgressBarStorage, ProgressService},
+        events::{ProgressBarId, ProgressService},
+        minecraft::MinecraftDownloader,
         settings::LocationInfo,
     },
     shared::{read_json_async, write_async, Request, RequestClient, RequestClientExt},
@@ -10,25 +13,23 @@ use crate::{
 
 use super::{AssetsService, ClientService, LibrariesService};
 
-pub struct MinecraftDownloadService<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage> {
-    client_service: ClientService<RC, E, PBS>,
-    assets_service: AssetsService<RC, E, PBS>,
-    libraries_service: LibrariesService<RC, E, PBS>,
+pub struct MinecraftDownloadService<RC: RequestClient, PS: ProgressService> {
+    client_service: ClientService<RC, PS>,
+    assets_service: AssetsService<RC, PS>,
+    libraries_service: LibrariesService<RC, PS>,
     location_info: Arc<LocationInfo>,
     request_client: Arc<RC>,
-    progress_service: Arc<ProgressService<E, PBS>>,
+    progress_service: Arc<PS>,
 }
 
-impl<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage>
-    MinecraftDownloadService<RC, E, PBS>
-{
+impl<RC: RequestClient, PS: ProgressService> MinecraftDownloadService<RC, PS> {
     pub fn new(
-        client_service: ClientService<RC, E, PBS>,
-        assets_service: AssetsService<RC, E, PBS>,
-        libraries_service: LibrariesService<RC, E, PBS>,
+        client_service: ClientService<RC, PS>,
+        assets_service: AssetsService<RC, PS>,
+        libraries_service: LibrariesService<RC, PS>,
         location_info: Arc<LocationInfo>,
         request_client: Arc<RC>,
-        progress_service: Arc<ProgressService<E, PBS>>,
+        progress_service: Arc<PS>,
     ) -> Self {
         Self {
             client_service,
@@ -39,8 +40,13 @@ impl<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage>
             progress_service,
         }
     }
+}
 
-    pub async fn download_minecraft(
+#[async_trait]
+impl<RC: RequestClient, PS: ProgressService> MinecraftDownloader
+    for MinecraftDownloadService<RC, PS>
+{
+    async fn download_minecraft(
         &self,
         version_info: &daedalus::minecraft::VersionInfo,
         java_arch: &str,
@@ -83,7 +89,7 @@ impl<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage>
         Ok(())
     }
 
-    pub async fn download_version_info(
+    async fn download_version_info(
         &self,
         version: &daedalus::minecraft::Version,
         loader: Option<&daedalus::modded::LoaderVersion>,

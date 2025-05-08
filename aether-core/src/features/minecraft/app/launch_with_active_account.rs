@@ -5,13 +5,13 @@ use async_trait::async_trait;
 use crate::{
     features::{
         auth::CredentialsStorage,
-        events::{EventEmitter, ProgressBarStorage},
+        events::{EventEmitter, ProgressService},
         instance::InstanceStorage,
-        minecraft::ReadMetadataStorage,
+        minecraft::{MinecraftDownloader, ReadMetadataStorage},
         process::{MinecraftProcessMetadata, ProcessStorage},
         settings::SettingsStorage,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 use super::LaunchWithCredentialsUseCase;
@@ -23,11 +23,11 @@ pub struct LaunchWithActiveAccountUseCase<
     CS: CredentialsStorage,
     SS: SettingsStorage,
     E: EventEmitter,
-    PBS: ProgressBarStorage,
-    RC: RequestClient,
+    MD: MinecraftDownloader,
+    PGS: ProgressService,
 > {
     credentials_storage: Arc<CS>,
-    launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS, RC>,
+    launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS>,
 }
 
 impl<
@@ -37,13 +37,13 @@ impl<
         CS: CredentialsStorage,
         SS: SettingsStorage,
         E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
-    > LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, PBS, RC>
+        MD: MinecraftDownloader,
+        PGS: ProgressService,
+    > LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, MD, PGS>
 {
     pub fn new(
         credentials_storage: Arc<CS>,
-        launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, PBS, RC>,
+        launch_with_credentials_use_case: LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS>,
     ) -> Self {
         Self {
             credentials_storage,
@@ -60,10 +60,10 @@ impl<
         CS: CredentialsStorage,
         SS: SettingsStorage,
         E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
+        MD: MinecraftDownloader,
+        PGS: ProgressService,
     > AsyncUseCaseWithInputAndError
-    for LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, PBS, RC>
+    for LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, MD, PGS>
 {
     type Input = String;
     type Output = MinecraftProcessMetadata;

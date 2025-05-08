@@ -2,9 +2,7 @@ use std::{future::Future, sync::Arc};
 
 use futures::TryStream;
 
-use crate::features::events::{EventEmitter, ProgressBarId, ProgressBarStorage};
-
-use super::ProgressService;
+use crate::features::events::{ProgressBarId, ProgressService};
 
 // A drop in replacement to try_for_each_concurrent that emits loading events as it goes
 // Key is the key to use for which loading bar- a LoadingBarId. If None, does nothing
@@ -12,8 +10,8 @@ use super::ProgressService;
 // If message is Some(t) you will overwrite this loading bar's message with a custom one
 // futures_count is the number of futures that will be run, which is needed as we allow Iterator to be passed in, which doesn't have a size
 #[tracing::instrument(skip(progress_service, stream, f))]
-pub async fn loading_try_for_each_concurrent<E, PS, I, F, Fut, T>(
-    progress_service: Arc<ProgressService<E, PS>>,
+pub async fn loading_try_for_each_concurrent<PS, I, F, Fut, T>(
+    progress_service: Arc<PS>,
     stream: I,
     limit: Option<usize>,
     key: Option<&ProgressBarId>,
@@ -23,8 +21,7 @@ pub async fn loading_try_for_each_concurrent<E, PS, I, F, Fut, T>(
     f: F,
 ) -> crate::Result<()>
 where
-    E: EventEmitter,
-    PS: ProgressBarStorage,
+    PS: ProgressService,
     I: futures::TryStreamExt<Error = crate::Error> + TryStream<Ok = T>,
     F: FnMut(T) -> Fut + Send,
     Fut: Future<Output = crate::Result<()>> + Send,

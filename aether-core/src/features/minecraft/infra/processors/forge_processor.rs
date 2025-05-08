@@ -11,7 +11,7 @@ use tokio::process::Command;
 
 use crate::{
     features::{
-        events::{EventEmitter, ProgressBarId, ProgressBarStorage, ProgressService},
+        events::{ProgressBarId, ProgressService},
         instance::Instance,
         java::Java,
         minecraft::{self, ModLoaderProcessor},
@@ -22,16 +22,13 @@ use crate::{
     with_mut_ref,
 };
 
-pub struct ForgeProcessor<E: EventEmitter, PBS: ProgressBarStorage> {
-    progress_service: Arc<ProgressService<E, PBS>>,
+pub struct ForgeProcessor<PS: ProgressService> {
+    progress_service: Arc<PS>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<E: EventEmitter, PBS: ProgressBarStorage> ForgeProcessor<E, PBS> {
-    pub fn new(
-        progress_service: Arc<ProgressService<E, PBS>>,
-        location_info: Arc<LocationInfo>,
-    ) -> Self {
+impl<PS: ProgressService> ForgeProcessor<PS> {
+    pub fn new(progress_service: Arc<PS>, location_info: Arc<LocationInfo>) -> Self {
         Self {
             progress_service,
             location_info,
@@ -90,7 +87,7 @@ impl<E: EventEmitter, PBS: ProgressBarStorage> ForgeProcessor<E, PBS> {
 }
 
 #[async_trait]
-impl<E: EventEmitter, PBS: ProgressBarStorage> ModLoaderProcessor for ForgeProcessor<E, PBS> {
+impl<PS: ProgressService> ModLoaderProcessor for ForgeProcessor<PS> {
     async fn run(
         &self,
         instance: &Instance,

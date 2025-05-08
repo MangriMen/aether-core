@@ -55,7 +55,7 @@ impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
 
         self.event_emitter.emit_process(
             instance_id.clone(),
-            metadata.uuid.clone(),
+            metadata.uuid,
             "Launched Minecraft".to_string(),
             ProcessEventType::Launched,
         )?;

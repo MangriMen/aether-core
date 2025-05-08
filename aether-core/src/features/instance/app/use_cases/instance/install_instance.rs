@@ -4,35 +4,33 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
-        events::{EventEmitter, ProgressBarStorage},
+        events::ProgressService,
         instance::{Instance, InstanceInstallStage, InstanceStorage},
-        minecraft::{InstallMinecraftUseCase, ReadMetadataStorage},
+        minecraft::{InstallMinecraftUseCase, MinecraftDownloader, ReadMetadataStorage},
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 pub struct InstallInstanceUseCase<
     IS: InstanceStorage,
     MS: ReadMetadataStorage,
-    E: EventEmitter,
-    PBS: ProgressBarStorage,
-    RC: RequestClient,
+    MD: MinecraftDownloader,
+    PS: ProgressService,
 > {
     instance_storage: Arc<IS>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
 }
 
 impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
-    > InstallInstanceUseCase<IS, MS, E, PBS, RC>
+        MD: MinecraftDownloader,
+        PS: ProgressService,
+    > InstallInstanceUseCase<IS, MS, MD, PS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
     ) -> Self {
         Self {
             instance_storage,
@@ -53,10 +51,9 @@ impl<
 impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
-    > AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IS, MS, E, PBS, RC>
+        MD: MinecraftDownloader,
+        PS: ProgressService,
+    > AsyncUseCaseWithInputAndError for InstallInstanceUseCase<IS, MS, MD, PS>
 {
     type Input = (String, bool);
     type Output = ();

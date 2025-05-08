@@ -12,16 +12,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     features::{
-        events::{EventEmitter, EventEmitterExt, ProgressBarStorage},
+        events::{EventEmitter, EventEmitterExt, ProgressService},
         instance::{
             watch_instance, FsWatcher, Instance, InstanceInstallStage, InstanceStorage, PackInfo,
         },
         minecraft::{
-            InstallMinecraftUseCase, LoaderVersionResolver, ModLoader, ReadMetadataStorage,
+            InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+            ReadMetadataStorage,
         },
         settings::{Hooks, LocationInfo},
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -41,12 +42,12 @@ pub struct CreateInstanceUseCase<
     IS: InstanceStorage,
     MS: ReadMetadataStorage,
     E: EventEmitter,
-    PBS: ProgressBarStorage,
-    RC: RequestClient,
+    MD: MinecraftDownloader,
+    PS: ProgressService,
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
     location_info: Arc<LocationInfo>,
     fs_watcher: Arc<FsWatcher>,
     event_emitter: Arc<E>,
@@ -56,14 +57,14 @@ impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
         E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
-    > CreateInstanceUseCase<IS, MS, E, PBS, RC>
+        MD: MinecraftDownloader,
+        PS: ProgressService,
+    > CreateInstanceUseCase<IS, MS, E, MD, PS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
         location_info: Arc<LocationInfo>,
         fs_watcher: Arc<FsWatcher>,
         event_emitter: Arc<E>,
@@ -101,9 +102,9 @@ impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
         E: EventEmitter,
-        PBS: ProgressBarStorage,
-        RC: RequestClient,
-    > AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, PBS, RC>
+        MD: MinecraftDownloader,
+        PS: ProgressService,
+    > AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, MD, PS>
 {
     type Input = NewInstance;
     type Output = String;

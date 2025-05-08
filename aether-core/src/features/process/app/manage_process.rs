@@ -77,7 +77,7 @@ impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
 
         self.event_emitter.emit_process(
             instance_id.clone(),
-            process_uuid.clone(),
+            process_uuid,
             "Exited process".to_string(),
             ProcessEventType::Finished,
         )?;

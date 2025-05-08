@@ -1,55 +1,51 @@
 use std::{path::Path, sync::Arc};
 
 use async_trait::async_trait;
+use daedalus::minecraft::VersionInfo;
 
 use crate::{
     features::{
-        events::{
-            EventEmitter, ProgressBarId, ProgressBarStorage, ProgressEventType, ProgressService,
-        },
-        instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
+        events::{ProgressBarId, ProgressEventType, ProgressService},
+        instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
+        java::Java,
         minecraft::{
-            self, GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloadService,
-            ModLoader, ReadMetadataStorage,
+            get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,
+            GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+            ModLoaderProcessor, ReadMetadataStorage,
         },
         settings::LocationInfo,
     },
-    shared::{
-        domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
-        RequestClient,
-    },
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 pub struct InstallMinecraftUseCase<
-    E: EventEmitter,
-    PBS: ProgressBarStorage,
     IS: InstanceStorage,
     MS: ReadMetadataStorage,
-    RC: RequestClient,
+    MD: MinecraftDownloader,
+    PS: ProgressService,
 > {
-    progress_service: Arc<ProgressService<E, PBS>>,
+    progress_service: Arc<PS>,
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
     get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
     location_info: Arc<LocationInfo>,
-    minecraft_download_service: MinecraftDownloadService<RC, E, PBS>,
+    minecraft_download_service: MD,
 }
 
 impl<
-        E: EventEmitter,
-        PBS: ProgressBarStorage,
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        RC: RequestClient,
-    > InstallMinecraftUseCase<E, PBS, IS, MS, RC>
+        MD: MinecraftDownloader,
+        PS: ProgressService,
+    > InstallMinecraftUseCase<IS, MS, MD, PS>
 {
     pub fn new(
-        progress_service: Arc<ProgressService<E, PBS>>,
+        progress_service: Arc<PS>,
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
         get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
         location_info: Arc<LocationInfo>,
-        minecraft_download_service: MinecraftDownloadService<RC, E, PBS>,
+        minecraft_download_service: MD,
     ) -> Self {
         Self {
             progress_service,
@@ -60,16 +56,44 @@ impl<
             minecraft_download_service,
         }
     }
+
+    async fn run_mod_loader_post_install(
+        &self,
+        instance: &Instance,
+        version_jar: String,
+        instance_path: &Path,
+        version_info: &mut VersionInfo,
+        java_version: &Java,
+        loading_bar: Option<&ProgressBarId>,
+    ) -> crate::Result<()> {
+        match instance.loader {
+            ModLoader::Vanilla => Ok(()),
+            ModLoader::Forge => {
+                ForgeProcessor::new(self.progress_service.clone(), self.location_info.clone())
+                    .run(
+                        instance,
+                        version_jar,
+                        instance_path,
+                        version_info,
+                        java_version,
+                        loading_bar,
+                    )
+                    .await
+            }
+            ModLoader::Fabric => Ok(()),
+            ModLoader::Quilt => Ok(()),
+            ModLoader::NeoForge => Ok(()),
+        }
+    }
 }
 
 #[async_trait]
 impl<
-        E: EventEmitter,
-        PBS: ProgressBarStorage,
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        RC: RequestClient,
-    > AsyncUseCaseWithInputAndError for InstallMinecraftUseCase<E, PBS, IS, MS, RC>
+        MD: MinecraftDownloader,
+        PS: ProgressService,
+    > AsyncUseCaseWithInputAndError for InstallMinecraftUseCase<IS, MS, MD, PS>
 {
     type Input = (String, Option<ProgressBarId>, bool);
     type Output = ();
@@ -110,7 +134,7 @@ impl<
             let version_manifest = self.get_version_manifest_use_case.execute().await?;
 
             let (version, minecraft_updated) =
-                minecraft::resolve_minecraft_version(&instance.game_version, version_manifest)?;
+                resolve_minecraft_version(&instance.game_version, version_manifest)?;
 
             let loader_version = if instance.loader == ModLoader::Vanilla {
                 None
@@ -167,7 +191,7 @@ impl<
             let java = if let Some(java_path) = instance.java_path.as_ref() {
                 crate::features::java::get_java_from_path(Path::new(java_path)).await
             } else {
-                let compatible_java_version = minecraft::get_compatible_java_version(&version_info);
+                let compatible_java_version = get_compatible_java_version(&version_info);
 
                 let java = crate::api::java::get(compatible_java_version).await;
 
@@ -187,9 +211,7 @@ impl<
                 )
                 .await?;
 
-            minecraft::run_mod_loader_post_install(
-                self.progress_service.clone(),
-                self.location_info.clone(),
+            self.run_mod_loader_post_install(
                 &instance,
                 version_jar,
                 &instance_path,

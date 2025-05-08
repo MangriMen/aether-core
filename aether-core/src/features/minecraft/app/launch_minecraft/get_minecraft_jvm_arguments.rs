@@ -2,9 +2,11 @@ use std::path::Path;
 
 use daedalus::minecraft::{self};
 
-use crate::features::{java::Java, settings::MemorySettings};
-
-use super::{get_class_paths, get_jvm_arguments};
+use crate::features::{
+    java::Java,
+    minecraft::{get_class_paths, get_jvm_arguments},
+    settings::MemorySettings,
+};
 
 // TODO: Wrap arguments in struct
 #[allow(clippy::too_many_arguments)]

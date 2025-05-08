@@ -5,22 +5,22 @@ use bytes::Bytes;
 use reqwest::Response;
 
 use crate::{
-    features::events::{EventEmitter, ProgressBarId, ProgressBarStorage, ProgressService},
+    features::events::{ProgressBarId, ProgressService},
     shared::{
         domain::{FetchSemaphore, Request, RequestClient},
         sha1_async,
     },
 };
 
-pub struct ReqwestClient<E: EventEmitter, PBS: ProgressBarStorage> {
-    progress_service: Arc<ProgressService<E, PBS>>,
+pub struct ReqwestClient<PS: ProgressService> {
+    progress_service: Arc<PS>,
     client: Arc<reqwest_middleware::ClientWithMiddleware>,
     semaphore: Arc<FetchSemaphore>,
 }
 
-impl<E: EventEmitter, PBS: ProgressBarStorage> ReqwestClient<E, PBS> {
+impl<PS: ProgressService> ReqwestClient<PS> {
     pub fn new(
-        progress_service: Arc<ProgressService<E, PBS>>,
+        progress_service: Arc<PS>,
         client: Arc<reqwest_middleware::ClientWithMiddleware>,
         semaphore: Arc<FetchSemaphore>,
     ) -> Self {
@@ -60,7 +60,7 @@ impl<E: EventEmitter, PBS: ProgressBarStorage> ReqwestClient<E, PBS> {
 }
 
 #[async_trait]
-impl<E: EventEmitter, PBS: ProgressBarStorage> RequestClient for ReqwestClient<E, PBS> {
+impl<PS: ProgressService> RequestClient for ReqwestClient<PS> {
     async fn fetch_bytes(&self, request: Request) -> crate::Result<Bytes> {
         self.fetch_bytes_with_progress(request, None).await
     }

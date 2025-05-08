@@ -4,10 +4,7 @@ use futures::StreamExt;
 
 use crate::{
     features::{
-        events::{
-            loading_try_for_each_concurrent, EventEmitter, ProgressBarId, ProgressBarStorage,
-            ProgressService,
-        },
+        events::{loading_try_for_each_concurrent, ProgressBarId, ProgressService},
         minecraft::parse_rules,
         settings::LocationInfo,
     },
@@ -16,15 +13,15 @@ use crate::{
 
 const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
 
-pub struct LibrariesService<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage> {
-    progress_service: Arc<ProgressService<E, PBS>>,
+pub struct LibrariesService<RC: RequestClient, PS: ProgressService> {
+    progress_service: Arc<PS>,
     request_client: Arc<RC>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<RC: RequestClient, E: EventEmitter, PBS: ProgressBarStorage> LibrariesService<RC, E, PBS> {
+impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
     pub fn new(
-        progress_service: Arc<ProgressService<E, PBS>>,
+        progress_service: Arc<PS>,
         request_client: Arc<RC>,
         location_info: Arc<LocationInfo>,
     ) -> Self {

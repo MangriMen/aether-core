@@ -1,28 +1,25 @@
 use std::path::Path;
 
-use daedalus::minecraft;
 use uuid::Uuid;
 
 use crate::{
-    features::{auth::Credentials, settings::WindowSize},
+    features::{auth::Credentials, minecraft::parse_arguments, settings::WindowSize},
     shared::canonicalize,
 };
-
-use super::parse_arguments;
 
 // Replaces the space separator with a newline character, as to not split the arguments
 const TEMPORARY_REPLACE_CHAR: &str = "\n";
 
 #[allow(clippy::too_many_arguments)]
 pub fn get_minecraft_arguments(
-    arguments: Option<&[minecraft::Argument]>,
+    arguments: Option<&[daedalus::minecraft::Argument]>,
     legacy_arguments: Option<&str>,
     credentials: &Credentials,
     version: &str,
     asset_index_name: &str,
     game_directory: &Path,
     assets_directory: &Path,
-    version_type: &minecraft::VersionType,
+    version_type: &daedalus::minecraft::VersionType,
     resolution: WindowSize,
     java_arch: &str,
 ) -> crate::Result<Vec<String>> {
@@ -82,7 +79,7 @@ fn replace_placeholders_in_argument_string(
     asset_index_name: &str,
     game_directory: &Path,
     assets_directory: &Path,
-    version_type: &minecraft::VersionType,
+    version_type: &daedalus::minecraft::VersionType,
     resolution: WindowSize,
 ) -> crate::Result<String> {
     fn resolve_path(path: &Path, name: &str) -> crate::Result<String> {

@@ -8,9 +8,7 @@ use bytes::Bytes;
 
 use crate::{
     features::{
-        events::{
-            EventEmitter, ProgressBarId, ProgressBarStorage, ProgressEventType, ProgressService,
-        },
+        events::{ProgressBarId, ProgressEventType, ProgressService},
         java::ports::JreProvider,
     },
     shared::{
@@ -32,13 +30,13 @@ const AZUL_PACKAGES_BASE_API_URL: &str = "https://api.azul.com/metadata/v1/zulu/
 const AZUL_PACKAGES_DEFAULT_QUERY_PARAMS: &str =
     "archive_type=zip&javafx_bundled=false&java_package_type=jre&page_size=1";
 
-pub struct AzulJreProvider<E: EventEmitter, PBS: ProgressBarStorage, RC: RequestClient> {
-    progress_service: Arc<ProgressService<E, PBS>>,
+pub struct AzulJreProvider<PS: ProgressService, RC: RequestClient> {
+    progress_service: Arc<PS>,
     request_client: Arc<RC>,
 }
 
-impl<E: EventEmitter, PBS: ProgressBarStorage, RC: RequestClient> AzulJreProvider<E, PBS, RC> {
-    pub fn new(progress_service: Arc<ProgressService<E, PBS>>, request_client: Arc<RC>) -> Self {
+impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
+    pub fn new(progress_service: Arc<PS>, request_client: Arc<RC>) -> Self {
         Self {
             progress_service,
             request_client,
@@ -171,9 +169,7 @@ impl<E: EventEmitter, PBS: ProgressBarStorage, RC: RequestClient> AzulJreProvide
 }
 
 #[async_trait]
-impl<E: EventEmitter, PBS: ProgressBarStorage, RC: RequestClient> JreProvider
-    for AzulJreProvider<E, PBS, RC>
-{
+impl<PS: ProgressService, RC: RequestClient> JreProvider for AzulJreProvider<PS, RC> {
     async fn install(&self, version: u32, install_dir: &Path) -> crate::Result<PathBuf> {
         let loading_bar_id = self.progress_service.init_progress(
             ProgressEventType::JavaDownload { version },
