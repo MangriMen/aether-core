@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     features::{
-        events::{EventEmitter, ProgressBarStorage},
+        events::{EventEmitter, EventEmitterExt, ProgressBarStorage},
         instance::{
             watch_instance, FsWatcher, Instance, InstanceInstallStage, InstanceStorage, PackInfo,
         },
@@ -49,6 +49,7 @@ pub struct CreateInstanceUseCase<
     install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
     location_info: Arc<LocationInfo>,
     fs_watcher: Arc<FsWatcher>,
+    event_emitter: Arc<E>,
 }
 
 impl<
@@ -65,6 +66,7 @@ impl<
         install_minecraft_use_case: Arc<InstallMinecraftUseCase<E, PBS, IS, MS, RC>>,
         location_info: Arc<LocationInfo>,
         fs_watcher: Arc<FsWatcher>,
+        event_emitter: Arc<E>,
     ) -> Self {
         Self {
             instance_storage,
@@ -72,6 +74,7 @@ impl<
             install_minecraft_use_case,
             location_info,
             fs_watcher,
+            event_emitter,
         }
     }
     async fn setup_instance(
@@ -155,6 +158,11 @@ impl<
                     "Failed to create instance \"{}\". Rolling back",
                     &instance.name
                 );
+                self.event_emitter
+                    .emit_warning(format!("Error creating instance {}", err))
+                    .unwrap_or_else(|e| {
+                        log::error!("Error emitting warning: {}", e);
+                    });
                 if let Err(cleanup_err) = self.instance_storage.remove(&instance.id).await {
                     error!("Failed to cleanup instance: {}", cleanup_err);
                 }

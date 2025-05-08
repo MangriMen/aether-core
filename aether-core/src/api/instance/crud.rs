@@ -68,6 +68,7 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         install_minecraft_use_case,
         state.location_info.clone(),
         state.file_watcher.clone(),
+        lazy_locator.get_event_emitter().await,
     )
     .execute(new_instance)
     .await

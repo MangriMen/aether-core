@@ -188,6 +188,8 @@ impl<
                 .await?;
 
             minecraft::run_mod_loader_post_install(
+                self.progress_service.clone(),
+                self.location_info.clone(),
                 &instance,
                 version_jar,
                 &instance_path,
