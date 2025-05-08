@@ -4,7 +4,9 @@ use futures::StreamExt;
 
 use crate::{
     features::{
-        events::{loading_try_for_each_concurrent, ProgressBarId, ProgressService},
+        events::{
+            try_for_each_concurrent_with_progress, ProgressBarId, ProgressConfig, ProgressService,
+        },
         minecraft::parse_rules,
         settings::LocationInfo,
     },
@@ -54,14 +56,18 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
 
         let futures_count = libraries.len();
 
-        loading_try_for_each_concurrent(
+        let progress_config = loading_bar.as_ref().map(|loading_bar| ProgressConfig {
+            progress_bar_id: loading_bar,
+            total_progress: loading_amount,
+            progress_message: None,
+        });
+
+        try_for_each_concurrent_with_progress(
             self.progress_service.clone(),
             libraries_stream,
             None,
-            loading_bar,
-            loading_amount,
             futures_count,
-            None,
+            progress_config,
             |library| async move {
                 self.download_library(library, version_info, java_arch, force, minecraft_updated)
                     .await

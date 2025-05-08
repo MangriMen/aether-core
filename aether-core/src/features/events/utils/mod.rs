@@ -1,3 +1,3 @@
-pub mod loading_try_for_each_concurrent;
+pub mod try_for_each_concurrent_with_progress;
 
-pub use loading_try_for_each_concurrent::*;
+pub use try_for_each_concurrent_with_progress::*;
