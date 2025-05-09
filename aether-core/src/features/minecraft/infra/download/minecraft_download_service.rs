@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::{
-        events::{ProgressBarId, ProgressService},
+        events::{ProgressBarId, ProgressConfig, ProgressService},
         minecraft::MinecraftDownloader,
         settings::LocationInfo,
     },
@@ -75,10 +75,15 @@ impl<RC: RequestClient, PS: ProgressService> MinecraftDownloader
             40.0
         };
 
+        let progress_config = loading_bar.map(|loading_bar| ProgressConfig {
+            progress_bar_id: loading_bar,
+            total_progress: amount,
+        });
+
         tokio::try_join! {
             self.client_service.download_client(version_info, force, loading_bar),
-            self.assets_service.download_assets(&assets_index, version_info.assets == "legacy", force, amount, loading_bar),
-            self.libraries_service.download_libraries( version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated, amount, loading_bar)
+            self.assets_service.download_assets(&assets_index, version_info.assets == "legacy", force, progress_config.as_ref()),
+            self.libraries_service.download_libraries( version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated, progress_config.as_ref())
         }?;
 
         log::info!(

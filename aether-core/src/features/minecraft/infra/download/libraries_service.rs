@@ -5,7 +5,8 @@ use futures::StreamExt;
 use crate::{
     features::{
         events::{
-            try_for_each_concurrent_with_progress, ProgressBarId, ProgressConfig, ProgressService,
+            try_for_each_concurrent_with_progress, ProgressConfig, ProgressConfigWithMessage,
+            ProgressService,
         },
         minecraft::parse_rules,
         settings::LocationInfo,
@@ -41,8 +42,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         java_arch: &str,
         force: bool,
         minecraft_updated: bool,
-        loading_amount: f64,
-        loading_bar: Option<&ProgressBarId>,
+        progress_config: Option<&ProgressConfig<'_>>,
     ) -> crate::Result<()> {
         log::info!("Downloading libraries for {}", version_info.id);
 
@@ -56,18 +56,20 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
 
         let futures_count = libraries.len();
 
-        let progress_config = loading_bar.as_ref().map(|loading_bar| ProgressConfig {
-            progress_bar_id: loading_bar,
-            total_progress: loading_amount,
-            progress_message: None,
-        });
+        let progress_config = progress_config
+            .as_ref()
+            .map(|config| ProgressConfigWithMessage {
+                progress_bar_id: config.progress_bar_id,
+                total_progress: config.total_progress,
+                progress_message: None,
+            });
 
         try_for_each_concurrent_with_progress(
             self.progress_service.clone(),
             libraries_stream,
             None,
             futures_count,
-            progress_config,
+            progress_config.as_ref(),
             |library| async move {
                 self.download_library(library, version_info, java_arch, force, minecraft_updated)
                     .await

@@ -25,6 +25,12 @@ pub struct ProgressBar {
 #[derive(Debug, Clone, Serialize)]
 pub struct ProgressBarId(pub Uuid);
 
+#[derive(Debug)]
+pub struct ProgressConfig<'a> {
+    pub progress_bar_id: &'a ProgressBarId,
+    pub total_progress: f64,
+}
+
 // When Loading bar id is dropped, we should remove it from the state
 impl Drop for ProgressBarId {
     fn drop(&mut self) {

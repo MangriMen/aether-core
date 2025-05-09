@@ -6,7 +6,8 @@ use futures::StreamExt;
 use crate::{
     features::{
         events::{
-            try_for_each_concurrent_with_progress, ProgressBarId, ProgressConfig, ProgressService,
+            try_for_each_concurrent_with_progress, ProgressBarId, ProgressConfig,
+            ProgressConfigWithMessage, ProgressService,
         },
         settings::LocationInfo,
     },
@@ -39,8 +40,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
         index: &daedalus::minecraft::AssetsIndex,
         with_legacy: bool,
         force: bool,
-        loading_amount: f64,
-        loading_bar: Option<&ProgressBarId>,
+        progress_config: Option<&ProgressConfig<'_>>,
     ) -> crate::Result<()> {
         log::info!("Downloading assets");
 
@@ -49,18 +49,20 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
 
         let futures_count = index.objects.len();
 
-        let progress_config = loading_bar.as_ref().map(|loading_bar| ProgressConfig {
-            progress_bar_id: loading_bar,
-            total_progress: loading_amount,
-            progress_message: None,
-        });
+        let progress_config = progress_config
+            .as_ref()
+            .map(|config| ProgressConfigWithMessage {
+                progress_bar_id: config.progress_bar_id,
+                total_progress: config.total_progress,
+                progress_message: None,
+            });
 
         try_for_each_concurrent_with_progress(
             self.progress_service.clone(),
             assets_stream,
             None,
             futures_count,
-            progress_config,
+            progress_config.as_ref(),
             |(name, asset)| async move {
                 log::debug!("Downloading asset \"{}\"", name);
                 let res = self.download_asset(name, asset, with_legacy, force).await;

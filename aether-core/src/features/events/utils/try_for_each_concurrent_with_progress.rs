@@ -5,7 +5,7 @@ use futures::TryStream;
 use crate::features::events::{ProgressBarId, ProgressService};
 
 #[derive(Debug)]
-pub struct ProgressConfig<'a> {
+pub struct ProgressConfigWithMessage<'a> {
     pub progress_bar_id: &'a ProgressBarId,
     pub total_progress: f64,
     pub progress_message: Option<&'a str>,
@@ -22,7 +22,7 @@ pub async fn try_for_each_concurrent_with_progress<PS, I, F, Fut, T>(
     stream: I,
     limit: Option<usize>,
     futures_count: usize, // num is in here as we allow Iterator to be passed in, which doesn't have a size
-    progress_config: Option<ProgressConfig<'_>>,
+    progress_config: Option<&ProgressConfigWithMessage<'_>>,
     mut f: F,
 ) -> crate::Result<()>
 where
@@ -38,7 +38,6 @@ where
         .unwrap_or(1.0);
 
     let progress_service = progress_service.as_ref();
-    let progress_config = progress_config.as_ref();
 
     stream
         .try_for_each_concurrent(limit, |item| {
