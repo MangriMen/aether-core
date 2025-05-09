@@ -32,10 +32,8 @@ impl<SS, PL> DisablePluginUseCase<SS, PL> {
 }
 
 #[async_trait]
-impl<SS, PL> AsyncUseCaseWithInputAndError for DisablePluginUseCase<SS, PL>
-where
-    SS: SettingsStorage + Send + Sync,
-    PL: PluginLoader + Send + Sync,
+impl<SS: SettingsStorage, PL: PluginLoader> AsyncUseCaseWithInputAndError
+    for DisablePluginUseCase<SS, PL>
 {
     type Input = String;
     type Output = ();

@@ -21,12 +21,7 @@ pub struct SyncPluginsUseCase<PS: PluginStorage, SS: SettingsStorage, PL: Plugin
     disable_plugin_use_case: DisablePluginUseCase<SS, PL>,
 }
 
-impl<PS, SS, PL> SyncPluginsUseCase<PS, SS, PL>
-where
-    PS: PluginStorage + Send + Sync,
-    SS: SettingsStorage + Send + Sync,
-    PL: PluginLoader + Send + Sync,
-{
+impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCase<PS, SS, PL> {
     pub fn new(
         plugin_storage: Arc<PS>,
         plugin_registry: Arc<PluginRegistry>,
@@ -137,11 +132,8 @@ where
 }
 
 #[async_trait]
-impl<PS, SS, PL> AsyncUseCaseWithError for SyncPluginsUseCase<PS, SS, PL>
-where
-    PS: PluginStorage + Send + Sync,
-    SS: SettingsStorage + Send + Sync,
-    PL: PluginLoader + Send + Sync,
+impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> AsyncUseCaseWithError
+    for SyncPluginsUseCase<PS, SS, PL>
 {
     type Output = ();
     type Error = crate::Error;

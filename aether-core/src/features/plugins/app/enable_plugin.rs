@@ -37,11 +37,8 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
 }
 
 #[async_trait]
-impl<PSS, SS, PL> AsyncUseCaseWithInputAndError for EnablePluginUseCase<PSS, SS, PL>
-where
-    PSS: PluginSettingsStorage + Send + Sync,
-    SS: SettingsStorage + Send + Sync,
-    PL: PluginLoader + Send + Sync,
+impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
+    AsyncUseCaseWithInputAndError for EnablePluginUseCase<PSS, SS, PL>
 {
     type Input = String;
     type Output = ();

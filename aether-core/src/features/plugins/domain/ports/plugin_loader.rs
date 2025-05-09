@@ -8,7 +8,7 @@ use crate::features::plugins::{Plugin, PluginSettings};
 use super::PluginInstance;
 
 #[async_trait]
-pub trait PluginLoader {
+pub trait PluginLoader: Send + Sync {
     async fn load(
         &self,
         plugin: &Plugin,

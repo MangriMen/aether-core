@@ -20,10 +20,7 @@ impl<PSS: PluginSettingsStorage> GetPluginSettingsUseCase<PSS> {
 }
 
 #[async_trait]
-impl<PSS> AsyncUseCaseWithInputAndError for GetPluginSettingsUseCase<PSS>
-where
-    PSS: PluginSettingsStorage + Send + Sync,
-{
+impl<PSS: PluginSettingsStorage> AsyncUseCaseWithInputAndError for GetPluginSettingsUseCase<PSS> {
     type Input = String;
     type Output = Option<PluginSettings>;
     type Error = crate::Error;

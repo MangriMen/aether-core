@@ -27,10 +27,7 @@ impl<PSS: PluginSettingsStorage> EditPluginSettingsUseCase<PSS> {
 }
 
 #[async_trait]
-impl<PSS> AsyncUseCaseWithInputAndError for EditPluginSettingsUseCase<PSS>
-where
-    PSS: PluginSettingsStorage + Send + Sync,
-{
+impl<PSS: PluginSettingsStorage> AsyncUseCaseWithInputAndError for EditPluginSettingsUseCase<PSS> {
     type Input = (String, EditPluginSettings);
     type Output = ();
     type Error = crate::Error;
