@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::{
     features::settings::{Settings, SettingsStorage},
-    shared::domain::AsyncUseCaseWithInputAndError,
+    shared::AsyncUseCaseWithInputAndError,
 };
 
 pub async fn upsert_settings<S>(storage: &S, settings: &Settings) -> crate::Result<()>
@@ -15,25 +15,22 @@ where
 }
 
 pub struct UpsertSettingsUseCase<SS: SettingsStorage> {
-    storage: Arc<SS>,
+    settings_storage: Arc<SS>,
 }
 
 impl<SS: SettingsStorage> UpsertSettingsUseCase<SS> {
-    pub fn new(storage: Arc<SS>) -> Self {
-        Self { storage }
+    pub fn new(settings_storage: Arc<SS>) -> Self {
+        Self { settings_storage }
     }
 }
 
 #[async_trait]
-impl<SS> AsyncUseCaseWithInputAndError for UpsertSettingsUseCase<SS>
-where
-    SS: SettingsStorage + Send + Sync,
-{
+impl<SS: SettingsStorage> AsyncUseCaseWithInputAndError for UpsertSettingsUseCase<SS> {
     type Input = Settings;
     type Output = ();
     type Error = crate::Error;
 
     async fn execute(&self, settings: Self::Input) -> Result<Self::Output, Self::Error> {
-        self.storage.upsert(&settings).await
+        self.settings_storage.upsert(&settings).await
     }
 }

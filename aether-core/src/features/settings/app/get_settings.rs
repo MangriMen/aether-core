@@ -4,28 +4,25 @@ use async_trait::async_trait;
 
 use crate::{
     features::settings::{Settings, SettingsStorage},
-    shared::domain::AsyncUseCaseWithError,
+    shared::AsyncUseCaseWithError,
 };
 
 pub struct GetSettingsUseCase<SS: SettingsStorage> {
-    storage: Arc<SS>,
+    settings_storage: Arc<SS>,
 }
 
 impl<SS: SettingsStorage> GetSettingsUseCase<SS> {
-    pub fn new(storage: Arc<SS>) -> Self {
-        Self { storage }
+    pub fn new(settings_storage: Arc<SS>) -> Self {
+        Self { settings_storage }
     }
 }
 
 #[async_trait]
-impl<SS> AsyncUseCaseWithError for GetSettingsUseCase<SS>
-where
-    SS: SettingsStorage + Send + Sync,
-{
+impl<SS: SettingsStorage> AsyncUseCaseWithError for GetSettingsUseCase<SS> {
     type Output = Settings;
     type Error = crate::Error;
 
     async fn execute(&self) -> Result<Self::Output, Self::Error> {
-        self.storage.get().await
+        self.settings_storage.get().await
     }
 }
