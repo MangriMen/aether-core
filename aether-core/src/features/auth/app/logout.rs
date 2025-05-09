@@ -6,12 +6,14 @@ use uuid::Uuid;
 use crate::{features::auth::CredentialsStorage, shared::domain::AsyncUseCaseWithInputAndError};
 
 pub struct LogoutUseCase<CS: CredentialsStorage> {
-    storage: Arc<CS>,
+    credentials_storage: Arc<CS>,
 }
 
 impl<CS: CredentialsStorage> LogoutUseCase<CS> {
-    pub fn new(storage: Arc<CS>) -> Self {
-        Self { storage }
+    pub fn new(credentials_storage: Arc<CS>) -> Self {
+        Self {
+            credentials_storage,
+        }
     }
 }
 
@@ -25,6 +27,6 @@ where
     type Error = crate::Error;
 
     async fn execute(&self, uuid: Self::Input) -> Result<Self::Output, Self::Error> {
-        self.storage.remove(&uuid).await
+        self.credentials_storage.remove(&uuid).await
     }
 }

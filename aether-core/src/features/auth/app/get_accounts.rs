@@ -8,12 +8,14 @@ use crate::{
 };
 
 pub struct GetAccountsUseCase<CS: CredentialsStorage> {
-    storage: Arc<CS>,
+    credentials_storage: Arc<CS>,
 }
 
 impl<CS: CredentialsStorage> GetAccountsUseCase<CS> {
-    pub fn new(storage: Arc<CS>) -> Self {
-        Self { storage }
+    pub fn new(credentials_storage: Arc<CS>) -> Self {
+        Self {
+            credentials_storage,
+        }
     }
 }
 
@@ -26,7 +28,7 @@ where
     type Error = crate::Error;
 
     async fn execute(&self) -> Result<Self::Output, Self::Error> {
-        let credentials = self.storage.list().await?;
+        let credentials = self.credentials_storage.list().await?;
         Ok(credentials.into_iter().map(Account::from).collect())
     }
 }

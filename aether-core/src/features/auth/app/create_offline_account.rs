@@ -10,12 +10,14 @@ use crate::{
 };
 
 pub struct CreateOfflineAccountUseCase<CS: CredentialsStorage> {
-    storage: Arc<CS>,
+    credentials_storage: Arc<CS>,
 }
 
 impl<CS: CredentialsStorage> CreateOfflineAccountUseCase<CS> {
-    pub fn new(storage: Arc<CS>) -> Self {
-        Self { storage }
+    pub fn new(credentials_storage: Arc<CS>) -> Self {
+        Self {
+            credentials_storage,
+        }
     }
 }
 
@@ -29,7 +31,7 @@ where
     type Error = crate::Error;
 
     async fn execute(&self, username: Self::Input) -> Result<Self::Output, Self::Error> {
-        self.storage
+        self.credentials_storage
             .upsert(&Credentials {
                 id: Uuid::new_v4(),
                 username,

@@ -1,3 +1,3 @@
-pub mod storage;
+pub mod credentials_storage;
 
-pub use storage::*;
+pub use credentials_storage::*;

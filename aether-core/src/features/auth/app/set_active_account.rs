@@ -6,12 +6,14 @@ use uuid::Uuid;
 use crate::{features::auth::CredentialsStorage, shared::domain::AsyncUseCaseWithInputAndError};
 
 pub struct SetActiveAccountUseCase<CS: CredentialsStorage> {
-    storage: Arc<CS>,
+    credentials_storage: Arc<CS>,
 }
 
 impl<CS: CredentialsStorage> SetActiveAccountUseCase<CS> {
-    pub fn new(storage: Arc<CS>) -> Self {
-        Self { storage }
+    pub fn new(credentials_storage: Arc<CS>) -> Self {
+        Self {
+            credentials_storage,
+        }
     }
 }
 
@@ -25,6 +27,6 @@ where
     type Error = crate::Error;
 
     async fn execute(&self, id: Self::Input) -> Result<Self::Output, Self::Error> {
-        self.storage.set_active(&id).await
+        self.credentials_storage.set_active(&id).await
     }
 }
