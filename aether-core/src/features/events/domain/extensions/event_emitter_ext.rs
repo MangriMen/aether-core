@@ -26,10 +26,7 @@ pub trait EventEmitterExt: EventEmitter {
 }
 
 #[async_trait]
-impl<E> EventEmitterExt for E
-where
-    E: EventEmitter + Send + Sync,
-{
+impl<E: EventEmitter> EventEmitterExt for E {
     async fn emit_instance(
         &self,
         instance_id: String,

@@ -16,10 +16,7 @@ pub trait ProgressBarStorageExt: ProgressBarStorage {
 }
 
 #[async_trait]
-impl<PS> ProgressBarStorageExt for PS
-where
-    PS: ProgressBarStorage,
-{
+impl<PS: ProgressBarStorage> ProgressBarStorageExt for PS {
     async fn upsert_with<F>(
         &self,
         progress_bar_id: &ProgressBarId,
