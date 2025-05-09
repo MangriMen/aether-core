@@ -18,10 +18,7 @@ impl<PS: ProcessStorage> GetProcessMetadataByInstanceIdUseCase<PS> {
 }
 
 #[async_trait]
-impl<PS> AsyncUseCaseWithInput for GetProcessMetadataByInstanceIdUseCase<PS>
-where
-    PS: ProcessStorage + Send + Sync,
-{
+impl<PS: ProcessStorage> AsyncUseCaseWithInput for GetProcessMetadataByInstanceIdUseCase<PS> {
     type Input = String;
     type Output = Vec<MinecraftProcessMetadata>;
 

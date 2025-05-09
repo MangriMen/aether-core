@@ -16,10 +16,7 @@ impl<PS: ProcessStorage> WaitForProcessUseCase<PS> {
 }
 
 #[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for WaitForProcessUseCase<PS>
-where
-    PS: ProcessStorage + Send + Sync,
-{
+impl<PS: ProcessStorage> AsyncUseCaseWithInputAndError for WaitForProcessUseCase<PS> {
     type Input = Uuid;
     type Output = ();
     type Error = crate::Error;

@@ -16,10 +16,7 @@ impl<PS: ProcessStorage> KillProcessUseCase<PS> {
 }
 
 #[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for KillProcessUseCase<PS>
-where
-    PS: ProcessStorage + Send + Sync,
-{
+impl<PS: ProcessStorage> AsyncUseCaseWithInputAndError for KillProcessUseCase<PS> {
     type Input = Uuid;
     type Output = ();
     type Error = crate::Error;

@@ -25,10 +25,7 @@ pub struct TrackProcessUseCase<PS, IS> {
     instance_storage: Arc<IS>,
 }
 
-impl<PS, IS> TrackProcessUseCase<PS, IS>
-where
-    IS: InstanceStorage + Send + Sync,
-{
+impl<PS: ProcessStorage, IS: InstanceStorage> TrackProcessUseCase<PS, IS> {
     pub fn new(process_storage: Arc<PS>, instance_storage: Arc<IS>) -> Self {
         Self {
             process_storage,
@@ -60,10 +57,8 @@ where
 }
 
 #[async_trait]
-impl<PS, IS> AsyncUseCaseWithInput for TrackProcessUseCase<PS, IS>
-where
-    PS: ProcessStorage + Send + Sync,
-    IS: InstanceStorage + Send + Sync,
+impl<PS: ProcessStorage, IS: InstanceStorage> AsyncUseCaseWithInput
+    for TrackProcessUseCase<PS, IS>
 {
     type Input = TrackProcessParams;
     type Output = ExitStatus;

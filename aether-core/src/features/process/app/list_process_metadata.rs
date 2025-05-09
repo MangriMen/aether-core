@@ -18,10 +18,7 @@ impl<PS: ProcessStorage> ListProcessMetadataUseCase<PS> {
 }
 
 #[async_trait]
-impl<PS> AsyncUseCase for ListProcessMetadataUseCase<PS>
-where
-    PS: ProcessStorage + Send + Sync,
-{
+impl<PS: ProcessStorage> AsyncUseCase for ListProcessMetadataUseCase<PS> {
     type Output = Vec<MinecraftProcessMetadata>;
 
     async fn execute(&self) -> Self::Output {
