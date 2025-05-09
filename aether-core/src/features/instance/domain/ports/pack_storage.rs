@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait PackStorage {
+pub trait PackStorage: Send + Sync {
     async fn get_pack(&self, instance_id: &str) -> Result<Pack, StorageError>;
 
     async fn update_pack(&self, instance_id: &str, pack: &Pack) -> Result<(), StorageError>;

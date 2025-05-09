@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use extism::{FromBytes, ToBytes};
 use extism_convert::{encoding, Json};
+use serde::{Deserialize, Serialize};
 
 use crate::features::{
     minecraft::ModLoader,
@@ -11,7 +12,7 @@ use crate::features::{
 
 use super::{ContentType, InstanceInstallStage};
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, FromBytes)]
+#[derive(Serialize, Deserialize, Clone, Debug, FromBytes)]
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct PackInfo {
@@ -20,7 +21,7 @@ pub struct PackInfo {
     pub can_update: bool,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
     pub id: String,
@@ -58,7 +59,7 @@ pub struct Instance {
     pub pack_info: Option<PackInfo>,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToBytes)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToBytes)]
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceFile {

@@ -6,7 +6,7 @@ use daedalus::minecraft::VersionInfo;
 use crate::{
     features::{
         events::{ProgressBarId, ProgressEventType, ProgressService},
-        instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
+        instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExt},
         java::Java,
         minecraft::{
             get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,

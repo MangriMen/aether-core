@@ -5,17 +5,14 @@ use crate::{
 use async_trait::async_trait;
 
 #[async_trait]
-pub trait InstanceStorageExtensions: InstanceStorage {
+pub trait InstanceStorageExt: InstanceStorage {
     async fn upsert_with<F>(&self, id: &str, update_fn: F) -> Result<(), StorageError>
     where
         F: FnOnce(&mut Instance) -> Result<(), StorageError> + Send;
 }
 
 #[async_trait]
-impl<IS> InstanceStorageExtensions for IS
-where
-    IS: InstanceStorage + Send + Sync,
-{
+impl<IS: InstanceStorage> InstanceStorageExt for IS {
     async fn upsert_with<F>(&self, id: &str, update_fn: F) -> Result<(), StorageError>
     where
         F: FnOnce(&mut Instance) -> Result<(), StorageError> + Send,

@@ -7,7 +7,7 @@ use crate::{
     features::{
         auth::Credentials,
         events::{EventEmitter, ProgressService},
-        instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExtensions},
+        instance::{InstanceInstallStage, InstanceStorage, InstanceStorageExt},
         minecraft::{
             get_compatible_java_version, resolve_minecraft_version, GetVersionManifestUseCase,
             InstallMinecraftUseCase, LaunchSettings, LoaderVersionResolver, MinecraftDownloader,

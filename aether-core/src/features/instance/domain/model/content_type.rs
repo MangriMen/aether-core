@@ -1,10 +1,11 @@
 use std::path::Path;
 
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 use crate::features::minecraft::ModLoader;
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ContentType {
     Mod,

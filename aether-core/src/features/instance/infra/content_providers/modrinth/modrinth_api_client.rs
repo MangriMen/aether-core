@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::shared::{
-    domain::{Request, RequestClient},
-    extensions::RequestClientExt,
-};
+use crate::shared::{Request, RequestClient, RequestClientExt};
 
 use super::{
     ListProjectVersionsParams, ListProjectsVersionsResponse, ProjectSearchParams,

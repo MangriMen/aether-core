@@ -5,7 +5,7 @@ use crate::features::instance::{
 };
 
 #[async_trait]
-pub trait ContentProvider {
+pub trait ContentProvider: Send + Sync {
     async fn search(
         &self,
         search_content: &ContentSearchParams,

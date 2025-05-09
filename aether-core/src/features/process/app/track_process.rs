@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        instance::{InstanceStorage, InstanceStorageExtensions},
+        instance::{InstanceStorage, InstanceStorageExt},
         process::ProcessStorage,
     },
     shared::domain::AsyncUseCaseWithInput,

@@ -1,7 +1,8 @@
 use extism::{FromBytes, ToBytes};
 use extism_convert::{encoding, Json};
+use serde::{Deserialize, Serialize};
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, FromBytes, ToBytes)]
+#[derive(Serialize, Deserialize, Debug, Clone, FromBytes, ToBytes)]
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportConfig {

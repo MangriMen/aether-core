@@ -7,10 +7,7 @@ pub struct ContentProviderRegistry<CP> {
     providers: HashMap<String, CP>,
 }
 
-impl<CP> ContentProviderRegistry<CP>
-where
-    CP: ContentProvider + Send + Sync,
-{
+impl<CP: ContentProvider> ContentProviderRegistry<CP> {
     pub fn new(providers: HashMap<String, CP>) -> Self {
         Self { providers }
     }

@@ -15,7 +15,7 @@ use crate::{
         },
         settings::LocationInfo,
     },
-    shared::{domain::RequestClient, write_async},
+    shared::{write_async, RequestClient},
 };
 
 use super::{
@@ -28,10 +28,7 @@ pub struct ModrinthContentProvider<RC> {
     location_info: Arc<LocationInfo>,
 }
 
-impl<RC> ModrinthContentProvider<RC>
-where
-    RC: RequestClient + Send + Sync,
-{
+impl<RC: RequestClient> ModrinthContentProvider<RC> {
     pub fn new(
         location_info: Arc<LocationInfo>,
         base_headers: Option<reqwest::header::HeaderMap>,
