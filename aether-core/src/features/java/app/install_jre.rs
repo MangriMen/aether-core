@@ -15,10 +15,7 @@ impl<JP: JreProvider> InstallJreUseCase<JP> {
 }
 
 #[async_trait]
-impl<JP> AsyncUseCaseWithInputAndError for InstallJreUseCase<JP>
-where
-    JP: JreProvider + Send + Sync,
-{
+impl<JP: JreProvider> AsyncUseCaseWithInputAndError for InstallJreUseCase<JP> {
     type Input = (u32, PathBuf);
     type Output = PathBuf;
     type Error = crate::Error;

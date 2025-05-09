@@ -22,10 +22,8 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
 }
 
 #[async_trait]
-impl<JS, JIS> AsyncUseCaseWithInputAndError for GetJavaUseCase<JS, JIS>
-where
-    JS: JavaStorage + Send + Sync,
-    JIS: JavaInstallationService + Send + Sync,
+impl<JS: JavaStorage, JIS: JavaInstallationService> AsyncUseCaseWithInputAndError
+    for GetJavaUseCase<JS, JIS>
 {
     type Input = u32;
     type Output = Java;

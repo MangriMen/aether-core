@@ -5,21 +5,19 @@ use std::{
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use serde::Deserialize;
 
 use crate::{
     features::{
         events::{ProgressBarId, ProgressEventType, ProgressService},
         java::ports::JreProvider,
     },
-    shared::{
-        domain::{Request, RequestClient},
-        extensions::RequestClientExt,
-    },
+    shared::{Request, RequestClient, RequestClientExt},
 };
 
 use super::JAVA_WINDOW_BIN;
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(Deserialize, Clone)]
 struct Package {
     pub download_url: String,
     pub name: PathBuf,
