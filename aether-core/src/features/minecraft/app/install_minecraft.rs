@@ -111,15 +111,18 @@ impl<
             instance.loader_version.clone().unwrap_or_default()
         );
 
-        let loading_bar = self.progress_service.init_or_edit_progress(
-            loading_bar,
-            ProgressEventType::MinecraftDownload {
-                instance_id: instance.id.clone(),
-                instance_name: instance.name.clone(),
-            },
-            100.0,
-            "Downloading Minecraft".to_string(),
-        )?;
+        let loading_bar = self
+            .progress_service
+            .init_or_edit_progress(
+                loading_bar,
+                ProgressEventType::MinecraftDownload {
+                    instance_id: instance.id.clone(),
+                    instance_name: instance.name.clone(),
+                },
+                100.0,
+                "Downloading Minecraft".to_string(),
+            )
+            .await?;
 
         self.instance_storage
             .upsert_with(&instance.id, |instance| {
@@ -228,11 +231,9 @@ impl<
                 })
                 .await?;
 
-            self.progress_service.emit_progress(
-                &loading_bar,
-                1.000_000_000_01,
-                Some("Finished installing"),
-            )?;
+            self.progress_service
+                .emit_progress(&loading_bar, 1.000_000_000_01, Some("Finished installing"))
+                .await?;
 
             Ok(())
         }

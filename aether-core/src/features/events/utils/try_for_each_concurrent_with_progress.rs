@@ -47,11 +47,13 @@ where
                 action_future.await?;
 
                 if let Some(cfg) = progress_config {
-                    progress_service.emit_progress(
-                        cfg.progress_bar_id,
-                        progress_increment,
-                        cfg.progress_message,
-                    )?;
+                    progress_service
+                        .emit_progress(
+                            cfg.progress_bar_id,
+                            progress_increment,
+                            cfg.progress_message,
+                        )
+                        .await?;
                 }
 
                 Ok(())

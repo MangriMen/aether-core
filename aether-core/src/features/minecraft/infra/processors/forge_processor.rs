@@ -132,11 +132,9 @@ impl<PS: ProgressService> ModLoaderProcessor for ForgeProcessor<PS> {
         }
 
         if let Some(loading_bar) = loading_bar {
-            self.progress_service.emit_progress(
-                loading_bar,
-                0.0,
-                Some("Running forge processors"),
-            )?;
+            self.progress_service
+                .emit_progress(loading_bar, 0.0, Some("Running forge processors"))
+                .await?;
         }
 
         let total_processors = processors.len();
@@ -153,7 +151,8 @@ impl<PS: ProgressService> ModLoaderProcessor for ForgeProcessor<PS> {
                 let progress = 30.0 / total_processors as f64;
                 let message = format!("Running forge processor {}/{}", index + 1, total_processors);
                 self.progress_service
-                    .emit_progress(loading_bar, progress, Some(&message))?;
+                    .emit_progress(loading_bar, progress, Some(&message))
+                    .await?;
             }
         }
 

@@ -49,7 +49,8 @@ impl<PS: ProgressService> ReqwestClient<PS> {
 
                 let progress = (chunk.len() as f64 / total_size as f64) * total;
                 self.progress_service
-                    .emit_progress(loading_bar_id, progress, None)?;
+                    .emit_progress(loading_bar_id, progress, None)
+                    .await?;
             }
 
             Ok(bytes.into())

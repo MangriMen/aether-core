@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use serde::Serialize;
 use tauri::Emitter;
 
@@ -13,8 +14,13 @@ impl TauriEventEmitter {
     }
 }
 
+#[async_trait]
 impl EventEmitter for TauriEventEmitter {
-    fn emit<P: Serialize + Clone>(&self, event: &str, payload: P) -> Result<(), EventError> {
+    async fn emit<P: Serialize + Clone + Send>(
+        &self,
+        event: &str,
+        payload: P,
+    ) -> Result<(), EventError> {
         self.app_handle
             .emit(event, payload)
             .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)))

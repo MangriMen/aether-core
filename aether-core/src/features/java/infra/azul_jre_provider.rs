@@ -89,14 +89,13 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
         loading_bar_id: &ProgressBarId,
     ) -> crate::Result<(Package, Bytes)> {
         self.progress_service
-            .emit_progress(loading_bar_id, 0.0, Some("Fetching java version"))?;
+            .emit_progress(loading_bar_id, 0.0, Some("Fetching java version"))
+            .await?;
         let package = self.fetch_package(version).await?;
 
-        self.progress_service.emit_progress(
-            loading_bar_id,
-            10.0,
-            Some("Downloading java version"),
-        )?;
+        self.progress_service
+            .emit_progress(loading_bar_id, 10.0, Some("Downloading java version"))
+            .await?;
         let file = self.download_package(&package, loading_bar_id).await?;
 
         Ok((package, file))
@@ -154,7 +153,8 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
         }
 
         self.progress_service
-            .emit_progress(loading_bar_id, 0.0, Some("Extracting java"))?;
+            .emit_progress(loading_bar_id, 0.0, Some("Extracting java"))
+            .await?;
         archive.extract(path).map_err(|_| {
             crate::Error::from(crate::ErrorKind::InputError(
                 "Failed to extract java zip".to_string(),
@@ -162,7 +162,8 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
         })?;
 
         self.progress_service
-            .emit_progress(loading_bar_id, 10.0, Some("Done extracting java"))?;
+            .emit_progress(loading_bar_id, 10.0, Some("Done extracting java"))
+            .await?;
 
         Ok(Self::resolve_java_executable_path(path, package, version))
     }
@@ -171,11 +172,14 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
 #[async_trait]
 impl<PS: ProgressService, RC: RequestClient> JreProvider for AzulJreProvider<PS, RC> {
     async fn install(&self, version: u32, install_dir: &Path) -> crate::Result<PathBuf> {
-        let loading_bar_id = self.progress_service.init_progress(
-            ProgressEventType::JavaDownload { version },
-            100.0,
-            "Downloading java version".to_string(),
-        )?;
+        let loading_bar_id = self
+            .progress_service
+            .init_progress(
+                ProgressEventType::JavaDownload { version },
+                100.0,
+                "Downloading java version".to_string(),
+            )
+            .await?;
 
         let (package, file) = self.download_jre(version, &loading_bar_id).await?;
 

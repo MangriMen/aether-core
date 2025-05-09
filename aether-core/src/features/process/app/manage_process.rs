@@ -75,12 +75,14 @@ impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
 
         self.process_storage.remove(process_uuid).await;
 
-        self.event_emitter.emit_process(
-            instance_id.clone(),
-            process_uuid,
-            "Exited process".to_string(),
-            ProcessEventType::Finished,
-        )?;
+        self.event_emitter
+            .emit_process(
+                instance_id.clone(),
+                process_uuid,
+                "Exited process".to_string(),
+                ProcessEventType::Finished,
+            )
+            .await?;
 
         if mc_exit_status.success() {
             if let Some(command) = post_exit_command {

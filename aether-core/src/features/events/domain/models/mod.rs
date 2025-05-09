@@ -13,4 +13,5 @@ pub use launcher_event::*;
 pub use process::*;
 pub use progress::*;
 pub use progress_bar::*;
+pub use progress_bar_error::*;
 pub use warning::*;

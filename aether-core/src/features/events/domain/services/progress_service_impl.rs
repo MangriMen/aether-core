@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::features::events::{
@@ -20,27 +21,30 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressServiceImpl<E, PS> {
         }
     }
 
-    fn emit_progress_inner(
+    async fn emit_progress_inner(
         &self,
         progress_bar_id: Uuid,
         fraction: Option<f64>,
         message: String,
         event_type: ProgressEventType,
     ) -> Result<(), EventError> {
-        self.event_emitter.emit(
-            LauncherEvent::Loading.as_str(),
-            ProgressEvent {
-                fraction,
-                message,
-                event: event_type,
-                progress_bar_id,
-            },
-        )
+        self.event_emitter
+            .emit(
+                LauncherEvent::Loading.as_str(),
+                ProgressEvent {
+                    fraction,
+                    message,
+                    event: event_type,
+                    progress_bar_id,
+                },
+            )
+            .await
     }
 }
 
+#[async_trait]
 impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService for ProgressServiceImpl<E, PS> {
-    fn init_progress(
+    async fn init_progress(
         &self,
         event_type: ProgressEventType,
         total: f64,
@@ -48,24 +52,26 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService for ProgressServic
     ) -> Result<ProgressBarId, EventError> {
         let progress_bar_id = ProgressBarId(Uuid::new_v4());
 
-        self.progress_storage.insert(
-            progress_bar_id.0,
-            ProgressBar {
-                id: progress_bar_id.0,
-                message,
-                total,
-                current: 0.0,
-                last_sent: 0.0,
-                progress_type: event_type,
-            },
-        )?;
+        self.progress_storage
+            .insert(
+                progress_bar_id.0,
+                ProgressBar {
+                    id: progress_bar_id.0,
+                    message,
+                    total,
+                    current: 0.0,
+                    last_sent: 0.0,
+                    progress_type: event_type,
+                },
+            )
+            .await?;
 
-        self.emit_progress(&progress_bar_id, 0.0, None)?;
+        self.emit_progress(&progress_bar_id, 0.0, None).await?;
 
         Ok(progress_bar_id)
     }
 
-    fn init_or_edit_progress(
+    async fn init_or_edit_progress(
         &self,
         progress_bar_id: Option<ProgressBarId>,
         event_type: ProgressEventType,
@@ -73,21 +79,22 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService for ProgressServic
         message: String,
     ) -> Result<ProgressBarId, EventError> {
         if let Some(progress_bar_id) = progress_bar_id {
-            self.edit_progress(&progress_bar_id, event_type, total, message)?;
+            self.edit_progress(&progress_bar_id, event_type, total, message)
+                .await?;
 
             Ok(progress_bar_id)
         } else {
-            self.init_progress(event_type, total, message)
+            self.init_progress(event_type, total, message).await
         }
     }
 
-    fn emit_progress(
+    async fn emit_progress(
         &self,
         progress_bar_id: &ProgressBarId,
         increment_frac: f64,
         message: Option<&str>,
     ) -> Result<(), EventError> {
-        let mut progress_bar = self.progress_storage.get(progress_bar_id.0)?.clone();
+        let mut progress_bar = self.progress_storage.get(progress_bar_id.0).await?.clone();
 
         // Tick up loading bar
         progress_bar.current += increment_frac;
@@ -106,17 +113,19 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService for ProgressServic
                 opt_display_frac,
                 message.unwrap_or(progress_bar.message.as_ref()).to_string(),
                 progress_bar.progress_type.clone(),
-            )?;
+            )
+            .await?;
             progress_bar.last_sent = display_frac;
         }
 
         self.progress_storage
-            .upsert(progress_bar_id.0, progress_bar)?;
+            .upsert(progress_bar_id.0, progress_bar)
+            .await?;
 
         Ok(())
     }
 
-    fn edit_progress(
+    async fn edit_progress(
         &self,
         progress_bar_id: &ProgressBarId,
         event_type: ProgressEventType,
@@ -132,9 +141,10 @@ impl<E: EventEmitter, PS: ProgressBarStorage> ProgressService for ProgressServic
                 progress_bar.last_sent = 0.0;
 
                 Ok(())
-            })?;
+            })
+            .await?;
 
-        self.emit_progress(progress_bar_id, 0.0, None)?;
+        self.emit_progress(progress_bar_id, 0.0, None).await?;
 
         Ok(())
     }

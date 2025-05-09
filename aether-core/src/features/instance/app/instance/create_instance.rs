@@ -161,6 +161,7 @@ impl<
                 );
                 self.event_emitter
                     .emit_warning(format!("Error creating instance {}", err))
+                    .await
                     .unwrap_or_else(|e| {
                         log::error!("Error emitting warning: {}", e);
                     });

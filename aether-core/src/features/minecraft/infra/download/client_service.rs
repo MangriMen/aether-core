@@ -61,7 +61,8 @@ impl<RC: RequestClient, PS: ProgressService> ClientService<RC, PS> {
 
         if let Some(loading_bar) = loading_bar {
             self.progress_service
-                .emit_progress(loading_bar, 9.0, None)?;
+                .emit_progress(loading_bar, 9.0, None)
+                .await?;
         }
 
         log::info!("Downloaded client {} successfully", version_info.id);

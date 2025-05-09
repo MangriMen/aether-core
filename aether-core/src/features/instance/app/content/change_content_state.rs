@@ -66,7 +66,8 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         }
 
         self.event_emitter
-            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)?;
+            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)
+            .await?;
 
         Ok(())
     }
@@ -81,7 +82,8 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         }
 
         self.event_emitter
-            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)?;
+            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)
+            .await?;
 
         Ok(())
     }

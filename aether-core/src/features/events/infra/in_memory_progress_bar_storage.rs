@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use dashmap::DashMap;
 use uuid::Uuid;
 
@@ -12,8 +13,9 @@ pub struct InMemoryProgressBarStorage {
     progress_bars: DashMap<Uuid, ProgressBar>,
 }
 
+#[async_trait]
 impl ProgressBarStorage for InMemoryProgressBarStorage {
-    fn insert(
+    async fn insert(
         &self,
         progress_bar_id: Uuid,
         progress_bar: ProgressBar,
@@ -26,11 +28,11 @@ impl ProgressBarStorage for InMemoryProgressBarStorage {
         Ok(())
     }
 
-    fn list(&self) -> DashMap<Uuid, ProgressBar> {
+    async fn list(&self) -> DashMap<Uuid, ProgressBar> {
         self.progress_bars.clone()
     }
 
-    fn get(
+    async fn get(
         &self,
         progress_bar_id: Uuid,
     ) -> Result<DashMapRef<'_, Uuid, ProgressBar>, ProgressBarStorageError> {
@@ -39,7 +41,7 @@ impl ProgressBarStorage for InMemoryProgressBarStorage {
             .ok_or(ProgressBarStorageError::NotFound { progress_bar_id })
     }
 
-    fn upsert(
+    async fn upsert(
         &self,
         progress_bar_id: Uuid,
         progress_bar: ProgressBar,
@@ -49,7 +51,7 @@ impl ProgressBarStorage for InMemoryProgressBarStorage {
         Ok(())
     }
 
-    fn remove(
+    async fn remove(
         &self,
         progress_bar_id: Uuid,
     ) -> Result<Option<(Uuid, ProgressBar)>, ProgressBarStorageError> {

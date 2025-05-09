@@ -135,7 +135,8 @@ impl<RC: RequestClient, PS: ProgressService> MinecraftDownloader
 
         if let Some(loading_bar) = loading_bar {
             self.progress_service
-                .emit_progress(loading_bar, 5.0, None)?;
+                .emit_progress(loading_bar, 5.0, None)
+                .await?;
         }
 
         Ok(res)

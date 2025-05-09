@@ -40,6 +40,7 @@ impl<E: EventEmitter, IS: InstanceStorage> InstanceStorage for EventEmittingInst
         if let Err(e) = self
             .event_emitter
             .emit_instance(instance.id.to_string(), InstanceEventType::Edited)
+            .await
         {
             error!("Failed to emit event: {}", e);
         }
@@ -52,6 +53,7 @@ impl<E: EventEmitter, IS: InstanceStorage> InstanceStorage for EventEmittingInst
         if let Err(e) = self
             .event_emitter
             .emit_instance(id.to_string(), InstanceEventType::Removed)
+            .await
         {
             error!("Failed to emit event: {}", e);
         }

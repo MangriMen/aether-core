@@ -53,12 +53,14 @@ impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
 
         self.process_storage.insert(process).await;
 
-        self.event_emitter.emit_process(
-            instance_id.clone(),
-            metadata.uuid,
-            "Launched Minecraft".to_string(),
-            ProcessEventType::Launched,
-        )?;
+        self.event_emitter
+            .emit_process(
+                instance_id.clone(),
+                metadata.uuid,
+                "Launched Minecraft".to_string(),
+                ProcessEventType::Launched,
+            )
+            .await?;
 
         Ok(metadata)
     }

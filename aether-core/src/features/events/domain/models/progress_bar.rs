@@ -45,7 +45,7 @@ impl Drop for ProgressBarId {
 
                     // TODO: remove unwrap
                     let removed_progress_bar =
-                        progress_bar_storage.remove(progress_bar_id).unwrap();
+                        progress_bar_storage.remove(progress_bar_id).await.unwrap();
 
                     if let Some((_, progress_bar)) = removed_progress_bar {
                         let completion_event = ProgressEvent {
@@ -55,8 +55,9 @@ impl Drop for ProgressBarId {
                             progress_bar_id: progress_bar.id,
                         };
 
-                        if let Err(e) =
-                            event_emitter.emit(LauncherEvent::Loading.as_str(), completion_event)
+                        if let Err(e) = event_emitter
+                            .emit(LauncherEvent::Loading.as_str(), completion_event)
+                            .await
                         {
                             error!(
                                 "Exited at {:.2}% for progress bar: {}: {:?}",
