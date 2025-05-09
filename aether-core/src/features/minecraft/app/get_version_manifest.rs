@@ -16,10 +16,7 @@ impl<MS: ReadMetadataStorage> GetVersionManifestUseCase<MS> {
 }
 
 #[async_trait]
-impl<MS> AsyncUseCaseWithError for GetVersionManifestUseCase<MS>
-where
-    MS: ReadMetadataStorage + Send + Sync,
-{
+impl<MS: ReadMetadataStorage> AsyncUseCaseWithError for GetVersionManifestUseCase<MS> {
     type Output = minecraft::VersionManifest;
     type Error = crate::Error;
 

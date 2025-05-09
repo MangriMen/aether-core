@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::shared::{infra::StorageError, CachedValue};
+use crate::shared::{CachedValue, StorageError};
 
 #[async_trait]
 pub trait ReadMetadataStorage: Send + Sync {

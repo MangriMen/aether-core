@@ -1,6 +1,7 @@
 use daedalus::modded;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ModLoader {
     Vanilla,
@@ -43,7 +44,7 @@ impl ModLoader {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ModLoaderManifest {
     pub loader: ModLoader,
     pub manifest: modded::Manifest,

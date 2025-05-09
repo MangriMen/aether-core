@@ -32,10 +32,7 @@ impl<RC: RequestClient> ModrinthMetadataStorage<RC> {
 }
 
 #[async_trait]
-impl<RC> ReadMetadataStorage for ModrinthMetadataStorage<RC>
-where
-    RC: RequestClient + Send + Sync,
-{
+impl<RC: RequestClient> ReadMetadataStorage for ModrinthMetadataStorage<RC> {
     async fn get_version_manifest(&self) -> Result<CachedValue<VersionManifest>, StorageError> {
         self.request_client
             .fetch_json_with_progress(

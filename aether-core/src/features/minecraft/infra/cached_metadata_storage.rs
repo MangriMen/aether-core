@@ -6,20 +6,12 @@ use crate::{
     shared::{CachedValue, StorageError},
 };
 
-pub struct CachedMetadataStorage<L, R>
-where
-    L: MetadataStorage,
-    R: ReadMetadataStorage,
-{
+pub struct CachedMetadataStorage<L: MetadataStorage, R: ReadMetadataStorage> {
     local_storage: L,
     remote_storage: R,
 }
 
-impl<L, R> CachedMetadataStorage<L, R>
-where
-    L: MetadataStorage,
-    R: ReadMetadataStorage,
-{
+impl<L: MetadataStorage, R: ReadMetadataStorage> CachedMetadataStorage<L, R> {
     pub fn new(local_storage: L, remote_storage: R) -> Self {
         Self {
             local_storage,
@@ -29,10 +21,8 @@ where
 }
 
 #[async_trait]
-impl<L, R> ReadMetadataStorage for CachedMetadataStorage<L, R>
-where
-    L: MetadataStorage + Send + Sync,
-    R: ReadMetadataStorage + Send + Sync,
+impl<L: MetadataStorage, R: ReadMetadataStorage> ReadMetadataStorage
+    for CachedMetadataStorage<L, R>
 {
     async fn get_version_manifest(&self) -> Result<CachedValue<VersionManifest>, StorageError> {
         let local_manifest = self.local_storage.get_version_manifest().await;

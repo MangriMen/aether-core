@@ -8,19 +8,18 @@ use crate::{
 };
 
 pub struct GetLoaderVersionManifestUseCase<MS: ReadMetadataStorage> {
-    storage: Arc<MS>,
+    metadata_storage: Arc<MS>,
 }
 
 impl<MS: ReadMetadataStorage> GetLoaderVersionManifestUseCase<MS> {
-    pub fn new(storage: Arc<MS>) -> Self {
-        Self { storage }
+    pub fn new(metadata_storage: Arc<MS>) -> Self {
+        Self { metadata_storage }
     }
 }
 
 #[async_trait]
-impl<MS> AsyncUseCaseWithInputAndError for GetLoaderVersionManifestUseCase<MS>
-where
-    MS: ReadMetadataStorage + Send + Sync,
+impl<MS: ReadMetadataStorage> AsyncUseCaseWithInputAndError
+    for GetLoaderVersionManifestUseCase<MS>
 {
     type Input = String;
     type Output = modded::Manifest;
@@ -28,7 +27,7 @@ where
 
     async fn execute(&self, loader: Self::Input) -> Result<Self::Output, Self::Error> {
         Ok(self
-            .storage
+            .metadata_storage
             .get_loader_version_manifest(&loader)
             .await?
             .value)
