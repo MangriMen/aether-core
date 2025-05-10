@@ -6,9 +6,11 @@ use crate::{
     features::{
         auth::FsCredentialsStorage,
         events::{InMemoryProgressBarStorage, ProgressServiceImpl, TauriEventEmitter},
+        file_watcher::NotifyFileWatcher,
         instance::{
             ContentProviderRegistry, EventEmittingInstanceStorage, FsInstanceStorage,
-            FsPackStorage, ModrinthContentProvider,
+            FsPackStorage, InstanceEventHandler, InstanceWatcherServiceImpl,
+            ModrinthContentProvider,
         },
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
@@ -60,6 +62,9 @@ pub struct LazyLocator {
     event_emitter: OnceCell<Arc<TauriEventEmitter>>,
     progress_bar_storage: OnceCell<Arc<InMemoryProgressBarStorage>>,
     progress_service: OnceCell<Arc<ProgressServiceType>>,
+    instance_watcher_service: OnceCell<
+        Arc<InstanceWatcherServiceImpl<NotifyFileWatcher<InstanceEventHandler<TauriEventEmitter>>>>,
+    >,
 }
 
 impl LazyLocator {
@@ -89,6 +94,7 @@ impl LazyLocator {
                     event_emitter: OnceCell::new(),
                     progress_bar_storage: OnceCell::new(),
                     progress_service: OnceCell::new(),
+                    instance_watcher_service: OnceCell::new(),
                 })
             })
             .await;
@@ -324,5 +330,27 @@ impl LazyLocator {
             })
             .await
             .clone()
+    }
+
+    pub async fn get_instance_watcher_service(
+        &self,
+    ) -> crate::Result<
+        Arc<InstanceWatcherServiceImpl<NotifyFileWatcher<InstanceEventHandler<TauriEventEmitter>>>>,
+    > {
+        self.instance_watcher_service
+            .get_or_try_init(|| async {
+                let watcher = NotifyFileWatcher::new(Arc::new(InstanceEventHandler::new(
+                    self.get_event_emitter().await,
+                )))?;
+
+                let service = InstanceWatcherServiceImpl::new(
+                    Arc::new(watcher),
+                    self.state.location_info.clone(),
+                );
+
+                Ok(Arc::new(service))
+            })
+            .await
+            .cloned()
     }
 }

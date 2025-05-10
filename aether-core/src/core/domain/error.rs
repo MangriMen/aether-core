@@ -130,6 +130,9 @@ pub enum ErrorKind {
 
     #[error("Storage error: {0}")]
     StorageError(#[from] crate::shared::infra::StorageError),
+
+    #[error("File watcher error: {0}")]
+    FileWatcherError(#[from] crate::features::file_watcher::FileWatcherError),
 }
 
 #[derive(Debug)]

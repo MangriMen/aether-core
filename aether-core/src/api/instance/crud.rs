@@ -67,8 +67,8 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         loader_version_resolver,
         install_minecraft_use_case,
         state.location_info.clone(),
-        state.file_watcher.clone(),
         lazy_locator.get_event_emitter().await,
+        lazy_locator.get_instance_watcher_service().await?,
     )
     .execute(new_instance)
     .await
@@ -201,7 +201,10 @@ pub async fn edit(id: String, edit_instance: EditInstance) -> crate::Result<()> 
 pub async fn remove(id: String) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    RemoveInstanceUseCase::new(lazy_locator.get_instance_storage().await)
-        .execute(id)
-        .await
+    RemoveInstanceUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        lazy_locator.get_instance_watcher_service().await?,
+    )
+    .execute(id)
+    .await
 }

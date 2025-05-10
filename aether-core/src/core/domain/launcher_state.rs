@@ -5,7 +5,7 @@ use tokio::sync::{OnceCell, Semaphore};
 use crate::{
     core::domain::LazyLocator,
     features::{
-        instance::{fs_watcher, FsWatcher},
+        instance::InstanceWatcherService,
         settings::{
             FsSettingsStorage, Hooks, LocationInfo, MemorySettings, Settings, SettingsStorage,
             WindowSize,
@@ -33,8 +33,6 @@ pub struct LauncherState {
     /// Semaphore to limit concurrent API requests. This is separate from the fetch semaphore
     /// to keep API functionality while the app is performing intensive tasks.
     pub api_semaphore: Arc<FetchSemaphore>,
-
-    pub(crate) file_watcher: Arc<FsWatcher>,
 }
 
 impl LauncherState {
@@ -121,8 +119,8 @@ impl LauncherState {
         )));
 
         log::info!("Initialize file watcher");
-        let file_watcher = Arc::new(fs_watcher::init_watcher().await?);
-        fs_watcher::watch_instances(&file_watcher, &location_info).await;
+        // let file_watcher = Arc::new(fs_watcher::init_watcher().await?);
+        // fs_watcher::watch_instances(&file_watcher, &location_info).await;
 
         log::info!("State initialized");
 
@@ -132,10 +130,16 @@ impl LauncherState {
             location_info,
             fetch_semaphore,
             api_semaphore,
-            file_watcher,
         });
 
         LazyLocator::init(state.clone(), app_handle).await?;
+
+        let lazy_locator = LazyLocator::get().await?;
+        lazy_locator
+            .get_instance_watcher_service()
+            .await?
+            .watch_instances()
+            .await?;
 
         Ok(state)
     }

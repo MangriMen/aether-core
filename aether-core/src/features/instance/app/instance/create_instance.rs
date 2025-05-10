@@ -14,7 +14,7 @@ use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProgressService},
         instance::{
-            watch_instance, FsWatcher, Instance, InstanceInstallStage, InstanceStorage, PackInfo,
+            Instance, InstanceInstallStage, InstanceStorage, InstanceWatcherService, PackInfo,
         },
         minecraft::{
             InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
@@ -44,13 +44,14 @@ pub struct CreateInstanceUseCase<
     E: EventEmitter,
     MD: MinecraftDownloader,
     PS: ProgressService,
+    IWS: InstanceWatcherService,
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
     install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
     location_info: Arc<LocationInfo>,
-    fs_watcher: Arc<FsWatcher>,
     event_emitter: Arc<E>,
+    instance_watcher_service: Arc<IWS>,
 }
 
 impl<
@@ -59,23 +60,24 @@ impl<
         E: EventEmitter,
         MD: MinecraftDownloader,
         PS: ProgressService,
-    > CreateInstanceUseCase<IS, MS, E, MD, PS>
+        IWS: InstanceWatcherService,
+    > CreateInstanceUseCase<IS, MS, E, MD, PS, IWS>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
         install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
         location_info: Arc<LocationInfo>,
-        fs_watcher: Arc<FsWatcher>,
         event_emitter: Arc<E>,
+        instance_watcher_service: Arc<IWS>,
     ) -> Self {
         Self {
             instance_storage,
             loader_version_resolver,
             install_minecraft_use_case,
             location_info,
-            fs_watcher,
             event_emitter,
+            instance_watcher_service,
         }
     }
     async fn setup_instance(
@@ -85,7 +87,9 @@ impl<
     ) -> crate::Result<String> {
         self.instance_storage.upsert(instance).await?;
 
-        watch_instance(&instance.id, &self.fs_watcher, &self.location_info).await;
+        self.instance_watcher_service
+            .watch_instance(&instance.id)
+            .await?;
 
         if !skip_install_instance.unwrap_or(false) {
             self.install_minecraft_use_case
@@ -104,7 +108,8 @@ impl<
         E: EventEmitter,
         MD: MinecraftDownloader,
         PS: ProgressService,
-    > AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, MD, PS>
+        IWS: InstanceWatcherService,
+    > AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, MD, PS, IWS>
 {
     type Input = NewInstance;
     type Output = String;
