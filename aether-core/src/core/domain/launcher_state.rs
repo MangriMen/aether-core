@@ -70,7 +70,7 @@ impl LauncherState {
         LAUNCHER_STATE.initialized()
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(app_handle))]
     async fn initialize(
         launcher_dir: PathBuf,
         metadata_dir: PathBuf,
