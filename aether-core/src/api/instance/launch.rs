@@ -1,42 +1,221 @@
+use std::sync::Arc;
+
 use crate::{
-    api,
-    state::{self, Credentials, LauncherState, MinecraftProcessMetadata, Settings},
+    core::{domain::LazyLocator, LauncherState},
+    features::{
+        auth::Credentials,
+        minecraft::{
+            AssetsService, ClientService, GetVersionManifestUseCase, InstallMinecraftUseCase,
+            LaunchMinecraftUseCase, LaunchWithActiveAccountUseCase, LaunchWithCredentialsUseCase,
+            LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
+        },
+        process::{
+            GetProcessMetadataByInstanceIdUseCase, MinecraftProcessMetadata, StartProcessUseCase,
+        },
+    },
+    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 #[tracing::instrument]
-pub async fn run(name: &str) -> crate::Result<MinecraftProcessMetadata> {
+pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    let default_account = Credentials::get_active(&state)
-        .await?
-        .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
+    let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
 
-    run_credentials(name, &default_account).await
+    let get_version_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
+
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
+    );
+
+    let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver.clone(),
+        get_version_manifest_use_case.clone(),
+        state.location_info.clone(),
+        minecraft_download_service,
+    ));
+
+    let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(
+        lazy_locator.get_process_storage().await,
+    ));
+
+    let start_process_use_case = Arc::new(StartProcessUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_process_storage().await,
+    ));
+
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
+    );
+
+    let launch_minecraft_use_case = LaunchMinecraftUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver,
+        install_minecraft_use_case,
+        get_version_manifest_use_case,
+        get_process_by_instance_id_use_case,
+        start_process_use_case,
+        minecraft_download_service,
+    );
+
+    let launch_with_credentials_use_case = LaunchWithCredentialsUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        lazy_locator.get_settings_storage().await,
+        launch_minecraft_use_case,
+    );
+
+    LaunchWithActiveAccountUseCase::new(
+        lazy_locator.get_credentials_storage().await,
+        launch_with_credentials_use_case,
+    )
+    .execute(instance_id)
+    .await
 }
 
 #[tracing::instrument]
 pub async fn run_credentials(
-    id: &str,
-    credentials: &state::Credentials,
+    instance_id: String,
+    credentials: Credentials,
 ) -> crate::Result<MinecraftProcessMetadata> {
     let state = LauncherState::get().await?;
-    // TODO: add io semaphore
-    let settings = Settings::get(&state).await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    let instance = api::instance::get(id).await?;
+    let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
 
-    let launch_args = api::instance::utils::get_launch_args(&instance, &settings);
-    let launch_settings = api::instance::utils::get_launch_settings(&instance, &settings);
-    let launch_metadata = api::instance::utils::get_launch_metadata(&instance, &settings);
+    let get_version_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
 
-    api::instance::utils::run_pre_launch_command(&instance, &settings).await?;
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
+    );
 
-    crate::launcher::launch_minecraft(
-        &instance,
-        &launch_args,
-        &launch_settings,
-        &launch_metadata,
-        credentials,
+    let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver.clone(),
+        get_version_manifest_use_case.clone(),
+        state.location_info.clone(),
+        minecraft_download_service,
+    ));
+
+    let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(
+        lazy_locator.get_process_storage().await,
+    ));
+
+    let start_process_use_case = Arc::new(StartProcessUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_process_storage().await,
+    ));
+
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
+    );
+
+    let launch_minecraft_use_case = LaunchMinecraftUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver,
+        install_minecraft_use_case,
+        get_version_manifest_use_case,
+        get_process_by_instance_id_use_case,
+        start_process_use_case,
+        minecraft_download_service,
+    );
+
+    LaunchWithCredentialsUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        lazy_locator.get_settings_storage().await,
+        launch_minecraft_use_case,
     )
+    .execute((instance_id, credentials))
     .await
 }

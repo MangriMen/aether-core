@@ -1,17 +1,25 @@
-use daedalus::{minecraft, modded};
-
-use crate::state::LauncherState;
+use crate::{
+    core::domain::LazyLocator,
+    features::minecraft::{GetLoaderVersionManifestUseCase, GetVersionManifestUseCase},
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
+};
 
 #[tracing::instrument]
-pub async fn get_versions_manifest() -> crate::Result<minecraft::VersionManifest> {
-    let state = LauncherState::get().await?;
-    crate::launcher::download_version_manifest(&state, true).await
+pub async fn get_version_manifest() -> crate::Result<daedalus::minecraft::VersionManifest> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetVersionManifestUseCase::new(lazy_locator.get_metadata_storage().await)
+        .execute()
+        .await
 }
 
 #[tracing::instrument]
-pub async fn get_loader_versions(loader: &str) -> crate::Result<modded::Manifest> {
-    let state = LauncherState::get().await?;
-    crate::launcher::download_loaders_manifests(&state, loader, true)
+pub async fn get_loader_version_manifest(
+    loader: String,
+) -> crate::Result<daedalus::modded::Manifest> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetLoaderVersionManifestUseCase::new(lazy_locator.get_metadata_storage().await)
+        .execute(loader)
         .await
-        .map_err(|_| crate::ErrorKind::NoValueFor(format!("{} loader versions", loader)).as_error())
 }

@@ -1,146 +1,143 @@
-use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::{
-    event::emit::emit_instance,
-    state::{Instance, LauncherState, PackInfo},
-    utils::io::read_json_async,
-};
-
-use std::fs::canonicalize;
-
-use chrono::Utc;
-use log::info;
-use tokio::fs;
-
-use crate::{
-    api::instance::get_instance_path_without_duplicate,
-    state::{Hooks, InstanceInstallStage, MemorySettings, ModLoader, WindowSize},
+    core::{domain::LazyLocator, LauncherState},
+    features::{
+        instance::{
+            CreateInstanceUseCase, EditInstance, EditInstanceUseCase, GetInstanceUseCase,
+            InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
+            RemoveInstanceUseCase,
+        },
+        minecraft::{
+            AssetsService, ClientService, GetVersionManifestUseCase, InstallMinecraftUseCase,
+            LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
+        },
+    },
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 #[tracing::instrument]
-pub async fn create(
-    name: String,
-    game_version: String,
-    mod_loader: ModLoader,
-    loader_version: Option<String>,
-    icon_path: Option<String>,
-    skip_install_instance: Option<bool>,
-    pack_info: Option<PackInfo>,
-) -> crate::Result<String> {
+pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
     let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    let (full_path, sanitized_name) = get_instance_path_without_duplicate(&state, &name);
+    let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
 
-    fs::create_dir_all(&full_path).await?;
+    let get_loader_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
 
-    info!(
-        "Creating instance \"{}\" at path \"{}\"",
-        &sanitized_name,
-        &canonicalize(&full_path)?.display()
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
     );
 
-    let loader = if mod_loader != ModLoader::Vanilla {
-        Instance::get_loader_version(&game_version, mod_loader, loader_version.as_deref()).await?
-    } else {
-        None
-    };
+    let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver.clone(),
+        get_loader_manifest_use_case.clone(),
+        state.location_info.clone(),
+        minecraft_download_service,
+    ));
 
-    let instance = Instance {
-        id: sanitized_name.clone(),
-        path: full_path.clone(),
-
-        name: name.clone(),
-        icon_path: None,
-
-        install_stage: InstanceInstallStage::NotInstalled,
-
-        game_version,
-        loader: mod_loader,
-        loader_version: loader.map(|it| it.id),
-
-        java_path: None,
-        extra_launch_args: None,
-        custom_env_vars: None,
-
-        memory: None,
-        force_fullscreen: None,
-        game_resolution: None,
-
-        created: Utc::now(),
-        modified: Utc::now(),
-        last_played: None,
-
-        time_played: 0,
-        recent_time_played: 0,
-
-        hooks: Hooks::default(),
-
-        pack_info,
-    };
-
-    let result = async {
-        instance.save().await?;
-
-        crate::state::watch_instance(&instance.id, &state.file_watcher, &state.locations).await;
-
-        emit_instance(&instance.id, crate::event::InstancePayloadType::Created).await?;
-
-        if !skip_install_instance.unwrap_or(false) {
-            crate::launcher::install_minecraft(&instance, None, false).await?;
-        }
-
-        Ok(instance.id.clone())
-    }
-    .await;
-
-    match result {
-        Ok(path) => {
-            info!(
-                "Instance \"{}\" created successfully at path \"{}\"",
-                &sanitized_name,
-                &canonicalize(&full_path)?.display()
-            );
-            Ok(path)
-        }
-        Err(err) => {
-            info!("Failed to create instance \"{}\". Instance removed", &name);
-            instance.remove().await?;
-            Err(err)
-        }
-    }
+    CreateInstanceUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver,
+        install_minecraft_use_case,
+        state.location_info.clone(),
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_instance_watcher_service().await?,
+    )
+    .execute(new_instance)
+    .await
 }
 
 #[tracing::instrument]
-pub async fn install(id: &str, force: bool) -> crate::Result<()> {
-    if let Ok(instance) = get(id).await {
-        let result = crate::launcher::install_minecraft(&instance, None, force).await;
+pub async fn install(id: String, force: bool) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-        if result.is_err() && instance.install_stage != InstanceInstallStage::Installed {
-            Instance::edit(id, |instance| {
-                instance.install_stage = InstanceInstallStage::NotInstalled;
-                async { Ok(()) }
-            })
-            .await?;
-        }
+    let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
 
-        result?;
-    } else {
-        return Err(crate::ErrorKind::UnmanagedProfileError(id.to_string()).as_error());
-    }
+    let get_loader_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
 
-    Ok(())
+    let client_service = ClientService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let assets_service = AssetsService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let libraries_service = LibrariesService::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+        state.location_info.clone(),
+    );
+    let minecraft_download_service = MinecraftDownloadService::new(
+        client_service,
+        assets_service,
+        libraries_service,
+        state.location_info.clone(),
+        lazy_locator.get_request_client().await,
+        lazy_locator.get_progress_service().await,
+    );
+
+    let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_instance_storage().await,
+        loader_version_resolver.clone(),
+        get_loader_manifest_use_case.clone(),
+        state.location_info.clone(),
+        minecraft_download_service,
+    ));
+
+    InstallInstanceUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        install_minecraft_use_case,
+    )
+    .execute((id, force))
+    .await
 }
 
 #[tracing::instrument]
-pub async fn update(id: &str) -> crate::Result<()> {
-    if let Ok(instance) = get(id).await {
+pub async fn update(id: String) -> crate::Result<()> {
+    if let Ok(instance) = get(id.clone()).await {
         if let Some(pack_info) = instance.pack_info {
-            let state = crate::state::LauncherState::get().await?;
-            let plugin_manager = state.plugin_manager.read().await;
+            let lazy_locator = LazyLocator::get().await?;
+            let plugin_registry = lazy_locator.get_plugin_registry().await;
 
-            if let Ok(plugin) = plugin_manager.get_plugin(&pack_info.pack_type) {
-                if let Some(plugin) = plugin.get_plugin() {
-                    plugin.lock().await.update(id).map_err(|_| {
+            if let Ok(plugin) = plugin_registry.get(&pack_info.pack_type) {
+                if let Some(plugin) = &plugin.instance {
+                    plugin.lock().await.update(&id).map_err(|_| {
                         crate::ErrorKind::InstanceUpdateError(format!(
                             "Failed to import instance from plugin {}",
                             pack_info.pack_type
@@ -174,95 +171,40 @@ pub async fn update(id: &str) -> crate::Result<()> {
 }
 
 #[tracing::instrument]
-pub async fn edit(
-    id: &str,
-    name: &Option<String>,
-    java_path: &Option<String>,
-    extra_launch_args: &Option<Vec<String>>,
-    custom_env_vars: &Option<Vec<(String, String)>>,
-    memory: &Option<MemorySettings>,
-    game_resolution: &Option<WindowSize>,
-) -> crate::Result<()> {
-    Instance::edit(id, |instance| {
-        if let Some(name) = name.clone() {
-            instance.name = name;
-        }
+pub async fn list() -> crate::Result<Vec<Instance>> {
+    let lazy_locator = LazyLocator::get().await?;
 
-        if let Some(java_path) = java_path.clone() {
-            instance.java_path = Some(java_path);
-        }
+    ListInstancesUseCase::new(lazy_locator.get_instance_storage().await)
+        .execute()
+        .await
+}
 
-        instance.extra_launch_args = extra_launch_args.clone();
-        instance.custom_env_vars = custom_env_vars.clone();
-        instance.memory = *memory;
-        instance.game_resolution = *game_resolution;
+#[tracing::instrument]
+pub async fn get(id: String) -> crate::Result<Instance> {
+    let lazy_locator = LazyLocator::get().await?;
 
-        async { Ok(()) }
-    })
+    GetInstanceUseCase::new(lazy_locator.get_instance_storage().await)
+        .execute(id)
+        .await
+}
+
+#[tracing::instrument]
+pub async fn edit(id: String, edit_instance: EditInstance) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    EditInstanceUseCase::new(lazy_locator.get_instance_storage().await)
+        .execute((id, edit_instance))
+        .await
+}
+
+#[tracing::instrument]
+pub async fn remove(id: String) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    RemoveInstanceUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        lazy_locator.get_instance_watcher_service().await?,
+    )
+    .execute(id)
     .await
-}
-
-#[tracing::instrument]
-pub async fn get_dir(id: &str) -> crate::Result<PathBuf> {
-    let state = LauncherState::get().await?;
-    Ok(state.locations.instance_dir(id))
-}
-
-#[tracing::instrument]
-pub async fn get_file_path(id: &str) -> crate::Result<PathBuf> {
-    Ok(get_dir(id).await?.join("instance.json"))
-}
-
-#[tracing::instrument]
-pub async fn get_by_path(path: &Path) -> crate::Result<Instance> {
-    read_json_async(&path).await
-}
-
-#[tracing::instrument]
-pub async fn get(id: &str) -> crate::Result<Instance> {
-    get_by_path(&get_file_path(id).await?).await
-}
-
-#[tracing::instrument]
-pub async fn get_all() -> crate::Result<(Vec<Instance>, Vec<crate::Error>)> {
-    let state = LauncherState::get().await?;
-
-    let instances_dir = state.locations.instances_dir();
-
-    if !instances_dir.exists() {
-        return Ok((Vec::new(), Vec::new()));
-    }
-
-    let mut instances = Vec::new();
-    let mut instances_errors: Vec<crate::Error> = Vec::new();
-
-    for entry in instances_dir.read_dir()? {
-        match entry {
-            Ok(entry) => {
-                let instance_file = entry.path().join("instance.json");
-
-                let instance = get_by_path(&instance_file).await;
-
-                match instance {
-                    Ok(instance) => {
-                        instances.push(instance);
-                    }
-                    Err(err) => instances_errors.push(err),
-                }
-            }
-            Err(err) => instances_errors.push(err.into()),
-        }
-    }
-
-    Ok((instances, instances_errors))
-}
-
-#[tracing::instrument]
-pub async fn remove(id: &str) -> crate::Result<()> {
-    let instance = get(id).await?;
-    instance.remove().await?;
-
-    emit_instance(id, crate::event::InstancePayloadType::Removed).await?;
-
-    Ok(())
 }

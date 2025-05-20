@@ -1,6 +1,6 @@
-pub mod credentials;
+pub mod auth;
 pub mod instance;
-pub mod jre;
+pub mod java;
 pub mod metadata;
 pub mod plugin;
 pub mod process;

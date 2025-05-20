@@ -1,13 +1,13 @@
-use crate::state::ImportConfig;
+use crate::{core::domain::LazyLocator, features::instance::ImportConfig};
 
 pub async fn get_import_configs() -> crate::Result<Vec<ImportConfig>> {
-    let state = crate::state::LauncherState::get().await?;
-    let plugin_manager = state.plugin_manager.read().await;
+    let lazy_locator = LazyLocator::get().await?;
+    let plugin_registry = lazy_locator.get_plugin_registry().await;
 
     let mut import_handlers: Vec<ImportConfig> = Vec::new();
 
-    for plugin_state in plugin_manager.get_plugins() {
-        if let Some(plugin) = plugin_state.get_plugin() {
+    for plugin_state in plugin_registry.list() {
+        if let Some(plugin) = &plugin_state.instance {
             let mut plugin = plugin.lock().await;
             if plugin.supports_get_import_config() {
                 if let Ok(import_config) = plugin.get_import_config() {
@@ -21,11 +21,12 @@ pub async fn get_import_configs() -> crate::Result<Vec<ImportConfig>> {
 }
 
 pub async fn import(pack_type: &str, path_or_url: &str) -> crate::Result<()> {
-    let state = crate::state::LauncherState::get().await?;
-    let plugin_manager = state.plugin_manager.read().await;
+    let lazy_locator = LazyLocator::get().await?;
+    let plugin_registry = lazy_locator.get_plugin_registry().await;
+    let plugin = plugin_registry.get(pack_type);
 
-    if let Ok(plugin) = plugin_manager.get_plugin(pack_type) {
-        if let Some(plugin) = plugin.get_plugin() {
+    if let Ok(plugin) = plugin {
+        if let Some(plugin) = &plugin.instance {
             plugin.lock().await.import(path_or_url).map_err(|_| {
                 crate::ErrorKind::InstanceImportError(format!(
                     "Failed to import instance from plugin {pack_type}"

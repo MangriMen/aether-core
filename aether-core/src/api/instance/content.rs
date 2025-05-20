@@ -1,126 +1,149 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::PathBuf};
 
 use dashmap::DashMap;
 
 use crate::{
-    event::{emit::emit_instance, InstancePayloadType},
-    state::{
-        content_provider, ContentMetadataFile, ContentRequest, ContentResponse, ContentType,
-        InstallContentPayload, Instance, InstanceFile,
+    core::{domain::LazyLocator, LauncherState},
+    features::instance::{
+        ChangeContentState, ChangeContentStateUseCase, ContentInstallParams, ContentSearchParams,
+        ContentSearchResult, ContentStateAction, ContentType, GetProviderMetadataUseCase,
+        ImportContent, ImportContentUseCase, InstallContentUseCase, InstanceFile,
+        ListContentUseCase, ListProvidersUseCase, RemoveContent, RemoveContentUseCase,
+        SearchContentUseCase,
     },
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
-use super::get;
+pub async fn get_contents(instance_id: String) -> crate::Result<DashMap<String, InstanceFile>> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-pub async fn get_contents(id: &str) -> crate::Result<DashMap<String, InstanceFile>> {
-    if let Ok(instance) = get(id).await {
-        instance.get_contents().await
-    } else {
-        Err(crate::ErrorKind::UnmanagedProfileError(id.to_string()).as_error())
-    }
-}
-
-pub async fn remove_content(id: &str, content_path: &str) -> crate::Result<()> {
-    Instance::remove_content(id, content_path).await?;
-    emit_instance(id, InstancePayloadType::Edited).await?;
-    Ok(())
-}
-
-pub async fn remove_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
-where
-    I: IntoIterator<Item = D>,
-    D: AsRef<str>,
-{
-    Instance::remove_contents(id, content_paths).await?;
-    emit_instance(id, InstancePayloadType::Edited).await?;
-    Ok(())
-}
-
-pub async fn toggle_disable_content(id: &str, content_path: &str) -> crate::Result<String> {
-    let res = Instance::toggle_disable_content(id, content_path).await?;
-    emit_instance(id, InstancePayloadType::Edited).await?;
-    Ok(res)
-}
-
-pub async fn enable_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
-where
-    I: IntoIterator<Item = D>,
-    D: AsRef<str>,
-{
-    Instance::enable_contents(id, content_paths).await?;
-    emit_instance(id, InstancePayloadType::Edited).await?;
-    Ok(())
-}
-
-pub async fn disable_contents<I, D>(id: &str, content_paths: I) -> crate::Result<()>
-where
-    I: IntoIterator<Item = D>,
-    D: AsRef<str>,
-{
-    Instance::disable_contents(id, content_paths).await?;
-    emit_instance(id, InstancePayloadType::Edited).await?;
-    Ok(())
-}
-
-pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
-    Ok(HashMap::from([
-        // ("Curseforge".to_string(), "curseforge".to_string()),
-        ("Modrinth".to_string(), "modrinth".to_string()),
-    ]))
-}
-
-pub async fn get_content_by_provider(payload: &ContentRequest) -> crate::Result<ContentResponse> {
-    match payload.provider.as_str() {
-        "modrinth" => content_provider::modrinth::search_content(payload).await,
-        _ => Err(crate::ErrorKind::ContentProviderNotFound {
-            provider: payload.provider.to_string(),
-        }
-        .as_error()),
-    }
-}
-
-pub async fn get_metadata_field_to_check_installed(provider: &str) -> crate::Result<String> {
-    match provider {
-        "modrinth" => Ok(content_provider::modrinth::get_field_to_check_installed()),
-        _ => Err(crate::ErrorKind::ContentProviderNotFound {
-            provider: provider.to_string(),
-        }
-        .as_error()),
-    }
-}
-
-pub async fn install_content(id: &str, payload: &InstallContentPayload) -> crate::Result<()> {
-    let instance_file = match payload.provider.as_str() {
-        "modrinth" => content_provider::modrinth::install_content(id, payload).await,
-        _ => Err(crate::ErrorKind::ContentProviderNotFound {
-            provider: payload.provider.to_string(),
-        }
-        .as_error()),
-    }?;
-
-    Instance::update_content_metadata_file(
-        id,
-        &instance_file.path,
-        &ContentMetadataFile {
-            name: instance_file.name.clone(),
-            file_name: instance_file.file_name.clone(),
-            hash: instance_file.hash,
-            download: None,
-            option: None,
-            side: None,
-            update_provider: Some(payload.provider.to_owned()),
-            update: instance_file.update,
-        },
+    ListContentUseCase::new(
+        lazy_locator.get_pack_storage().await,
+        state.location_info.clone(),
     )
-    .await?;
+    .execute(instance_id)
+    .await
+}
 
-    Ok(())
+pub async fn remove_content(instance_id: String, content_path: String) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
+
+    RemoveContentUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_pack_storage().await,
+        state.location_info.clone(),
+    )
+    .execute(RemoveContent::single(instance_id, content_path))
+    .await
+}
+
+pub async fn remove_contents(instance_id: String, content_paths: Vec<String>) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
+
+    RemoveContentUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_pack_storage().await,
+        state.location_info.clone(),
+    )
+    .execute(RemoveContent::multiple(instance_id, content_paths))
+    .await
+}
+
+pub async fn enable_contents(instance_id: String, content_paths: Vec<String>) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
+
+    ChangeContentStateUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        state.location_info.clone(),
+    )
+    .execute(ChangeContentState::multiple(
+        instance_id,
+        content_paths,
+        ContentStateAction::Enable,
+    ))
+    .await
+}
+
+pub async fn disable_contents(
+    instance_id: String,
+    content_paths: Vec<String>,
+) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
+
+    ChangeContentStateUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        state.location_info.clone(),
+    )
+    .execute(ChangeContentState::multiple(
+        instance_id,
+        content_paths,
+        ContentStateAction::Disable,
+    ))
+    .await
 }
 
 pub async fn import_contents(
-    id: &str,
-    paths: Vec<&Path>,
+    instance_id: String,
     content_type: ContentType,
+    source_paths: Vec<PathBuf>,
 ) -> crate::Result<()> {
-    Instance::import_contents(id, paths, content_type).await
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
+
+    ImportContentUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_pack_storage().await,
+        state.location_info.clone(),
+    )
+    .execute(ImportContent::multiple(
+        instance_id,
+        content_type,
+        source_paths,
+    ))
+    .await
+}
+
+pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    ListProvidersUseCase::new(lazy_locator.get_content_provider_registry().await)
+        .execute()
+        .await
+}
+
+pub async fn search_content(
+    search_params: ContentSearchParams,
+) -> crate::Result<ContentSearchResult> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    SearchContentUseCase::new(lazy_locator.get_content_provider_registry().await)
+        .execute(search_params)
+        .await
+}
+
+pub async fn get_metadata_field_to_check_installed(provider_id: String) -> crate::Result<String> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    GetProviderMetadataUseCase::new(lazy_locator.get_content_provider_registry().await)
+        .execute(provider_id)
+        .await
+}
+
+pub async fn install_content(
+    instance_id: String,
+    install_params: ContentInstallParams,
+) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    InstallContentUseCase::new(
+        lazy_locator.get_pack_storage().await,
+        lazy_locator.get_content_provider_registry().await,
+    )
+    .execute((instance_id, install_params))
+    .await
 }

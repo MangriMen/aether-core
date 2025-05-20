@@ -1,15 +1,21 @@
-use sysinfo::System;
-
-use crate::state::{LauncherState, Settings};
+use crate::{
+    core::domain::LazyLocator,
+    features::settings::{GetSettingsUseCase, Settings, UpsertSettingsUseCase},
+    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
+};
 
 pub async fn get() -> crate::Result<Settings> {
-    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
 
-    Settings::get(&state).await
+    GetSettingsUseCase::new(lazy_locator.get_settings_storage().await)
+        .execute()
+        .await
 }
 
-pub fn get_max_ram() -> u64 {
-    let sys = System::new_all();
+pub async fn upsert(settings: Settings) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
 
-    sys.total_memory()
+    UpsertSettingsUseCase::new(lazy_locator.get_settings_storage().await)
+        .execute(settings)
+        .await
 }
