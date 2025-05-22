@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
-use crate::{
-    features::plugins::{PluginSettings, PluginSettingsStorage},
-    shared::domain::AsyncUseCaseWithInputAndError,
-};
+use crate::features::plugins::{PluginSettings, PluginSettingsStorage};
 
 pub struct GetPluginSettingsUseCase<PSS: PluginSettingsStorage> {
     storage: Arc<PSS>,
@@ -17,15 +12,8 @@ impl<PSS: PluginSettingsStorage> GetPluginSettingsUseCase<PSS> {
             storage: plugin_settings_storage,
         }
     }
-}
 
-#[async_trait]
-impl<PSS: PluginSettingsStorage> AsyncUseCaseWithInputAndError for GetPluginSettingsUseCase<PSS> {
-    type Input = String;
-    type Output = Option<PluginSettings>;
-    type Error = crate::Error;
-
-    async fn execute(&self, plugin_id: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, plugin_id: String) -> crate::Result<Option<PluginSettings>> {
         Ok(self.storage.get(&plugin_id).await?)
     }
 }

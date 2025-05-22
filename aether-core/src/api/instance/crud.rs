@@ -13,7 +13,6 @@ use crate::{
             LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
         },
     },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 #[tracing::instrument]
@@ -124,7 +123,7 @@ pub async fn install(id: String, force: bool) -> crate::Result<()> {
         lazy_locator.get_instance_storage().await,
         install_minecraft_use_case,
     )
-    .execute((id, force))
+    .execute(id, force)
     .await
 }
 
@@ -193,7 +192,7 @@ pub async fn edit(id: String, edit_instance: EditInstance) -> crate::Result<()> 
     let lazy_locator = LazyLocator::get().await?;
 
     EditInstanceUseCase::new(lazy_locator.get_instance_storage().await)
-        .execute((id, edit_instance))
+        .execute(id, edit_instance)
         .await
 }
 

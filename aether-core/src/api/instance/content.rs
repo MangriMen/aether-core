@@ -11,7 +11,6 @@ use crate::{
         ListContentUseCase, ListProvidersUseCase, RemoveContent, RemoveContentUseCase,
         SearchContentUseCase,
     },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 pub async fn get_contents(instance_id: String) -> crate::Result<DashMap<String, InstanceFile>> {
@@ -144,6 +143,6 @@ pub async fn install_content(
         lazy_locator.get_pack_storage().await,
         lazy_locator.get_content_provider_registry().await,
     )
-    .execute((instance_id, install_params))
+    .execute(instance_id, install_params)
     .await
 }

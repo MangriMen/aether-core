@@ -1,12 +1,7 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
-use crate::{
-    features::instance::{
-        ContentProvider, ContentProviderRegistry, ContentSearchParams, ContentSearchResult,
-    },
-    shared::domain::AsyncUseCaseWithInputAndError,
+use crate::features::instance::{
+    ContentProvider, ContentProviderRegistry, ContentSearchParams, ContentSearchResult,
 };
 
 pub struct SearchContentUseCase<CP: ContentProvider> {
@@ -17,18 +12,11 @@ impl<CP: ContentProvider> SearchContentUseCase<CP> {
     pub fn new(provider_registry: Arc<ContentProviderRegistry<CP>>) -> Self {
         Self { provider_registry }
     }
-}
 
-#[async_trait]
-impl<CP> AsyncUseCaseWithInputAndError for SearchContentUseCase<CP>
-where
-    CP: ContentProvider + Send + Sync,
-{
-    type Input = ContentSearchParams;
-    type Output = ContentSearchResult;
-    type Error = crate::Error;
-
-    async fn execute(&self, search_params: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(
+        &self,
+        search_params: ContentSearchParams,
+    ) -> crate::Result<ContentSearchResult> {
         let provider = self
             .provider_registry
             .get(&search_params.provider.to_string())?;

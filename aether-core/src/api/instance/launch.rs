@@ -13,7 +13,6 @@ use crate::{
             GetProcessMetadataByInstanceIdUseCase, MinecraftProcessMetadata, StartProcessUseCase,
         },
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 #[tracing::instrument]
@@ -216,6 +215,6 @@ pub async fn run_credentials(
         lazy_locator.get_settings_storage().await,
         launch_minecraft_use_case,
     )
-    .execute((instance_id, credentials))
+    .execute(instance_id, credentials)
     .await
 }

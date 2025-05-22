@@ -10,10 +10,7 @@ pub struct PluginLoaderRegistry<PL> {
     loaders: HashMap<LoadConfigType, PL>,
 }
 
-impl<PL> PluginLoaderRegistry<PL>
-where
-    PL: PluginLoader + Send + Sync,
-{
+impl<PL: PluginLoader> PluginLoaderRegistry<PL> {
     pub fn new(loaders: HashMap<LoadConfigType, PL>) -> Self {
         Self { loaders }
     }

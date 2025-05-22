@@ -1,7 +1,5 @@
 use std::{path::Path, sync::Arc};
 
-use async_trait::async_trait;
-
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::{
@@ -19,10 +17,7 @@ use crate::{
             StartProcessUseCase,
         },
     },
-    shared::{
-        AsyncUseCaseWithError, AsyncUseCaseWithInput, AsyncUseCaseWithInputAndError, IOError,
-        SerializableCommand,
-    },
+    shared::{IOError, SerializableCommand},
     with_mut_ref,
 };
 
@@ -76,25 +71,13 @@ impl<
             minecraft_downloader,
         }
     }
-}
 
-#[async_trait]
-impl<
-        IS: InstanceStorage,
-        MS: ReadMetadataStorage,
-        PS: ProcessStorage,
-        E: EventEmitter,
-        MD: MinecraftDownloader,
-        PGS: ProgressService,
-    > AsyncUseCaseWithInputAndError for LaunchMinecraftUseCase<IS, MS, PS, E, MD, PGS>
-{
-    type Input = (String, LaunchSettings, Credentials);
-    type Output = MinecraftProcessMetadata;
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let (instance_id, launch_settings, credentials) = input;
-
+    pub async fn execute(
+        &self,
+        instance_id: String,
+        launch_settings: LaunchSettings,
+        credentials: Credentials,
+    ) -> crate::Result<MinecraftProcessMetadata> {
         let instance = self.instance_storage.get(&instance_id).await?;
 
         if instance.install_stage == InstanceInstallStage::PackInstalling
@@ -108,7 +91,7 @@ impl<
 
         if instance.install_stage != InstanceInstallStage::Installed {
             self.install_minecraft_use_case
-                .execute((instance_id, None, false))
+                .execute(instance_id, None, false)
                 .await?;
         }
 
@@ -275,11 +258,11 @@ impl<
 
         let metadata = self
             .start_process_use_case
-            .execute((
+            .execute(
                 instance.id.clone(),
                 command,
                 launch_settings.hooks.post_exit.clone(),
-            ))
+            )
             .await;
 
         if let Some(pack_info) = &instance.pack_info {

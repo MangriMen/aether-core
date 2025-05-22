@@ -3,15 +3,13 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
-
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, InstanceEventType},
         instance::{ContentType, PackFile, PackStorage},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, read_async, sha1_async},
+    shared::{read_async, sha1_async},
 };
 
 pub struct ImportContent {
@@ -142,19 +140,8 @@ impl<E: EventEmitter, PS: PackStorage> ImportContentUseCase<E, PS> {
 
         Ok(())
     }
-}
 
-#[async_trait]
-impl<E, PS> AsyncUseCaseWithInputAndError for ImportContentUseCase<E, PS>
-where
-    E: EventEmitter,
-    PS: PackStorage + Send + Sync,
-{
-    type Input = ImportContent;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, input: ImportContent) -> crate::Result<()> {
         let ImportContent {
             instance_id,
             content_type,

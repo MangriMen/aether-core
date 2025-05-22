@@ -1,31 +1,17 @@
 use std::{collections::HashMap, sync::Arc};
 
-use async_trait::async_trait;
-
-use crate::{
-    features::instance::{ContentProvider, ContentProviderRegistry},
-    shared::domain::AsyncUseCaseWithError,
-};
+use crate::features::instance::{ContentProvider, ContentProviderRegistry};
 
 pub struct ListProvidersUseCase<CP> {
     provider_registry: Arc<ContentProviderRegistry<CP>>,
 }
 
-impl<CP> ListProvidersUseCase<CP> {
+impl<CP: ContentProvider> ListProvidersUseCase<CP> {
     pub fn new(provider_registry: Arc<ContentProviderRegistry<CP>>) -> Self {
         Self { provider_registry }
     }
-}
 
-#[async_trait]
-impl<CP> AsyncUseCaseWithError for ListProvidersUseCase<CP>
-where
-    CP: ContentProvider + Send + Sync,
-{
-    type Output = HashMap<String, String>;
-    type Error = crate::Error;
-
-    async fn execute(&self) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self) -> crate::Result<HashMap<String, String>> {
         Ok(self.provider_registry.list())
     }
 }

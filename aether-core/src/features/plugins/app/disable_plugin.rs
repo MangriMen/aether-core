@@ -1,13 +1,10 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use crate::{
     features::{
         plugins::{PluginLoader, PluginLoaderRegistry, PluginRegistry},
         settings::SettingsStorage,
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
     ErrorKind,
 };
 
@@ -17,7 +14,7 @@ pub struct DisablePluginUseCase<SS, PL> {
     settings_storage: Arc<SS>,
 }
 
-impl<SS, PL> DisablePluginUseCase<SS, PL> {
+impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
     pub fn new(
         plugin_registry: Arc<PluginRegistry>,
         plugin_loader_registry: Arc<PluginLoaderRegistry<PL>>,
@@ -29,17 +26,8 @@ impl<SS, PL> DisablePluginUseCase<SS, PL> {
             settings_storage,
         }
     }
-}
 
-#[async_trait]
-impl<SS: SettingsStorage, PL: PluginLoader> AsyncUseCaseWithInputAndError
-    for DisablePluginUseCase<SS, PL>
-{
-    type Input = String;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, plugin_id: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, plugin_id: String) -> crate::Result<()> {
         let plugin = self.plugin_registry.get(&plugin_id)?;
 
         let loader = self

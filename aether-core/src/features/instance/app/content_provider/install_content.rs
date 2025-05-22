@@ -1,12 +1,7 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
-use crate::{
-    features::instance::{
-        ContentInstallParams, ContentProvider, ContentProviderRegistry, PackFile, PackStorage,
-    },
-    shared::domain::AsyncUseCaseWithInputAndError,
+use crate::features::instance::{
+    ContentInstallParams, ContentProvider, ContentProviderRegistry, PackFile, PackStorage,
 };
 
 pub struct InstallContentUseCase<PS: PackStorage, CP: ContentProvider> {
@@ -21,21 +16,12 @@ impl<PS: PackStorage, CP: ContentProvider> InstallContentUseCase<PS, CP> {
             provider_registry,
         }
     }
-}
 
-#[async_trait]
-impl<PS, CP> AsyncUseCaseWithInputAndError for InstallContentUseCase<PS, CP>
-where
-    PS: PackStorage + Send + Sync,
-    CP: ContentProvider + Send + Sync,
-{
-    type Input = (String, ContentInstallParams);
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let (instance_id, install_params) = input;
-
+    pub async fn execute(
+        &self,
+        instance_id: String,
+        install_params: ContentInstallParams,
+    ) -> crate::Result<()> {
         let provider = self
             .provider_registry
             .get(&install_params.provider.to_string())?;

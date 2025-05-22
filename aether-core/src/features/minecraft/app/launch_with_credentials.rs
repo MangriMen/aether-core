@@ -1,17 +1,12 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
-use crate::{
-    features::{
-        auth::Credentials,
-        events::{EventEmitter, ProgressService},
-        instance::{Instance, InstanceStorage},
-        minecraft::{LaunchSettings, MinecraftDownloader, ReadMetadataStorage},
-        process::{MinecraftProcessMetadata, ProcessStorage},
-        settings::{Hooks, Settings, SettingsStorage},
-    },
-    shared::domain::AsyncUseCaseWithInputAndError,
+use crate::features::{
+    auth::Credentials,
+    events::{EventEmitter, ProgressService},
+    instance::{Instance, InstanceStorage},
+    minecraft::{LaunchSettings, MinecraftDownloader, ReadMetadataStorage},
+    process::{MinecraftProcessMetadata, ProcessStorage},
+    settings::{Hooks, Settings, SettingsStorage},
 };
 
 use super::LaunchMinecraftUseCase;
@@ -89,33 +84,19 @@ impl<
             },
         }
     }
-}
 
-#[async_trait]
-impl<
-        IS: InstanceStorage,
-        MS: ReadMetadataStorage,
-        PS: ProcessStorage,
-        SS: SettingsStorage,
-        E: EventEmitter,
-        MD: MinecraftDownloader,
-        PGS: ProgressService,
-    > AsyncUseCaseWithInputAndError for LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS>
-{
-    type Input = (String, Credentials);
-    type Output = MinecraftProcessMetadata;
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let (instance_id, credentials) = input;
-
+    pub async fn execute(
+        &self,
+        instance_id: String,
+        credentials: Credentials,
+    ) -> crate::Result<MinecraftProcessMetadata> {
         let settings = self.settings_storage.get().await?;
         let instance = self.instance_storage.get(&instance_id).await?;
 
         let launch_settings = Self::resolve_launch_settings(&instance, &settings);
 
         self.launch_minecraft_use_case
-            .execute((instance_id, launch_settings, credentials))
+            .execute(instance_id, launch_settings, credentials)
             .await
     }
 }

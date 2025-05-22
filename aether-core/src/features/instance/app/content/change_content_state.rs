@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, InstanceEventType},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, rename},
+    shared::rename,
 };
 
 pub enum ContentStateAction {
@@ -125,15 +123,8 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         let instance_dir = self.location_info.instance_dir(instance_id);
         Ok(rename(&instance_dir.join(from), &instance_dir.join(to)).await?)
     }
-}
 
-#[async_trait]
-impl<E: EventEmitter> AsyncUseCaseWithInputAndError for ChangeContentStateUseCase<E> {
-    type Input = ChangeContentState;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, input: ChangeContentState) -> crate::Result<()> {
         let ChangeContentState {
             instance_id,
             content_paths,

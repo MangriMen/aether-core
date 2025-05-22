@@ -3,26 +3,20 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
 use chrono::Utc;
 use extism::{FromBytes, ToBytes};
 use extism_convert::{encoding, Json};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    features::{
-        events::{EventEmitter, EventEmitterExt, ProgressService},
-        instance::{
-            Instance, InstanceInstallStage, InstanceStorage, InstanceWatcherService, PackInfo,
-        },
-        minecraft::{
-            InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
-            ReadMetadataStorage,
-        },
-        settings::{Hooks, LocationInfo},
+use crate::features::{
+    events::{EventEmitter, EventEmitterExt, ProgressService},
+    instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceWatcherService, PackInfo},
+    minecraft::{
+        InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+        ReadMetadataStorage,
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
+    settings::{Hooks, LocationInfo},
 };
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -93,29 +87,14 @@ impl<
 
         if !skip_install_instance.unwrap_or(false) {
             self.install_minecraft_use_case
-                .execute((instance.id.clone(), None, false))
+                .execute(instance.id.clone(), None, false)
                 .await?;
         }
 
         Ok(instance.id.clone())
     }
-}
 
-#[async_trait]
-impl<
-        IS: InstanceStorage,
-        MS: ReadMetadataStorage,
-        E: EventEmitter,
-        MD: MinecraftDownloader,
-        PS: ProgressService,
-        IWS: InstanceWatcherService,
-    > AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, MD, PS, IWS>
-{
-    type Input = NewInstance;
-    type Output = String;
-    type Error = crate::Error;
-
-    async fn execute(&self, new_instance: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, new_instance: NewInstance) -> crate::Result<String> {
         let NewInstance {
             name,
             game_version,

@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
-use crate::{
-    features::auth::{Account, CredentialsStorage},
-    shared::domain::AsyncUseCaseWithError,
-};
+use crate::features::auth::{Account, CredentialsStorage};
 
 pub struct GetAccountsUseCase<CS: CredentialsStorage> {
     credentials_storage: Arc<CS>,
@@ -17,17 +12,8 @@ impl<CS: CredentialsStorage> GetAccountsUseCase<CS> {
             credentials_storage,
         }
     }
-}
 
-#[async_trait]
-impl<CS> AsyncUseCaseWithError for GetAccountsUseCase<CS>
-where
-    CS: CredentialsStorage + Send + Sync,
-{
-    type Output = Vec<Account>;
-    type Error = crate::Error;
-
-    async fn execute(&self) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self) -> crate::Result<Vec<Account>> {
         let credentials = self.credentials_storage.list().await?;
         Ok(credentials.into_iter().map(Account::from).collect())
     }

@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::{features::auth::CredentialsStorage, shared::domain::AsyncUseCaseWithInputAndError};
+use crate::features::auth::CredentialsStorage;
 
 pub struct SetActiveAccountUseCase<CS: CredentialsStorage> {
     credentials_storage: Arc<CS>,
@@ -15,18 +14,8 @@ impl<CS: CredentialsStorage> SetActiveAccountUseCase<CS> {
             credentials_storage,
         }
     }
-}
 
-#[async_trait]
-impl<CS> AsyncUseCaseWithInputAndError for SetActiveAccountUseCase<CS>
-where
-    CS: CredentialsStorage + Send + Sync,
-{
-    type Input = Uuid;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, id: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, id: Uuid) -> crate::Result<()> {
         self.credentials_storage.set_active(&id).await
     }
 }

@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
 use dashmap::DashMap;
 use path_slash::PathBufExt;
 
@@ -12,7 +11,7 @@ use crate::{
         instance::{ContentType, InstanceFile, PackEntry, PackFile, PackStorage},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, read_async, sha1_async, IOError},
+    shared::{read_async, sha1_async, IOError},
 };
 
 pub struct ListContentUseCase<PS: PackStorage> {
@@ -122,18 +121,11 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
             update: pack_file.update,
         }))
     }
-}
 
-#[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for ListContentUseCase<PS>
-where
-    PS: PackStorage + Send + Sync,
-{
-    type Input = String;
-    type Output = DashMap<String, InstanceFile>;
-    type Error = crate::Error;
-
-    async fn execute(&self, instance_id: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(
+        &self,
+        instance_id: String,
+    ) -> crate::Result<DashMap<String, InstanceFile>> {
         let instance_dir = self.location_info.instance_dir(&instance_id);
 
         let entries_by_path = self.get_entries_by_path(&instance_id).await?;

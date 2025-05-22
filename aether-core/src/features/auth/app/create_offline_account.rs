@@ -1,13 +1,9 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::{
-    features::auth::{Credentials, CredentialsStorage},
-    shared::domain::AsyncUseCaseWithInputAndError,
-};
+use crate::features::auth::{Credentials, CredentialsStorage};
 
 pub struct CreateOfflineAccountUseCase<CS: CredentialsStorage> {
     credentials_storage: Arc<CS>,
@@ -19,18 +15,8 @@ impl<CS: CredentialsStorage> CreateOfflineAccountUseCase<CS> {
             credentials_storage,
         }
     }
-}
 
-#[async_trait]
-impl<CS> AsyncUseCaseWithInputAndError for CreateOfflineAccountUseCase<CS>
-where
-    CS: CredentialsStorage + Send + Sync,
-{
-    type Input = String;
-    type Output = Uuid;
-    type Error = crate::Error;
-
-    async fn execute(&self, username: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, username: String) -> crate::Result<Uuid> {
         self.credentials_storage
             .upsert(&Credentials {
                 id: Uuid::new_v4(),

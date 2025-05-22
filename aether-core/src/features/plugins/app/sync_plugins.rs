@@ -3,14 +3,9 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
-
-use crate::{
-    features::{
-        plugins::{Plugin, PluginLoader, PluginRegistry, PluginStorage},
-        settings::SettingsStorage,
-    },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
+use crate::features::{
+    plugins::{Plugin, PluginLoader, PluginRegistry, PluginStorage},
+    settings::SettingsStorage,
 };
 
 use super::DisablePluginUseCase;
@@ -129,16 +124,8 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
         self.plugin_registry.remove(plugin_id);
         Ok(())
     }
-}
 
-#[async_trait]
-impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> AsyncUseCaseWithError
-    for SyncPluginsUseCase<PS, SS, PL>
-{
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self) -> crate::Result<()> {
         let found_plugins = self.plugin_storage.list().await?;
         self.sync_plugins(found_plugins).await
     }

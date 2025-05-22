@@ -1,21 +1,15 @@
 use std::{path::Path, sync::Arc};
 
-use async_trait::async_trait;
-use daedalus::minecraft::VersionInfo;
-
-use crate::{
-    features::{
-        events::{ProgressBarId, ProgressEventType, ProgressService},
-        instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExt},
-        java::Java,
-        minecraft::{
-            get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,
-            GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
-            ModLoaderProcessor, ReadMetadataStorage,
-        },
-        settings::LocationInfo,
+use crate::features::{
+    events::{ProgressBarId, ProgressEventType, ProgressService},
+    instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExt},
+    java::Java,
+    minecraft::{
+        get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,
+        GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+        ModLoaderProcessor, ReadMetadataStorage,
     },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
+    settings::LocationInfo,
 };
 
 pub struct InstallMinecraftUseCase<
@@ -62,7 +56,7 @@ impl<
         instance: &Instance,
         version_jar: String,
         instance_path: &Path,
-        version_info: &mut VersionInfo,
+        version_info: &mut daedalus::minecraft::VersionInfo,
         java_version: &Java,
         loading_bar: Option<&ProgressBarId>,
     ) -> crate::Result<()> {
@@ -85,23 +79,13 @@ impl<
             ModLoader::NeoForge => Ok(()),
         }
     }
-}
 
-#[async_trait]
-impl<
-        IS: InstanceStorage,
-        MS: ReadMetadataStorage,
-        MD: MinecraftDownloader,
-        PS: ProgressService,
-    > AsyncUseCaseWithInputAndError for InstallMinecraftUseCase<IS, MS, MD, PS>
-{
-    type Input = (String, Option<ProgressBarId>, bool);
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let (instance_id, loading_bar, force) = input;
-
+    pub async fn execute(
+        &self,
+        instance_id: String,
+        loading_bar: Option<ProgressBarId>,
+        force: bool,
+    ) -> crate::Result<()> {
         let instance = self.instance_storage.get(&instance_id).await?;
 
         log::info!(

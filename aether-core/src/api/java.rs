@@ -7,7 +7,6 @@ use crate::{
         infra::{AzulJreProvider, FsJavaInstallationService},
         GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 #[tracing::instrument]

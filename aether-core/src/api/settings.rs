@@ -1,7 +1,6 @@
 use crate::{
     core::domain::LazyLocator,
     features::settings::{GetSettingsUseCase, Settings, UpsertSettingsUseCase},
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 pub async fn get() -> crate::Result<Settings> {

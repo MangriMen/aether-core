@@ -1,11 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use async_trait::async_trait;
-
-use crate::{
-    features::java::{Java, JavaError, JavaInstallationService, JavaStorage},
-    shared::domain::AsyncUseCaseWithInputAndError,
-};
+use crate::features::java::{Java, JavaError, JavaInstallationService, JavaStorage};
 
 pub struct GetJavaUseCase<JS: JavaStorage, JIS: JavaInstallationService> {
     storage: Arc<JS>,
@@ -19,17 +14,8 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
             java_installation_service,
         }
     }
-}
 
-#[async_trait]
-impl<JS: JavaStorage, JIS: JavaInstallationService> AsyncUseCaseWithInputAndError
-    for GetJavaUseCase<JS, JIS>
-{
-    type Input = u32;
-    type Output = Java;
-    type Error = crate::Error;
-
-    async fn execute(&self, version: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, version: u32) -> crate::Result<Java> {
         let java = self.storage.get(version).await?;
 
         let get_error = || JavaError::NotFound { version };

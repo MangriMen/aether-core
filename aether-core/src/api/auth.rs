@@ -6,7 +6,6 @@ use crate::{
         Account, CreateOfflineAccountUseCase, GetAccountsUseCase, LogoutUseCase,
         SetActiveAccountUseCase,
     },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 #[tracing::instrument]

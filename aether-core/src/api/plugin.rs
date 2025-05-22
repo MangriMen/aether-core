@@ -5,7 +5,6 @@ use crate::{
         GetPluginManifestUseCase, GetPluginSettingsUseCase, ListPluginsManifestsUseCase,
         PluginManifest, PluginSettings, SyncPluginsUseCase,
     },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 #[tracing::instrument]
@@ -107,6 +106,6 @@ pub async fn edit_settings(id: String, edit_settings: EditPluginSettings) -> cra
     let lazy_locator = LazyLocator::get().await?;
 
     EditPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
-        .execute((id, edit_settings))
+        .execute(id, edit_settings)
         .await
 }

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use tokio::process::Command;
 use uuid::Uuid;
 
@@ -10,7 +9,7 @@ use crate::{
         events::{EventEmitter, EventEmitterExt, ProcessEventType},
         process::{MinecraftProcess, MinecraftProcessMetadata, ProcessStorage},
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, IOError},
+    shared::IOError,
 };
 
 use super::{ManageProcessParams, ManageProcessUseCase, TrackProcessUseCase};
@@ -27,19 +26,13 @@ impl<E: EventEmitter, PS: ProcessStorage> StartProcessUseCase<E, PS> {
             process_storage,
         }
     }
-}
 
-#[async_trait]
-impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
-    for StartProcessUseCase<E, PS>
-{
-    type Input = (String, Command, Option<String>);
-    type Output = MinecraftProcessMetadata;
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let (instance_id, mut command, post_exit_command) = input;
-
+    pub async fn execute(
+        &self,
+        instance_id: String,
+        mut command: Command,
+        post_exit_command: Option<String>,
+    ) -> crate::Result<MinecraftProcessMetadata> {
         let minecraft_process = command.spawn().map_err(IOError::from)?;
         let process = MinecraftProcess::from_child(instance_id.clone(), minecraft_process);
 

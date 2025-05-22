@@ -1,15 +1,11 @@
 use std::{process::ExitStatus, sync::Arc, time};
 
-use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
-use crate::{
-    features::{
-        instance::{InstanceStorage, InstanceStorageExt},
-        process::ProcessStorage,
-    },
-    shared::domain::AsyncUseCaseWithInput,
+use crate::features::{
+    instance::{InstanceStorage, InstanceStorageExt},
+    process::ProcessStorage,
 };
 
 const PROCESS_CHECK_INTERVAL: time::Duration = time::Duration::from_millis(50);
@@ -54,16 +50,8 @@ impl<PS: ProcessStorage, IS: InstanceStorage> TrackProcessUseCase<PS, IS> {
             *last_updated = Utc::now();
         }
     }
-}
 
-#[async_trait]
-impl<PS: ProcessStorage, IS: InstanceStorage> AsyncUseCaseWithInput
-    for TrackProcessUseCase<PS, IS>
-{
-    type Input = TrackProcessParams;
-    type Output = ExitStatus;
-
-    async fn execute(&self, params: Self::Input) -> Self::Output {
+    pub async fn execute(&self, params: TrackProcessParams) -> ExitStatus {
         let TrackProcessParams {
             process_uuid,
             instance_id,

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::{
@@ -10,10 +9,7 @@ use crate::{
         process::ProcessStorage,
         settings::LocationInfo,
     },
-    shared::{
-        domain::{AsyncUseCaseWithInput, AsyncUseCaseWithInputAndError, SerializableCommand},
-        IOError,
-    },
+    shared::{IOError, SerializableCommand},
 };
 
 use super::{TrackProcessParams, TrackProcessUseCase};
@@ -48,17 +44,7 @@ impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
             location_info,
         }
     }
-}
-
-#[async_trait]
-impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
-    for ManageProcessUseCase<E, PS>
-{
-    type Input = ManageProcessParams;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, params: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, params: ManageProcessParams) -> crate::Result<()> {
         let ManageProcessParams {
             process_uuid,
             instance_id,

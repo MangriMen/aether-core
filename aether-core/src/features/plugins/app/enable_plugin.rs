@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use crate::{
-    features::{
-        plugins::{PluginLoader, PluginLoaderRegistry, PluginRegistry, PluginSettingsStorage},
-        settings::SettingsStorage,
-    },
-    shared::domain::AsyncUseCaseWithInputAndError,
+use crate::features::{
+    plugins::{PluginLoader, PluginLoaderRegistry, PluginRegistry, PluginSettingsStorage},
+    settings::SettingsStorage,
 };
 
 pub struct EnablePluginUseCase<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader> {
@@ -34,17 +30,8 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
             settings_storage,
         }
     }
-}
 
-#[async_trait]
-impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
-    AsyncUseCaseWithInputAndError for EnablePluginUseCase<PSS, SS, PL>
-{
-    type Input = String;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, plugin_id: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, plugin_id: String) -> crate::Result<()> {
         let plugin = self.plugin_registry.get(&plugin_id)?;
 
         let plugin_settings = self.plugin_settings_storage.get(&plugin_id).await?;

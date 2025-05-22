@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
-use crate::{
-    features::instance::{ContentProvider, ContentProviderRegistry},
-    shared::domain::AsyncUseCaseWithInputAndError,
-};
+use crate::features::instance::{ContentProvider, ContentProviderRegistry};
 
 pub struct GetProviderMetadataUseCase<CP: ContentProvider> {
     provider_registry: Arc<ContentProviderRegistry<CP>>,
@@ -15,18 +10,8 @@ impl<CP: ContentProvider> GetProviderMetadataUseCase<CP> {
     pub fn new(provider_registry: Arc<ContentProviderRegistry<CP>>) -> Self {
         Self { provider_registry }
     }
-}
 
-#[async_trait]
-impl<CP> AsyncUseCaseWithInputAndError for GetProviderMetadataUseCase<CP>
-where
-    CP: ContentProvider + Send + Sync,
-{
-    type Input = String;
-    type Output = String;
-    type Error = crate::Error;
-
-    async fn execute(&self, provider_id: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, provider_id: String) -> crate::Result<String> {
         let provider = self.provider_registry.get(&provider_id)?;
         Ok(provider.get_update_data_id_field())
     }
