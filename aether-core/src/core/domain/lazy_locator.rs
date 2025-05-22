@@ -1,5 +1,11 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{self, Duration},
+};
 
+use reqwest_middleware::ClientWithMiddleware;
+use reqwest_retry::policies::ExponentialBackoff;
 use tokio::sync::OnceCell;
 
 use crate::{
@@ -21,7 +27,7 @@ use crate::{
         process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
     },
-    shared::{ReqwestClient, REQWEST_CLIENT},
+    shared::ReqwestClient,
 };
 
 use super::{ErrorKind, LauncherState};
@@ -35,6 +41,7 @@ type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgre
 pub struct LazyLocator {
     state: Arc<LauncherState>,
     app_handle: tauri::AppHandle,
+    reqwest_client: Arc<ClientWithMiddleware>,
     request_client: OnceCell<Arc<ReqwestClient<ProgressServiceType>>>,
     api_client: OnceCell<Arc<ReqwestClient<ProgressServiceType>>>,
     credentials_storage: OnceCell<Arc<FsCredentialsStorage>>,
@@ -67,6 +74,24 @@ pub struct LazyLocator {
     >,
 }
 
+fn get_reqwest_client() -> Arc<ClientWithMiddleware> {
+    const FETCH_ATTEMPTS: u32 = 5;
+
+    let client = reqwest::Client::builder()
+        .tcp_keepalive(Some(time::Duration::from_secs(10)))
+        .build()
+        .expect("Failed to build reqwest client");
+
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(FETCH_ATTEMPTS);
+    let retry_middleware = reqwest_retry::RetryTransientMiddleware::new_with_policy(retry_policy);
+
+    let client_with_middlewares = reqwest_middleware::ClientBuilder::new(client)
+        .with(retry_middleware)
+        .build();
+
+    Arc::new(client_with_middlewares)
+}
+
 impl LazyLocator {
     pub async fn init(
         state: Arc<LauncherState>,
@@ -77,6 +102,7 @@ impl LazyLocator {
                 Arc::new(Self {
                     state,
                     app_handle,
+                    reqwest_client: get_reqwest_client(),
                     request_client: OnceCell::new(),
                     api_client: OnceCell::new(),
                     credentials_storage: OnceCell::new(),
@@ -141,7 +167,7 @@ impl LazyLocator {
             .get_or_init(|| async {
                 Arc::new(ReqwestClient::new(
                     self.get_progress_service().await,
-                    (*REQWEST_CLIENT).clone(),
+                    self.reqwest_client.clone(),
                     self.state.fetch_semaphore.clone(),
                 ))
             })
@@ -154,7 +180,7 @@ impl LazyLocator {
             .get_or_init(|| async {
                 Arc::new(ReqwestClient::new(
                     self.get_progress_service().await,
-                    (*REQWEST_CLIENT).clone(),
+                    self.reqwest_client.clone(),
                     self.state.api_semaphore.clone(),
                 ))
             })

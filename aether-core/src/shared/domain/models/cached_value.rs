@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 
-use super::Cacheable;
+use crate::shared::Cacheable;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CachedValue<T> {

@@ -129,7 +129,7 @@ pub enum ErrorKind {
     ContentImportDuplicateError { content_path: String },
 
     #[error("Storage error: {0}")]
-    StorageError(#[from] crate::shared::infra::StorageError),
+    StorageError(#[from] crate::shared::StorageError),
 
     #[error("File watcher error: {0}")]
     FileWatcherError(#[from] crate::features::file_watcher::FileWatcherError),
