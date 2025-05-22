@@ -129,10 +129,7 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
 }
 
 #[async_trait]
-impl<RC> ContentProvider for ModrinthContentProvider<RC>
-where
-    RC: RequestClient + Send + Sync,
-{
+impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
     async fn search(
         &self,
         search_params: &ContentSearchParams,

@@ -1,4 +1,5 @@
 use futures::TryFutureExt;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::fs::create_dir_all;
 
 #[derive(Debug, thiserror::Error)]
@@ -55,7 +56,7 @@ pub async fn write_async(
 
 pub async fn read_json_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
 where
-    T: serde::de::DeserializeOwned,
+    T: DeserializeOwned,
 {
     read_async(&path)
         .err_into::<crate::Error>()
@@ -65,7 +66,7 @@ where
 
 pub async fn read_toml_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
 where
-    T: serde::de::DeserializeOwned,
+    T: DeserializeOwned,
 {
     read_async(&path)
         .err_into::<crate::Error>()
@@ -81,14 +82,14 @@ where
 
 pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>
 where
-    T: serde::Serialize,
+    T: Serialize,
 {
     Ok(write_async(path, serde_json::to_vec(&data)?).await?)
 }
 
 pub async fn write_toml_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>
 where
-    T: serde::Serialize,
+    T: Serialize,
 {
     Ok(write_async(path, toml::to_string(&data)?).await?)
 }

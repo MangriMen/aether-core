@@ -15,10 +15,7 @@ pub struct ModrinthApiClient<RC> {
     request_client: Arc<RC>,
 }
 
-impl<RC> ModrinthApiClient<RC>
-where
-    RC: RequestClient + Send + Sync,
-{
+impl<RC: RequestClient> ModrinthApiClient<RC> {
     pub fn new(
         base_url: String,
         base_headers: Option<reqwest::header::HeaderMap>,

@@ -5,6 +5,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -20,7 +21,7 @@ use crate::{
 
 use super::wasm_cache::{WasmCache, WasmCacheConfig};
 
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct PluginContext {
     pub id: String,
 }
