@@ -82,13 +82,14 @@ impl CredentialsStorage for FsCredentialsStorage {
                     active: false,
                     ..credentials.clone()
                 };
-                Self::update_active(&mut credentials_list, &credentials.id).await?
             } else {
                 credentials_list[index] = credentials.clone();
             }
         } else {
             credentials_list.push(credentials.clone());
         }
+
+        Self::update_active(&mut credentials_list, &credentials.id).await?;
 
         self.write(&credentials_list).await?;
         Ok(credentials.id)
