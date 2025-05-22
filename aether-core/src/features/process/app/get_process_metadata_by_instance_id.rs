@@ -11,12 +11,12 @@ impl<PS: ProcessStorage> GetProcessMetadataByInstanceIdUseCase<PS> {
         Self { process_storage }
     }
 
-    pub async fn execute(&self, id: String) -> Vec<MinecraftProcessMetadata> {
+    pub async fn execute(&self, instance_id: String) -> Vec<MinecraftProcessMetadata> {
         self.process_storage
             .list_metadata()
             .await
             .iter()
-            .filter(|x| x.instance_id == id)
+            .filter(|x| x.instance_id == instance_id)
             .cloned()
             .collect()
     }

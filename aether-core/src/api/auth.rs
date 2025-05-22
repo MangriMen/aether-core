@@ -27,19 +27,19 @@ pub async fn get_accounts() -> crate::Result<Vec<Account>> {
 }
 
 #[tracing::instrument]
-pub async fn change_account(id: Uuid) -> crate::Result<()> {
+pub async fn change_account(account_id: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
     SetActiveAccountUseCase::new(lazy_locator.get_credentials_storage().await)
-        .execute(id)
+        .execute(account_id)
         .await
 }
 
 #[tracing::instrument]
-pub async fn logout(id: Uuid) -> crate::Result<()> {
+pub async fn logout(account_id: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
     LogoutUseCase::new(lazy_locator.get_credentials_storage().await)
-        .execute(id)
+        .execute(account_id)
         .await
 }

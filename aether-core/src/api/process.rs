@@ -20,12 +20,14 @@ pub async fn list() -> crate::Result<Vec<MinecraftProcessMetadata>> {
 }
 
 #[tracing::instrument]
-pub async fn get_by_instance_id(id: String) -> crate::Result<Vec<MinecraftProcessMetadata>> {
+pub async fn get_by_instance_id(
+    instance_id: String,
+) -> crate::Result<Vec<MinecraftProcessMetadata>> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
         GetProcessMetadataByInstanceIdUseCase::new(lazy_locator.get_process_storage().await)
-            .execute(id)
+            .execute(instance_id)
             .await,
     )
 }

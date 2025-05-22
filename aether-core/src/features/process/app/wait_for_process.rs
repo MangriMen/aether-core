@@ -13,7 +13,7 @@ impl<PS: ProcessStorage> WaitForProcessUseCase<PS> {
         Self { process_storage }
     }
 
-    pub async fn execute(&self, id: Uuid) -> crate::Result<()> {
-        self.process_storage.wait_for(id).await
+    pub async fn execute(&self, instance_id: Uuid) -> crate::Result<()> {
+        self.process_storage.wait_for(instance_id).await
     }
 }

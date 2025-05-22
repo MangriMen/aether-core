@@ -15,7 +15,7 @@ impl<CS: CredentialsStorage> SetActiveAccountUseCase<CS> {
         }
     }
 
-    pub async fn execute(&self, id: Uuid) -> crate::Result<()> {
-        self.credentials_storage.set_active(&id).await
+    pub async fn execute(&self, account_id: Uuid) -> crate::Result<()> {
+        self.credentials_storage.set_active(&account_id).await
     }
 }

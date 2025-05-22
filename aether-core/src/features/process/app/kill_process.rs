@@ -12,7 +12,7 @@ impl<PS: ProcessStorage> KillProcessUseCase<PS> {
     pub fn new(process_storage: Arc<PS>) -> Self {
         Self { process_storage }
     }
-    pub async fn execute(&self, id: Uuid) -> crate::Result<()> {
-        self.process_storage.kill(id).await
+    pub async fn execute(&self, instance_id: Uuid) -> crate::Result<()> {
+        self.process_storage.kill(instance_id).await
     }
 }
