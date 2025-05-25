@@ -16,6 +16,6 @@ impl<CS: CredentialsStorage> LogoutUseCase<CS> {
     }
 
     pub async fn execute(&self, account_id: Uuid) -> crate::Result<()> {
-        self.credentials_storage.remove(&account_id).await
+        self.credentials_storage.remove(account_id).await
     }
 }

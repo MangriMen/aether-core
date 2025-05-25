@@ -34,14 +34,14 @@ impl FsCredentialsStorage {
         write_json_async(&self.credentials_file, &data).await
     }
 
-    async fn update_active(credentials_list: &mut [Credentials], id: &Uuid) -> crate::Result<()> {
+    async fn update_active(credentials_list: &mut [Credentials], id: Uuid) -> crate::Result<()> {
         if credentials_list.is_empty() {
             return Err(ErrorKind::NoCredentialsError.as_error());
         }
 
         let mut new_active_found = false;
         for credential in credentials_list.iter_mut() {
-            if credential.id == *id {
+            if credential.id == id {
                 credential.active = true;
                 new_active_found = true;
             } else if credential.active {
@@ -63,11 +63,11 @@ impl CredentialsStorage for FsCredentialsStorage {
         self.ensure_read().await
     }
 
-    async fn get(&self, id: &Uuid) -> crate::Result<Credentials> {
+    async fn get(&self, id: Uuid) -> crate::Result<Credentials> {
         self.ensure_read()
             .await?
             .iter()
-            .find(|x| x.id == *id)
+            .find(|x| x.id == id)
             .cloned()
             .ok_or_else(|| ErrorKind::NoCredentialsError.as_error())
     }
@@ -89,19 +89,21 @@ impl CredentialsStorage for FsCredentialsStorage {
             credentials_list.push(credentials.clone());
         }
 
-        Self::update_active(&mut credentials_list, &credentials.id).await?;
+        Self::update_active(&mut credentials_list, credentials.id).await?;
 
         self.write(&credentials_list).await?;
         Ok(credentials.id)
     }
 
-    async fn remove(&self, id: &Uuid) -> crate::Result<()> {
+    async fn remove(&self, id: Uuid) -> crate::Result<()> {
         let mut credentials_list = self.ensure_read().await?;
 
         let mut need_to_set_active = false;
         credentials_list.retain(|x| {
-            if x.id == *id && x.active {
-                need_to_set_active = true;
+            if x.id == id {
+                if x.active {
+                    need_to_set_active = true;
+                }
                 return false;
             }
 
@@ -121,7 +123,7 @@ impl CredentialsStorage for FsCredentialsStorage {
         Ok(self.ensure_read().await?.iter().find(|x| x.active).cloned())
     }
 
-    async fn set_active(&self, id: &Uuid) -> crate::Result<()> {
+    async fn set_active(&self, id: Uuid) -> crate::Result<()> {
         let mut credentials_list = self.ensure_read().await?;
         Self::update_active(&mut credentials_list, id).await?;
         self.write(&credentials_list).await
