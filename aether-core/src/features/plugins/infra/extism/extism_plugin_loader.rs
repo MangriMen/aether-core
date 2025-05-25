@@ -70,8 +70,8 @@ impl ExtismPluginLoader {
         }
 
         if let Some(default_allowed_paths) = default_allowed_paths {
-            for (path, host) in default_allowed_paths {
-                allowed_paths.push((path.to_string(), host.to_path_buf()));
+            for (host_path, plugin_path) in default_allowed_paths {
+                allowed_paths.push((host_path.to_string(), plugin_path.to_path_buf()));
             }
         }
 
@@ -90,6 +90,7 @@ impl ExtismPluginLoader {
     }
 
     fn load_extism_plugin(
+        &self,
         plugin: &Plugin,
         cache_dir: &Option<PathBuf>,
         default_allowed_paths: &Option<HashMap<String, PathBuf>>,
@@ -103,8 +104,13 @@ impl ExtismPluginLoader {
         let (allowed_hosts, allowed_paths) =
             Self::resolve_allowed_paths(plugin, settings, default_allowed_paths);
 
+        let absolute_wasm_file_path = self
+            .location_info
+            .plugin_dir(&plugin.manifest.metadata.id)
+            .join(wasm_file_path);
+
         let manifest =
-            Self::construct_wasm_manifest(wasm_file_path, &allowed_hosts, &allowed_paths);
+            Self::construct_wasm_manifest(&absolute_wasm_file_path, &allowed_hosts, &allowed_paths);
 
         let mut builder = extism::PluginBuilder::new(&manifest)
             .with_functions(Self::get_host_functions(&plugin.manifest.metadata.id))
@@ -116,7 +122,7 @@ impl ExtismPluginLoader {
 
         builder.build().map_err(|e| {
             log::debug!("Failed to load plugin: {:?}", e);
-            crate::ErrorKind::PluginLoadError(wasm_file_path.to_string_lossy().to_string())
+            crate::ErrorKind::PluginLoadError(absolute_wasm_file_path.to_string_lossy().to_string())
                 .as_error()
         })
     }
@@ -218,7 +224,7 @@ impl PluginLoader for ExtismPluginLoader {
             tokio::fs::create_dir_all(host).await?;
         }
 
-        let extism_plugin = Self::load_extism_plugin(
+        let extism_plugin = self.load_extism_plugin(
             plugin,
             &Some(cache_config),
             &Some(default_allowed_paths),

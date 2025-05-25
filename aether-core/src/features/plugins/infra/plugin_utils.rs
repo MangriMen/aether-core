@@ -13,10 +13,16 @@ pub fn get_default_allowed_paths(
 ) -> HashMap<String, PathBuf> {
     HashMap::from([
         (
-            "/cache".to_owned(),
-            location_info.plugin_cache_dir(plugin_id),
+            location_info
+                .plugin_cache_dir(plugin_id)
+                .to_string_lossy()
+                .to_string(),
+            PathBuf::from("/cache".to_owned()),
         ),
-        ("/instances".to_owned(), location_info.instances_dir()),
+        (
+            location_info.instances_dir().to_string_lossy().to_string(),
+            PathBuf::from("/instances"),
+        ),
     ])
 }
 

@@ -131,9 +131,9 @@ impl LazyLocator {
     pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAZY_LOCATOR.initialized() {
             tracing::error!(
-                "Attempted to get LazyLocator before it is initialized - this should never happen!\n{:?}",
-                std::backtrace::Backtrace::capture()
+                "Attempted to get LazyLocator before it is initialized - this should never happen!",
             );
+            tracing::error!("{}", std::backtrace::Backtrace::capture());
 
             Self::wait_for_initialization().await?;
         }

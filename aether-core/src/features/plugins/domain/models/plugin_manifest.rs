@@ -31,13 +31,7 @@ pub struct RuntimeConfig {
     pub allowed_paths: Vec<PathMapping>,
 }
 
-pub type PathMapping = (String, PathBuf);
-
-// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-// pub struct PathMapping {
-//     pub host_path: PathBuf,
-//     pub virtual_path: String,
-// }
+pub type PathMapping = (String, PathBuf); // (path on disk, plugin path)
 
 #[derive(Debug, Hash, Eq, PartialEq)]
 pub enum LoadConfigType {
