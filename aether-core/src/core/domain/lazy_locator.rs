@@ -27,7 +27,7 @@ use crate::{
         process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
     },
-    shared::ReqwestClient,
+    libs::request_client::ReqwestClient,
 };
 
 use super::{ErrorKind, LauncherState};

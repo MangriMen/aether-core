@@ -1,19 +1,4 @@
-use async_trait::async_trait;
-use bytes::Bytes;
-use reqwest::Method;
-
-use crate::features::events::ProgressBarId;
-
-#[async_trait]
-pub trait RequestClient: Send + Sync {
-    async fn fetch_bytes(&self, request: Request) -> crate::Result<Bytes>;
-
-    async fn fetch_bytes_with_progress(
-        &self,
-        request: Request,
-        loading_bar: Option<(&ProgressBarId, f64)>,
-    ) -> crate::Result<Bytes>;
-}
+use crate::libs::request_client::Method;
 
 pub struct Request {
     pub method: Method,
@@ -35,11 +20,11 @@ impl Request {
     }
 
     pub fn get(url: impl Into<String>) -> Self {
-        Self::new(Method::GET, url.into())
+        Self::new(Method::Get, url.into())
     }
 
     pub fn post(url: impl Into<String>) -> Self {
-        Self::new(Method::POST, url.into())
+        Self::new(Method::Post, url.into())
     }
 
     pub fn with_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {

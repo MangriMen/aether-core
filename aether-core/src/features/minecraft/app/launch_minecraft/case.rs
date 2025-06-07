@@ -155,7 +155,7 @@ impl<
             .await?;
 
         let java = if let Some(java_path) = instance.java_path.as_ref() {
-            crate::features::java::get_java_from_path(Path::new(java_path)).await
+            Ok(crate::features::java::get_java_from_path(Path::new(java_path)).await?)
         } else {
             let compatible_java_version = get_compatible_java_version(&version_info);
 

@@ -15,7 +15,8 @@ use crate::{
         },
         settings::LocationInfo,
     },
-    shared::{write_async, RequestClient},
+    libs::request_client::RequestClient,
+    shared::write_async,
 };
 
 use super::{

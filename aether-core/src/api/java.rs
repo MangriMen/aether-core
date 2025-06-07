@@ -45,5 +45,5 @@ pub async fn get(version: u32) -> crate::Result<java::Java> {
 
 #[tracing::instrument]
 pub async fn get_from_path(path: &Path) -> crate::Result<java::Java> {
-    get_java_from_path(path).await
+    Ok(get_java_from_path(path).await?)
 }

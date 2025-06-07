@@ -8,11 +8,8 @@ use daedalus::{
 
 use crate::{
     features::minecraft::ReadMetadataStorage,
-    shared::{
-        domain::{Request, RequestClient},
-        extensions::RequestClientExt,
-        CachedValue, StorageError,
-    },
+    libs::request_client::{Request, RequestClient, RequestClientExt},
+    shared::{CachedValue, StorageError},
 };
 
 pub const META_URL: &str = "https://launcher-meta.modrinth.com/";
@@ -40,7 +37,7 @@ impl<RC: RequestClient> ReadMetadataStorage for ModrinthMetadataStorage<RC> {
                 None,
             )
             .await
-            .map_err(|err| StorageError::ReadError(err.raw.to_string()))
+            .map_err(|err| StorageError::ReadError(err.to_string()))
             .map(CachedValue::new)
     }
 
@@ -51,7 +48,7 @@ impl<RC: RequestClient> ReadMetadataStorage for ModrinthMetadataStorage<RC> {
         self.request_client
             .fetch_json_with_progress(Request::get(Self::get_loader_manifest_url(loader)), None)
             .await
-            .map_err(|err| StorageError::ReadError(err.raw.to_string()))
+            .map_err(|err| StorageError::ReadError(err.to_string()))
             .map(CachedValue::new)
     }
 }

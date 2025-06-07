@@ -11,7 +11,8 @@ use crate::{
         minecraft::parse_rules,
         settings::LocationInfo,
     },
-    shared::{write_async, Request, RequestClient},
+    libs::request_client::{Request, RequestClient},
+    shared::write_async,
 };
 
 const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
@@ -168,7 +169,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
             }
             Err(err) => {
                 log::error!("Failed downloading java library \"{}\"", &library.name,);
-                Err(err)
+                Err(err.into())
             }
         }
     }

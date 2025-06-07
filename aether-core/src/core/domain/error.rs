@@ -1,23 +1,31 @@
 use tracing_error::InstrumentError;
 
-use crate::features::events::EventError;
+use crate::{
+    features::{events, file_watcher, java, plugins},
+    libs::request_client,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ErrorKind {
-    #[error("Filesystem error: {0}")]
-    FSError(String),
+    #[error("Event error: {0}")]
+    EventError(#[from] events::EventError),
 
-    #[error("Serialization error (INI): {0}")]
-    INIError(#[from] serde_ini::de::Error),
+    #[error("File watcher error: {0}")]
+    FileWatcherError(#[from] file_watcher::FileWatcherError),
+
+    #[error("JRE error: {0}")]
+    JavaError(#[from] java::JavaError),
+
+    #[error("Plugin error ({0}): {1}")]
+    PluginError(String, plugins::PluginError),
+
+    #[error("Request error: {0}")]
+    RequestError(#[from] request_client::RequestError),
+
+    /// Other errors
 
     #[error("Serialization error (JSON): {0}")]
     JSONError(#[from] serde_json::Error),
-
-    #[error("Error parsing UUID: {0}")]
-    UUIDError(#[from] uuid::Error),
-
-    #[error("Error parsing URL: {0}")]
-    URLError(#[from] url::ParseError),
 
     #[error("Unable to read {0} from any source")]
     NoValueFor(String),
@@ -25,8 +33,6 @@ pub enum ErrorKind {
     #[error("Metadata error: {0}")]
     MetadataError(#[from] daedalus::Error),
 
-    // #[error("Minecraft authentication error: {0}")]
-    // MinecraftAuthenticationError(#[from] crate::state::MinecraftAuthenticationError),
     #[error("I/O error: {0}")]
     IOError(#[from] crate::shared::IOError),
 
@@ -38,18 +44,6 @@ pub enum ErrorKind {
 
     #[error("Error fetching URL: {0}")]
     FetchError(#[from] reqwest::Error),
-
-    #[error("Websocket closed before {0} could be received!")]
-    WSClosedError(String),
-
-    #[error("Incorrect Sha1 hash for download: {0} != {1}")]
-    HashError(String, String),
-
-    #[error("Regex error: {0}")]
-    RegexError(#[from] regex::Error),
-
-    #[error("Paths stored in the database need to be valid UTF-8: {0}")]
-    UTFError(std::path::PathBuf),
 
     #[error("Invalid input: {0}")]
     InputError(String),
@@ -77,14 +71,8 @@ pub enum ErrorKind {
     #[error("User is not logged in, no credentials available!")]
     NoCredentialsError,
 
-    #[error("JRE error: {0}")]
-    JREError(#[from] crate::features::java::JavaError),
-
     #[error("Error parsing date: {0}")]
     ChronoParseError(#[from] chrono::ParseError),
-
-    #[error("Event error: {0}")]
-    EventError(#[from] EventError),
 
     #[error("Zip error: {0}")]
     ZipError(#[from] async_zip::error::ZipError),
@@ -107,12 +95,6 @@ pub enum ErrorKind {
     #[error("Plugin load error: {0}")]
     PluginLoadError(String),
 
-    #[error("Plugin error ({0}): {1}")]
-    PluginError(String, String),
-
-    #[error("Plugin call error ({0}): {1}")]
-    PluginCallError(String, crate::features::plugins::PluginError),
-
     #[error("Plugin {0} tried to access disallowed path {1}")]
     PluginNotAllowedPathError(String, String),
 
@@ -130,9 +112,6 @@ pub enum ErrorKind {
 
     #[error("Storage error: {0}")]
     StorageError(#[from] crate::shared::StorageError),
-
-    #[error("File watcher error: {0}")]
-    FileWatcherError(#[from] crate::features::file_watcher::FileWatcherError),
 }
 
 #[derive(Debug)]

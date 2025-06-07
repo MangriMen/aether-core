@@ -39,7 +39,7 @@ impl FsPluginStorage {
 
         let absolute_file_path = dir.join(relative_file_path);
         let file_content = read_async(&absolute_file_path).await?;
-        sha1_async(file_content).await
+        Ok(sha1_async(file_content).await?)
     }
 
     async fn load_from_dir(&self, dir: &Path) -> crate::Result<Plugin> {

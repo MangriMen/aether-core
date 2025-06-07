@@ -11,7 +11,8 @@ use crate::{
         },
         settings::LocationInfo,
     },
-    shared::{read_json_async, write_async, Request, RequestClient, RequestClientExt},
+    libs::request_client::{Request, RequestClient, RequestClientExt},
+    shared::{read_json_async, write_async},
 };
 
 const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net/";

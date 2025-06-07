@@ -13,7 +13,7 @@ pub struct PluginInstance<P: PluginApi = extism::Plugin> {
 
 impl<P: PluginApi> PluginInstance<P> {
     fn get_error(&self, e: PluginError) -> crate::Error {
-        crate::ErrorKind::PluginCallError(self.public_id.to_string(), e).as_error()
+        crate::ErrorKind::PluginError(self.public_id.to_string(), e).as_error()
     }
 
     pub fn from_plugin(plugin: P, id: &str) -> crate::Result<Self> {

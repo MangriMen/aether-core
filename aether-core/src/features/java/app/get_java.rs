@@ -18,7 +18,7 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
     pub async fn execute(&self, version: u32) -> crate::Result<Java> {
         let java = self.storage.get(version).await?;
 
-        let get_error = || JavaError::NotFound { version };
+        let get_error = || JavaError::JreNotFound { version };
 
         if let Some(java) = java {
             Ok(self

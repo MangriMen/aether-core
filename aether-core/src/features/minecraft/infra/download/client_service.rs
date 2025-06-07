@@ -5,7 +5,8 @@ use crate::{
         events::{ProgressBarId, ProgressService},
         settings::LocationInfo,
     },
-    shared::{write_async, Request, RequestClient},
+    libs::request_client::{Request, RequestClient},
+    shared::write_async,
 };
 
 pub struct ClientService<RC: RequestClient, PS: ProgressService> {

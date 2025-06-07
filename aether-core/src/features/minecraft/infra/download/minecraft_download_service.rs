@@ -8,7 +8,8 @@ use crate::{
         minecraft::MinecraftDownloader,
         settings::LocationInfo,
     },
-    shared::{read_json_async, write_async, Request, RequestClient, RequestClientExt},
+    libs::request_client::{Request, RequestClient, RequestClientExt},
+    shared::{read_json_async, write_async},
 };
 
 use super::{AssetsService, ClientService, LibrariesService};

@@ -1,6 +1,6 @@
 use crate::{
-    features::java::{Java, JavaStorage},
-    shared::{read_json_async, write_json_async},
+    features::java::{Java, JavaError, JavaStorage},
+    shared::{read_json_async, write_json_async, StorageError},
 };
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
@@ -16,28 +16,32 @@ impl FsJavaStorage {
         }
     }
 
-    async fn ensure_read(&self) -> crate::Result<Vec<Java>> {
+    async fn ensure_read(&self) -> Result<Vec<Java>, JavaError> {
         if !self.java_versions_file.exists() {
             let default = Vec::<Java>::default();
-            write_json_async(&self.java_versions_file, &default).await?;
+            self.write(&default).await?;
             return Ok(default);
         }
 
-        read_json_async(&self.java_versions_file).await
+        Ok(read_json_async(&self.java_versions_file)
+            .await
+            .map_err(|err| StorageError::ReadError(err.to_string()))?)
     }
 
-    async fn write(&self, data: &Vec<Java>) -> crate::Result<()> {
-        write_json_async(&self.java_versions_file, &data).await
+    async fn write(&self, data: &Vec<Java>) -> Result<(), JavaError> {
+        Ok(write_json_async(&self.java_versions_file, &data)
+            .await
+            .map_err(|err| StorageError::WriteError(err.to_string()))?)
     }
 }
 
 #[async_trait]
 impl JavaStorage for FsJavaStorage {
-    async fn list(&self) -> crate::Result<Vec<Java>> {
+    async fn list(&self) -> Result<Vec<Java>, JavaError> {
         self.ensure_read().await
     }
 
-    async fn get(&self, version: u32) -> crate::Result<Option<Java>> {
+    async fn get(&self, version: u32) -> Result<Option<Java>, JavaError> {
         Ok(self
             .ensure_read()
             .await?
@@ -46,7 +50,7 @@ impl JavaStorage for FsJavaStorage {
             .cloned())
     }
 
-    async fn upsert(&self, java: &Java) -> crate::Result<()> {
+    async fn upsert(&self, java: &Java) -> Result<(), JavaError> {
         let mut java_versions = self.ensure_read().await?;
 
         match java_versions

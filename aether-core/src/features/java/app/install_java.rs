@@ -6,7 +6,7 @@ use crate::{
         java::{infra::AzulJreProvider, Java, JavaInstallationService, JavaStorage},
         settings::LocationInfo,
     },
-    shared::RequestClient,
+    libs::request_client::RequestClient,
 };
 
 use super::InstallJreUseCase;

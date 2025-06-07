@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::shared::{Request, RequestClient, RequestClientExt};
+use crate::libs::request_client::{Request, RequestClient, RequestClientExt};
 
 use super::{
     ListProjectVersionsParams, ListProjectsVersionsResponse, ProjectSearchParams,
@@ -40,9 +40,10 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
             request = request.with_headers(base_headers);
         }
 
-        self.request_client
+        Ok(self
+            .request_client
             .fetch_json_with_progress(request, None)
-            .await
+            .await?)
     }
 
     pub async fn get_project_version(
@@ -56,9 +57,10 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
             request = request.with_headers(base_headers);
         }
 
-        self.request_client
+        Ok(self
+            .request_client
             .fetch_json_with_progress(request, None)
-            .await
+            .await?)
     }
 
     pub async fn get_project_version_for_game_version(
@@ -112,5 +114,6 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
         self.request_client
             .fetch_bytes_with_progress(request, None)
             .await
+            .map_err(Into::into)
     }
 }
