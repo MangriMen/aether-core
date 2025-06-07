@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     features::{
         events::ProgressService,
-        java::{infra::AzulJreProvider, Java, JavaInstallationService, JavaStorage},
+        java::{infra::AzulJreProvider, Java, JavaError, JavaInstallationService, JavaStorage},
         settings::LocationInfo,
     },
     libs::request_client::RequestClient,
@@ -40,7 +40,7 @@ impl<JS: JavaStorage, JIS: JavaInstallationService, PS: ProgressService, RC: Req
         }
     }
 
-    pub async fn execute(&self, version: u32) -> crate::Result<Java> {
+    pub async fn execute(&self, version: u32) -> Result<Java, JavaError> {
         let installed_jre_path = self
             .install_jre_use_case
             .execute(version, self.location_info.java_dir())
@@ -50,9 +50,7 @@ impl<JS: JavaStorage, JIS: JavaInstallationService, PS: ProgressService, RC: Req
             .java_installation_service
             .locate_java(&installed_jre_path)
             .await
-            .ok_or_else(|| {
-                crate::ErrorKind::LauncherError(format!("Java {} not found", version)).as_error()
-            })?;
+            .ok_or(JavaError::JreNotFound { version })?;
 
         self.storage.upsert(&java).await?;
 

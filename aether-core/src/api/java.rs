@@ -21,26 +21,26 @@ pub async fn install(version: u32) -> crate::Result<java::Java> {
 
     let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
 
-    InstallJavaUseCase::new(
+    let install_java_use_case = InstallJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
         install_jre_use_case,
         state.location_info.clone(),
-    )
-    .execute(version)
-    .await
+    );
+
+    Ok(install_java_use_case.execute(version).await?)
 }
 
 #[tracing::instrument]
 pub async fn get(version: u32) -> crate::Result<java::Java> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetJavaUseCase::new(
+    let get_java_use_case = GetJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
-    )
-    .execute(version)
-    .await
+    );
+
+    Ok(get_java_use_case.execute(version).await?)
 }
 
 #[tracing::instrument]

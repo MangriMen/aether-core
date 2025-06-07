@@ -4,13 +4,6 @@ use crate::{libs::request_client::RequestError, shared::StorageError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum JavaError {
-    #[error("No Java version found to download: version {version}, os {os}, architecture {arch}")]
-    JavaNotFound {
-        version: u32,
-        os: String,
-        arch: String,
-    },
-
     #[error("No JRE found for version {version}")]
     JreNotFound { version: u32 },
 
@@ -19,6 +12,13 @@ pub enum JavaError {
 
     #[error("Invalid JRE version: {version}")]
     InvalidVersion { version: String },
+
+    #[error("No Java version found to download: version {version}, os {os}, architecture {arch}")]
+    JavaDownloadNotFound {
+        version: u32,
+        os: String,
+        arch: String,
+    },
 
     #[error("Failed to get java properties: {reason}")]
     FailedToGetProperties { reason: String },

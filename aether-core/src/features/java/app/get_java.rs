@@ -15,19 +15,16 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
         }
     }
 
-    pub async fn execute(&self, version: u32) -> crate::Result<Java> {
-        let java = self.storage.get(version).await?;
+    pub async fn execute(&self, version: u32) -> Result<Java, JavaError> {
+        let java = self
+            .storage
+            .get(version)
+            .await?
+            .ok_or(JavaError::JreNotFound { version })?;
 
-        let get_error = || JavaError::JreNotFound { version };
-
-        if let Some(java) = java {
-            Ok(self
-                .java_installation_service
-                .locate_java(Path::new(&java.path))
-                .await
-                .ok_or_else(get_error)?)
-        } else {
-            Err(get_error().into())
-        }
+        self.java_installation_service
+            .locate_java(Path::new(&java.path))
+            .await
+            .ok_or(JavaError::JreNotFound { version })
     }
 }
