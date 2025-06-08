@@ -4,8 +4,8 @@ use crate::{libs::request_client::RequestError, shared::StorageError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum JavaError {
-    #[error("No JRE found for version {version}")]
-    JreNotFound { version: u32 },
+    #[error("No java found for version {version}")]
+    JavaNotFound { version: u32 },
 
     #[error("No JRE found at path: {path:?}")]
     InvalidPath { path: PathBuf },

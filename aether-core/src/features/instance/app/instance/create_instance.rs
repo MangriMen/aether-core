@@ -9,14 +9,20 @@ use extism_convert::{encoding, Json};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
-use crate::features::{
-    events::{EventEmitter, EventEmitterExt, ProgressService},
-    instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceWatcherService, PackInfo},
-    minecraft::{
-        InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
-        ReadMetadataStorage,
+use crate::{
+    features::{
+        events::{EventEmitter, EventEmitterExt, ProgressService},
+        instance::{
+            Instance, InstanceInstallStage, InstanceStorage, InstanceWatcherService, PackInfo,
+        },
+        java::{JavaInstallationService, JavaStorage},
+        minecraft::{
+            InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+            ReadMetadataStorage,
+        },
+        settings::{Hooks, LocationInfo},
     },
-    settings::{Hooks, LocationInfo},
+    libs::request_client::RequestClient,
 };
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -39,10 +45,13 @@ pub struct CreateInstanceUseCase<
     MD: MinecraftDownloader,
     PS: ProgressService,
     IWS: InstanceWatcherService,
+    JIS: JavaInstallationService,
+    JS: JavaStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
     location_info: Arc<LocationInfo>,
     event_emitter: Arc<E>,
     instance_watcher_service: Arc<IWS>,
@@ -55,12 +64,15 @@ impl<
         MD: MinecraftDownloader,
         PS: ProgressService,
         IWS: InstanceWatcherService,
-    > CreateInstanceUseCase<IS, MS, E, MD, PS, IWS>
+        JIS: JavaInstallationService,
+        JS: JavaStorage,
+        RC: RequestClient,
+    > CreateInstanceUseCase<IS, MS, E, MD, PS, IWS, JIS, JS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
         location_info: Arc<LocationInfo>,
         event_emitter: Arc<E>,
         instance_watcher_service: Arc<IWS>,

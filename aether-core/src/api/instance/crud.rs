@@ -8,6 +8,10 @@ use crate::{
             InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
             RemoveInstanceUseCase,
         },
+        java::{
+            infra::{AzulJreProvider, FsJavaInstallationService},
+            GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
+        },
         minecraft::{
             AssetsService, ClientService, GetVersionManifestUseCase, InstallMinecraftUseCase,
             LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
@@ -52,6 +56,25 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         lazy_locator.get_progress_service().await,
     );
 
+    let get_java_use_case = Arc::new(GetJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+    ));
+
+    let jre_provider = Arc::new(AzulJreProvider::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+    ));
+
+    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
+
+    let install_java_use_case = Arc::new(InstallJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+        install_jre_use_case,
+        state.location_info.clone(),
+    ));
+
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
@@ -59,6 +82,9 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
         minecraft_download_service,
+        FsJavaInstallationService,
+        get_java_use_case.clone(),
+        install_java_use_case.clone(),
     ));
 
     CreateInstanceUseCase::new(
@@ -110,6 +136,25 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
         lazy_locator.get_progress_service().await,
     );
 
+    let get_java_use_case = Arc::new(GetJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+    ));
+
+    let jre_provider = Arc::new(AzulJreProvider::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+    ));
+
+    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
+
+    let install_java_use_case = Arc::new(InstallJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+        install_jre_use_case,
+        state.location_info.clone(),
+    ));
+
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
@@ -117,6 +162,9 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
         get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
         minecraft_download_service,
+        FsJavaInstallationService,
+        get_java_use_case.clone(),
+        install_java_use_case.clone(),
     ));
 
     InstallInstanceUseCase::new(

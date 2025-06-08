@@ -1,9 +1,9 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::java::{
-        self, get_java_from_path,
+        self,
         infra::{AzulJreProvider, FsJavaInstallationService},
         GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
     },
@@ -41,9 +41,4 @@ pub async fn get(version: u32) -> crate::Result<java::Java> {
     );
 
     Ok(get_java_use_case.execute(version).await?)
-}
-
-#[tracing::instrument]
-pub async fn get_from_path(path: &Path) -> crate::Result<java::Java> {
-    Ok(get_java_from_path(path).await?)
 }

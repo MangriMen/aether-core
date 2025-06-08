@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
-use crate::features::{
-    events::ProgressService,
-    instance::{Instance, InstanceInstallStage, InstanceStorage},
-    minecraft::{InstallMinecraftUseCase, MinecraftDownloader, ReadMetadataStorage},
+use crate::{
+    features::{
+        events::ProgressService,
+        instance::{Instance, InstanceInstallStage, InstanceStorage},
+        java::{JavaInstallationService, JavaStorage},
+        minecraft::{InstallMinecraftUseCase, MinecraftDownloader, ReadMetadataStorage},
+    },
+    libs::request_client::RequestClient,
 };
 
 pub struct InstallInstanceUseCase<
@@ -11,9 +15,12 @@ pub struct InstallInstanceUseCase<
     MS: ReadMetadataStorage,
     MD: MinecraftDownloader,
     PS: ProgressService,
+    JIS: JavaInstallationService,
+    JS: JavaStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
 }
 
 impl<
@@ -21,11 +28,14 @@ impl<
         MS: ReadMetadataStorage,
         MD: MinecraftDownloader,
         PS: ProgressService,
-    > InstallInstanceUseCase<IS, MS, MD, PS>
+        JIS: JavaInstallationService,
+        JS: JavaStorage,
+        RC: RequestClient,
+    > InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
     ) -> Self {
         Self {
             instance_storage,

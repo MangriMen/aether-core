@@ -49,8 +49,7 @@ impl<JS: JavaStorage, JIS: JavaInstallationService, PS: ProgressService, RC: Req
         let java = self
             .java_installation_service
             .locate_java(&installed_jre_path)
-            .await
-            .ok_or(JavaError::JreNotFound { version })?;
+            .await?;
 
         self.storage.upsert(&java).await?;
 

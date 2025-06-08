@@ -4,6 +4,10 @@ use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::{
         auth::Credentials,
+        java::{
+            infra::{AzulJreProvider, FsJavaInstallationService},
+            GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
+        },
         minecraft::{
             AssetsService, ClientService, GetVersionManifestUseCase, InstallMinecraftUseCase,
             LaunchMinecraftUseCase, LaunchWithActiveAccountUseCase, LaunchWithCredentialsUseCase,
@@ -52,13 +56,39 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
         lazy_locator.get_progress_service().await,
     );
 
+    let get_java_use_case = Arc::new(GetJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+    ));
+
+    let jre_provider = Arc::new(AzulJreProvider::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+    ));
+
+    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
+
+    let install_java_use_case = Arc::new(InstallJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+        install_jre_use_case,
+        state.location_info.clone(),
+    ));
+
+    let get_loader_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
+
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
-        get_version_manifest_use_case.clone(),
+        get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
         minecraft_download_service,
+        FsJavaInstallationService,
+        get_java_use_case.clone(),
+        install_java_use_case.clone(),
     ));
 
     let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(
@@ -102,6 +132,8 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
         get_process_by_instance_id_use_case,
         start_process_use_case,
         minecraft_download_service,
+        FsJavaInstallationService,
+        get_java_use_case.clone(),
     );
 
     let launch_with_credentials_use_case = LaunchWithCredentialsUseCase::new(
@@ -158,13 +190,39 @@ pub async fn run_credentials(
         lazy_locator.get_progress_service().await,
     );
 
+    let get_java_use_case = Arc::new(GetJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+    ));
+
+    let jre_provider = Arc::new(AzulJreProvider::new(
+        lazy_locator.get_progress_service().await,
+        lazy_locator.get_request_client().await,
+    ));
+
+    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
+
+    let install_java_use_case = Arc::new(InstallJavaUseCase::new(
+        lazy_locator.get_java_storage().await,
+        FsJavaInstallationService,
+        install_jre_use_case,
+        state.location_info.clone(),
+    ));
+
+    let get_loader_manifest_use_case = Arc::new(GetVersionManifestUseCase::new(
+        lazy_locator.get_metadata_storage().await,
+    ));
+
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
-        get_version_manifest_use_case.clone(),
+        get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
         minecraft_download_service,
+        FsJavaInstallationService,
+        get_java_use_case.clone(),
+        install_java_use_case.clone(),
     ));
 
     let get_process_by_instance_id_use_case = Arc::new(GetProcessMetadataByInstanceIdUseCase::new(
@@ -208,6 +266,8 @@ pub async fn run_credentials(
         get_process_by_instance_id_use_case,
         start_process_use_case,
         minecraft_download_service,
+        FsJavaInstallationService,
+        get_java_use_case.clone(),
     );
 
     LaunchWithCredentialsUseCase::new(

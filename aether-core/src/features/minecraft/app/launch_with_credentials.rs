@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
-use crate::features::{
-    auth::Credentials,
-    events::{EventEmitter, ProgressService},
-    instance::{Instance, InstanceStorage},
-    minecraft::{LaunchSettings, MinecraftDownloader, ReadMetadataStorage},
-    process::{MinecraftProcessMetadata, ProcessStorage},
-    settings::{Hooks, Settings, SettingsStorage},
+use crate::{
+    features::{
+        auth::Credentials,
+        events::{EventEmitter, ProgressService},
+        instance::{Instance, InstanceStorage},
+        java::{JavaInstallationService, JavaStorage},
+        minecraft::{LaunchSettings, MinecraftDownloader, ReadMetadataStorage},
+        process::{MinecraftProcessMetadata, ProcessStorage},
+        settings::{Hooks, Settings, SettingsStorage},
+    },
+    libs::request_client::RequestClient,
 };
 
 use super::LaunchMinecraftUseCase;
@@ -19,10 +23,13 @@ pub struct LaunchWithCredentialsUseCase<
     E: EventEmitter,
     MD: MinecraftDownloader,
     PGS: ProgressService,
+    JIS: JavaInstallationService,
+    JS: JavaStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
     settings_storage: Arc<SS>,
-    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, MD, PGS>,
+    launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, MD, PGS, JIS, JS, RC>,
 }
 
 impl<
@@ -33,12 +40,15 @@ impl<
         E: EventEmitter,
         MD: MinecraftDownloader,
         PGS: ProgressService,
-    > LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS>
+        JIS: JavaInstallationService,
+        JS: JavaStorage,
+        RC: RequestClient,
+    > LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS, JIS, JS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         settings_storage: Arc<SS>,
-        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, MD, PGS>,
+        launch_minecraft_use_case: LaunchMinecraftUseCase<IS, MS, PS, E, MD, PGS, JIS, JS, RC>,
     ) -> Self {
         Self {
             instance_storage,

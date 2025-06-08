@@ -1,15 +1,18 @@
 use std::{path::Path, sync::Arc};
 
-use crate::features::{
-    events::{ProgressBarId, ProgressEventType, ProgressService},
-    instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExt},
-    java::Java,
-    minecraft::{
-        get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,
-        GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
-        ModLoaderProcessor, ReadMetadataStorage,
+use crate::{
+    features::{
+        events::{ProgressBarId, ProgressEventType, ProgressService},
+        instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExt},
+        java::{GetJavaUseCase, InstallJavaUseCase, Java, JavaInstallationService, JavaStorage},
+        minecraft::{
+            get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,
+            GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+            ModLoaderProcessor, ReadMetadataStorage,
+        },
+        settings::LocationInfo,
     },
-    settings::LocationInfo,
+    libs::request_client::RequestClient,
 };
 
 pub struct InstallMinecraftUseCase<
@@ -17,6 +20,9 @@ pub struct InstallMinecraftUseCase<
     MS: ReadMetadataStorage,
     MD: MinecraftDownloader,
     PS: ProgressService,
+    JIS: JavaInstallationService,
+    JS: JavaStorage,
+    RC: RequestClient,
 > {
     progress_service: Arc<PS>,
     instance_storage: Arc<IS>,
@@ -24,6 +30,9 @@ pub struct InstallMinecraftUseCase<
     get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
     location_info: Arc<LocationInfo>,
     minecraft_download_service: MD,
+    java_installation_service: JIS,
+    get_java_use_case: Arc<GetJavaUseCase<JS, JIS>>,
+    install_java_use_case: Arc<InstallJavaUseCase<JS, JIS, PS, RC>>,
 }
 
 impl<
@@ -31,7 +40,10 @@ impl<
         MS: ReadMetadataStorage,
         MD: MinecraftDownloader,
         PS: ProgressService,
-    > InstallMinecraftUseCase<IS, MS, MD, PS>
+        JIS: JavaInstallationService,
+        JS: JavaStorage,
+        RC: RequestClient,
+    > InstallMinecraftUseCase<IS, MS, MD, PS, JIS, JS, RC>
 {
     pub fn new(
         progress_service: Arc<PS>,
@@ -40,6 +52,9 @@ impl<
         get_version_manifest_use_case: Arc<GetVersionManifestUseCase<MS>>,
         location_info: Arc<LocationInfo>,
         minecraft_download_service: MD,
+        java_installation_service: JIS,
+        get_java_use_case: Arc<GetJavaUseCase<JS, JIS>>,
+        install_java_use_case: Arc<InstallJavaUseCase<JS, JIS, PS, RC>>,
     ) -> Self {
         Self {
             progress_service,
@@ -48,6 +63,9 @@ impl<
             get_version_manifest_use_case,
             location_info,
             minecraft_download_service,
+            java_installation_service,
+            get_java_use_case,
+            install_java_use_case,
         }
     }
 
@@ -176,15 +194,24 @@ impl<
                 .await?;
 
             let java = if let Some(java_path) = instance.java_path.as_ref() {
-                Ok(crate::features::java::get_java_from_path(Path::new(java_path)).await?)
+                self.java_installation_service
+                    .locate_java(Path::new(java_path))
+                    .await
             } else {
                 let compatible_java_version = get_compatible_java_version(&version_info);
 
-                let java = crate::api::java::get(compatible_java_version).await;
+                let java = self
+                    .get_java_use_case
+                    .execute(compatible_java_version)
+                    .await;
 
                 match java {
                     Ok(java) => Ok(java),
-                    Err(_) => crate::api::java::install(compatible_java_version).await,
+                    Err(_) => {
+                        self.install_java_use_case
+                            .execute(compatible_java_version)
+                            .await
+                    }
                 }
             }?;
 
