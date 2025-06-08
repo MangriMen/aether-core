@@ -4,6 +4,9 @@ use crate::{libs::request_client::RequestError, shared::StorageError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum JavaError {
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
+
     #[error("No java found for version {version}")]
     JavaNotFound { version: u32 },
 
@@ -31,7 +34,4 @@ pub enum JavaError {
 
     #[error("Download error")]
     DownloadError(#[from] RequestError),
-
-    #[error("Storage error: {0}")]
-    StorageError(#[from] StorageError),
 }

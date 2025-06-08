@@ -28,6 +28,8 @@ impl IOError {
     }
 }
 
+// Bytes
+
 pub async fn read_async(path: impl AsRef<std::path::Path>) -> Result<Vec<u8>, IOError> {
     let path_ref = path.as_ref();
 
@@ -54,6 +56,8 @@ pub async fn write_async(
         .map_err(|err| IOError::with_path(err, path_ref.to_string_lossy().to_string()))
 }
 
+// JSON
+
 pub async fn read_json_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
 where
     T: DeserializeOwned,
@@ -63,6 +67,30 @@ where
         .await
         .and_then(|ref it| Ok(serde_json::from_slice(it)?))
 }
+
+pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>
+where
+    T: Serialize,
+{
+    Ok(write_async(path, serde_json::to_vec(&data)?).await?)
+}
+
+pub async fn ensure_read_json_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
+where
+    T: Serialize + DeserializeOwned + Default,
+{
+    let path_ref = path.as_ref();
+
+    if !path_ref.exists() {
+        let default = T::default();
+        write_json_async(path, &default).await?;
+        return Ok(default);
+    }
+
+    read_json_async(path).await
+}
+
+// TOML
 
 pub async fn read_toml_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
 where
@@ -78,13 +106,6 @@ where
             })?;
             Ok(toml::from_str(toml_str)?)
         })
-}
-
-pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>
-where
-    T: Serialize,
-{
-    Ok(write_async(path, serde_json::to_vec(&data)?).await?)
 }
 
 pub async fn write_toml_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>

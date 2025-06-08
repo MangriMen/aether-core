@@ -1,12 +1,15 @@
 use tracing_error::InstrumentError;
 
 use crate::{
-    features::{events, file_watcher, java, plugins},
+    features::{auth, events, file_watcher, java, plugins},
     libs::request_client,
 };
 
 #[derive(thiserror::Error, Debug)]
 pub enum ErrorKind {
+    #[error(transparent)]
+    AuthError(#[from] auth::AuthError),
+
     #[error("Event error: {0}")]
     EventError(#[from] events::EventError),
 

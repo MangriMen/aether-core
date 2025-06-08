@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::features::auth::{Credentials, CredentialsStorage};
+use crate::features::auth::{AccountType, AuthError, Credentials, CredentialsStorage};
 
 pub struct CreateOfflineAccountUseCase<CS: CredentialsStorage> {
     credentials_storage: Arc<CS>,
@@ -16,7 +16,7 @@ impl<CS: CredentialsStorage> CreateOfflineAccountUseCase<CS> {
         }
     }
 
-    pub async fn execute(&self, username: String) -> crate::Result<Uuid> {
+    pub async fn execute(&self, username: String) -> Result<Uuid, AuthError> {
         self.credentials_storage
             .upsert(&Credentials {
                 id: Uuid::new_v4(),
@@ -25,6 +25,7 @@ impl<CS: CredentialsStorage> CreateOfflineAccountUseCase<CS> {
                 refresh_token: String::new(),
                 expires: Utc::now(),
                 active: true,
+                account_type: AccountType::Offline,
             })
             .await
     }
