@@ -69,11 +69,7 @@ impl<
     }
 
     pub async fn execute(&self, instance_id: String) -> crate::Result<MinecraftProcessMetadata> {
-        let default_account = self
-            .credentials_storage
-            .get_active()
-            .await?
-            .ok_or_else(|| crate::ErrorKind::NoCredentialsError.as_error())?;
+        let default_account = self.credentials_storage.get_active().await?;
 
         self.launch_with_credentials_use_case
             .execute(instance_id, default_account)

@@ -69,11 +69,6 @@ pub enum ErrorKind {
     #[error("Instance update error: {0}")]
     InstanceUpdateError(String),
 
-    // #[error("Could not create profile: {0}")]
-    // ProfileCreationError(#[from] instance::create::ProfileCreationError),
-    #[error("User is not logged in, no credentials available!")]
-    NoCredentialsError,
-
     #[error("Error parsing date: {0}")]
     ChronoParseError(#[from] chrono::ParseError),
 

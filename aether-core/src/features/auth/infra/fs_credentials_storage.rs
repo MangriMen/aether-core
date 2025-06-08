@@ -119,8 +119,13 @@ impl CredentialsStorage for FsCredentialsStorage {
         self.write(&credentials_list).await
     }
 
-    async fn get_active(&self) -> Result<Option<Credentials>, AuthError> {
-        Ok(self.ensure_read().await?.iter().find(|x| x.active).cloned())
+    async fn get_active(&self) -> Result<Credentials, AuthError> {
+        self.ensure_read()
+            .await?
+            .iter()
+            .find(|x| x.active)
+            .cloned()
+            .ok_or(AuthError::ActiveCredentialsNotFound)
     }
 
     async fn set_active(&self, id: Uuid) -> Result<(), AuthError> {

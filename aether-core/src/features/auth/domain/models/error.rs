@@ -9,4 +9,7 @@ pub enum AuthError {
 
     #[error("Credentials with id: {id} not found")]
     CredentialsNotFound { id: Uuid },
+
+    #[error("Active credentials not found")]
+    ActiveCredentialsNotFound,
 }

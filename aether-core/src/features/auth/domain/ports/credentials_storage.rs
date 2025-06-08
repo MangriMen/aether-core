@@ -10,6 +10,6 @@ pub trait CredentialsStorage: Send + Sync {
     async fn upsert(&self, credentials: &Credentials) -> Result<Uuid, AuthError>;
     async fn remove(&self, id: Uuid) -> Result<(), AuthError>;
 
-    async fn get_active(&self) -> Result<Option<Credentials>, AuthError>;
+    async fn get_active(&self) -> Result<Credentials, AuthError>;
     async fn set_active(&self, id: Uuid) -> Result<(), AuthError>;
 }
