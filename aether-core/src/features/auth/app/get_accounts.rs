@@ -1,20 +1,20 @@
 use std::sync::Arc;
 
-use crate::features::auth::{Account, AuthError, CredentialsStorage};
+use crate::features::auth::{AccountDto, AuthError, CredentialsService};
 
-pub struct GetAccountsUseCase<CS: CredentialsStorage> {
-    credentials_storage: Arc<CS>,
+pub struct GetAccountsUseCase<CS: CredentialsService> {
+    credentials_service: Arc<CS>,
 }
 
-impl<CS: CredentialsStorage> GetAccountsUseCase<CS> {
-    pub fn new(credentials_storage: Arc<CS>) -> Self {
+impl<CS: CredentialsService> GetAccountsUseCase<CS> {
+    pub fn new(credentials_service: Arc<CS>) -> Self {
         Self {
-            credentials_storage,
+            credentials_service,
         }
     }
 
-    pub async fn execute(&self) -> Result<Vec<Account>, AuthError> {
-        let credentials = self.credentials_storage.list().await?;
-        Ok(credentials.into_iter().map(Account::from).collect())
+    pub async fn execute(&self) -> Result<Vec<AccountDto>, AuthError> {
+        let credentials = self.credentials_service.list().await?;
+        Ok(credentials.into_iter().map(AccountDto::from).collect())
     }
 }

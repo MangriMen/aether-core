@@ -48,7 +48,7 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
         let mut settings = self.settings_storage.get().await?;
         if !settings.enabled_plugins.contains(&plugin_id) {
             settings.enabled_plugins.insert(plugin_id.to_string());
-            self.settings_storage.upsert(&settings).await?;
+            self.settings_storage.upsert(settings).await?;
         }
 
         Ok(())

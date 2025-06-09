@@ -9,7 +9,7 @@ use crate::{
         process::ProcessStorage,
         settings::LocationInfo,
     },
-    shared::{IOError, SerializableCommand},
+    shared::{IoError, SerializableCommand},
 };
 
 use super::{TrackProcessParams, TrackProcessUseCase};
@@ -76,7 +76,7 @@ impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
                 if let Ok(cmd) = SerializableCommand::from_string(&command, Some(&instance_dir)) {
                     cmd.to_tokio_command()
                         .spawn()
-                        .map_err(|e| IOError::with_path(e, instance_dir))?;
+                        .map_err(|e| IoError::with_path(e, instance_dir))?;
                 }
             }
         }

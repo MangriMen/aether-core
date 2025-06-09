@@ -1,7 +1,7 @@
 use tracing_error::InstrumentError;
 
 use crate::{
-    features::{auth, events, file_watcher, java, plugins},
+    features::{auth, events, file_watcher, java, plugins, settings},
     libs::request_client,
 };
 
@@ -22,6 +22,9 @@ pub enum ErrorKind {
     #[error("Plugin error ({0}): {1}")]
     PluginError(String, plugins::PluginError),
 
+    #[error(transparent)]
+    SettingsError(#[from] settings::SettingsError),
+
     #[error("Request error: {0}")]
     RequestError(#[from] request_client::RequestError),
 
@@ -37,7 +40,7 @@ pub enum ErrorKind {
     MetadataError(#[from] daedalus::Error),
 
     #[error("I/O error: {0}")]
-    IOError(#[from] crate::shared::IOError),
+    IOError(#[from] crate::shared::IoError),
 
     #[error("I/O (std) error: {0}")]
     StdIOError(#[from] std::io::Error),

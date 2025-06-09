@@ -37,7 +37,7 @@ impl FsMetadataStorage {
 
         let value = read_json_async::<CachedValue<T>>(path)
             .await
-            .map_err(|err| StorageError::ReadError(err.raw.to_string()))?;
+            .map_err(|err| StorageError::ReadError(err.to_string()))?;
 
         if let Some(ttl) = self.ttl {
             if value.is_expired(ttl) {
@@ -56,7 +56,7 @@ impl FsMetadataStorage {
     {
         write_json_async(path, CachedValue::new(value))
             .await
-            .map_err(|err| StorageError::WriteError(err.raw.to_string()))
+            .map_err(|err| StorageError::WriteError(err.to_string()))
     }
 
     fn version_manifest_path(&self) -> PathBuf {

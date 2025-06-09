@@ -5,14 +5,14 @@ use crate::features::auth::{AccountType, Credentials};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Account {
+pub struct AccountDto {
     pub id: Uuid,
     pub username: String,
     pub active: bool,
     pub account_type: AccountType,
 }
 
-impl From<Credentials> for Account {
+impl From<Credentials> for AccountDto {
     fn from(credentials: Credentials) -> Self {
         Self {
             id: credentials.id,

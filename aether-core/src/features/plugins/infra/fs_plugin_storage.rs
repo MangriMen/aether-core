@@ -28,7 +28,7 @@ impl FsPluginStorage {
     }
 
     async fn load_manifest(dir: &Path) -> crate::Result<PluginManifest> {
-        read_toml_async(&Self::get_metadata_path(dir)).await
+        Ok(read_toml_async(&Self::get_metadata_path(dir)).await?)
     }
 
     async fn calc_hash(dir: &Path, manifest: &PluginManifest) -> crate::Result<String> {

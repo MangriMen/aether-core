@@ -19,7 +19,7 @@ use crate::{
         },
     },
     libs::request_client::RequestClient,
-    shared::{IOError, SerializableCommand},
+    shared::{IoError, SerializableCommand},
     with_mut_ref,
 };
 
@@ -309,10 +309,10 @@ async fn run_pre_launch_command(
             let result = cmd
                 .to_tokio_command()
                 .spawn()
-                .map_err(|e| IOError::with_path(e, working_dir))?
+                .map_err(|e| IoError::with_path(e, working_dir))?
                 .wait()
                 .await
-                .map_err(IOError::from)?;
+                .map_err(IoError::from)?;
 
             if !result.success() {
                 return Err(crate::ErrorKind::LauncherError(format!(

@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::features::auth::{AuthError, Credentials};
 
 #[async_trait]
-pub trait CredentialsStorage: Send + Sync {
+pub trait CredentialsService: Send + Sync {
     async fn list(&self) -> Result<Vec<Credentials>, AuthError>;
     async fn get(&self, id: Uuid) -> Result<Credentials, AuthError>;
     async fn upsert(&self, credentials: Credentials) -> Result<Credentials, AuthError>;
@@ -12,6 +12,4 @@ pub trait CredentialsStorage: Send + Sync {
 
     async fn get_active(&self) -> Result<Credentials, AuthError>;
     async fn set_active(&self, id: Uuid) -> Result<Credentials, AuthError>;
-
-    async fn deactivate_all(&self) -> Result<(), AuthError>;
 }

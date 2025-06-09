@@ -46,7 +46,7 @@ impl FsPackStorage {
 
         read_toml_async(&file)
             .await
-            .map_err(|err| StorageError::ReadError(err.raw.to_string()))
+            .map_err(|err| StorageError::ReadError(err.to_string()))
     }
 
     async fn ensure_read<T>(&self, file: &Path) -> Result<T, StorageError>
@@ -61,7 +61,7 @@ impl FsPackStorage {
 
         read_toml_async(&file)
             .await
-            .map_err(|err| StorageError::ReadError(err.raw.to_string()))
+            .map_err(|err| StorageError::ReadError(err.to_string()))
     }
 
     async fn write<T>(&self, file: &Path, data: &T) -> Result<(), StorageError>
@@ -70,7 +70,7 @@ impl FsPackStorage {
     {
         write_toml_async(&file, &data)
             .await
-            .map_err(|err| StorageError::WriteError(err.raw.to_string()))
+            .map_err(|err| StorageError::WriteError(err.to_string()))
     }
 }
 

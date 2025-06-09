@@ -18,7 +18,7 @@ use crate::{
         settings::LocationInfo,
     },
     processor_rules,
-    shared::IOError,
+    shared::IoError,
     with_mut_ref,
 };
 
@@ -69,7 +69,7 @@ impl<PS: ProgressService> ForgeProcessor<PS> {
             .args(processor_args)
             .output()
             .await
-            .map_err(|e| IOError::with_path(e, &java_version.path))
+            .map_err(|e| IoError::with_path(e, &java_version.path))
             .map_err(|err| {
                 crate::ErrorKind::LauncherError(format!("Error running processor: {err}"))
             })?;
@@ -205,7 +205,7 @@ pub fn get_processor_arguments<T: AsRef<str>>(
 
 pub async fn get_processor_main_class(path: String) -> crate::Result<Option<String>> {
     tokio::task::spawn_blocking(move || {
-        let file = std::fs::File::open(&path).map_err(|e| IOError::with_path(e, &path))?;
+        let file = std::fs::File::open(&path).map_err(|e| IoError::with_path(e, &path))?;
         let mut archive = zip::ZipArchive::new(file).map_err(|_| {
             crate::ErrorKind::LauncherError(format!("Cannot read processor at {}", path)).as_error()
         })?;
@@ -218,7 +218,7 @@ pub async fn get_processor_main_class(path: String) -> crate::Result<Option<Stri
         let reader = BufReader::new(manifest);
 
         for line in reader.lines() {
-            let line = line.map_err(IOError::from)?;
+            let line = line.map_err(IoError::from)?;
             let trimmed_line = line.trim();
 
             if let Some(class) = trimmed_line.strip_prefix("Main-Class:") {

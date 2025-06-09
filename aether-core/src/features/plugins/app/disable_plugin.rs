@@ -49,7 +49,7 @@ impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
         let mut settings = self.settings_storage.get().await?;
         if !settings.enabled_plugins.contains(&plugin_id) {
             settings.enabled_plugins.remove(&plugin_id);
-            self.settings_storage.upsert(&settings).await?;
+            self.settings_storage.upsert(settings).await?;
         }
 
         Ok(())

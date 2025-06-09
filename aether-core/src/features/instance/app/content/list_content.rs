@@ -11,7 +11,7 @@ use crate::{
         instance::{ContentType, InstanceFile, PackEntry, PackFile, PackStorage},
         settings::LocationInfo,
     },
-    shared::{read_async, sha1_async, IOError},
+    shared::{read_async, sha1_async, IoError},
 };
 
 pub struct ListContentUseCase<PS: PackStorage> {
@@ -55,9 +55,9 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         }
 
         for entry in
-            std::fs::read_dir(&content_dir).map_err(|e| IOError::with_path(e, &content_dir))?
+            std::fs::read_dir(&content_dir).map_err(|e| IoError::with_path(e, &content_dir))?
         {
-            let entry_path = entry.map_err(IOError::from)?.path();
+            let entry_path = entry.map_err(IoError::from)?.path();
 
             if !entry_path.is_file() {
                 continue;
@@ -86,7 +86,7 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
             None => return Ok(None),
         };
 
-        let file_size = file_path.metadata().map_err(IOError::from)?.len();
+        let file_size = file_path.metadata().map_err(IoError::from)?.len();
 
         let original_path = PathBuf::from(content_type.get_folder())
             .join(file_name)

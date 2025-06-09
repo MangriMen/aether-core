@@ -9,7 +9,7 @@ use crate::{
         events::{EventEmitter, EventEmitterExt, ProcessEventType},
         process::{MinecraftProcess, MinecraftProcessMetadata, ProcessStorage},
     },
-    shared::IOError,
+    shared::IoError,
 };
 
 use super::{ManageProcessParams, ManageProcessUseCase, TrackProcessUseCase};
@@ -33,7 +33,7 @@ impl<E: EventEmitter, PS: ProcessStorage> StartProcessUseCase<E, PS> {
         mut command: Command,
         post_exit_command: Option<String>,
     ) -> crate::Result<MinecraftProcessMetadata> {
-        let minecraft_process = command.spawn().map_err(IOError::from)?;
+        let minecraft_process = command.spawn().map_err(IoError::from)?;
         let process = MinecraftProcess::from_child(instance_id.clone(), minecraft_process);
 
         let metadata = process.metadata.clone();

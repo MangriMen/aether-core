@@ -29,7 +29,7 @@ impl FsPluginSettingsStorage {
 
         let value = read_toml_async::<T>(path)
             .await
-            .map_err(|err| StorageError::ReadError(err.raw.to_string()))?;
+            .map_err(|err| StorageError::ReadError(err.to_string()))?;
 
         Ok(Some(value))
     }
@@ -40,7 +40,7 @@ impl FsPluginSettingsStorage {
     {
         write_toml_async(path, value)
             .await
-            .map_err(|err| StorageError::WriteError(err.raw.to_string()))
+            .map_err(|err| StorageError::WriteError(err.to_string()))
     }
 }
 

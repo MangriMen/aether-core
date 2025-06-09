@@ -32,7 +32,7 @@ impl FsInstanceStorage {
 
         let value = read_json_async::<T>(path)
             .await
-            .map_err(|err| StorageError::ReadError(err.raw.to_string()))?;
+            .map_err(|err| StorageError::ReadError(err.to_string()))?;
 
         Ok(value)
     }
@@ -43,7 +43,7 @@ impl FsInstanceStorage {
     {
         write_json_async(path, value)
             .await
-            .map_err(|err| StorageError::WriteError(err.raw.to_string()))
+            .map_err(|err| StorageError::WriteError(err.to_string()))
     }
 }
 

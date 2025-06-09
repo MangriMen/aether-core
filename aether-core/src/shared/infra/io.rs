@@ -1,9 +1,8 @@
-use futures::TryFutureExt;
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::fs::create_dir_all;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, thiserror::Error)]
-pub enum IOError {
+pub enum IoError {
     #[error("{source}, path: {path}")]
     IOPathError {
         #[source]
@@ -12,70 +11,70 @@ pub enum IOError {
     },
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
 }
 
-impl IOError {
+impl IoError {
     pub fn from(source: std::io::Error) -> Self {
         Self::IOError(source)
     }
-    pub fn with_path(source: std::io::Error, path: impl AsRef<std::path::Path>) -> Self {
-        let path = path.as_ref();
 
+    pub fn with_path(source: std::io::Error, path: impl AsRef<Path>) -> Self {
         Self::IOPathError {
             source,
-            path: path.to_string_lossy().to_string(),
+            path: path.as_ref().to_string_lossy().to_string(),
         }
     }
 }
 
 // Bytes
 
-pub async fn read_async(path: impl AsRef<std::path::Path>) -> Result<Vec<u8>, IOError> {
+pub async fn read_async(path: impl AsRef<Path>) -> Result<Vec<u8>, IoError> {
     let path_ref = path.as_ref();
-
     tokio::fs::read(path_ref)
         .await
-        .map_err(|err| IOError::with_path(err, path_ref.to_string_lossy().to_string()))
+        .map_err(|err| IoError::with_path(err, path_ref))
 }
 
-pub async fn write_async(
-    path: impl AsRef<std::path::Path>,
-    data: impl AsRef<[u8]>,
-) -> Result<(), IOError> {
+pub async fn write_async(path: impl AsRef<Path>, data: impl AsRef<[u8]>) -> Result<(), IoError> {
     let path_ref = path.as_ref();
-    let data_ref = data.as_ref();
 
-    if !path_ref.exists() {
-        if let Some(parent) = path_ref.parent() {
-            create_dir_all(parent).await?;
-        }
+    if let Some(parent) = path_ref.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|err| IoError::with_path(err, parent))?;
     }
 
-    tokio::fs::write(path_ref, data_ref)
+    tokio::fs::write(path_ref, data)
         .await
-        .map_err(|err| IOError::with_path(err, path_ref.to_string_lossy().to_string()))
+        .map_err(|err| IoError::with_path(err, path_ref))
 }
 
 // JSON
 
-pub async fn read_json_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
+pub async fn read_json_async<T>(path: impl AsRef<Path>) -> Result<T, IoError>
 where
     T: DeserializeOwned,
 {
-    read_async(&path)
-        .err_into::<crate::Error>()
-        .await
-        .and_then(|ref it| Ok(serde_json::from_slice(it)?))
+    let bytes = read_async(&path).await?;
+    serde_json::from_slice(&bytes).map_err(|e| IoError::DeserializationError(e.to_string()))
 }
 
-pub async fn write_json_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>
+pub async fn write_json_async<T>(path: impl AsRef<Path>, data: T) -> Result<(), IoError>
 where
     T: Serialize,
 {
-    Ok(write_async(path, serde_json::to_vec(&data)?).await?)
+    let bytes =
+        serde_json::to_vec(&data).map_err(|e| IoError::SerializationError(e.to_string()))?;
+    write_async(path, bytes).await
 }
 
-pub async fn ensure_read_json_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
+pub async fn ensure_read_json_async<T>(path: impl AsRef<Path>) -> Result<T, IoError>
 where
     T: Serialize + DeserializeOwned + Default,
 {
@@ -92,58 +91,43 @@ where
 
 // TOML
 
-pub async fn read_toml_async<T>(path: impl AsRef<std::path::Path>) -> crate::Result<T>
+pub async fn read_toml_async<T>(path: impl AsRef<Path>) -> Result<T, IoError>
 where
     T: DeserializeOwned,
 {
-    read_async(&path)
-        .err_into::<crate::Error>()
-        .await
-        .and_then(|ref it| {
-            let toml_str = std::str::from_utf8(it).map_err(|_| {
-                crate::ErrorKind::NoValueFor(format!("Can't read TOML at {:?}", path.as_ref()))
-                    .as_error()
-            })?;
-            Ok(toml::from_str(toml_str)?)
-        })
+    let bytes = read_async(&path).await?;
+    let toml_str =
+        std::str::from_utf8(&bytes).map_err(|e| IoError::DeserializationError(e.to_string()))?;
+
+    toml::from_str(toml_str).map_err(|e| IoError::DeserializationError(e.to_string()))
 }
 
-pub async fn write_toml_async<T>(path: impl AsRef<std::path::Path>, data: T) -> crate::Result<()>
+pub async fn write_toml_async<T>(path: impl AsRef<Path>, data: T) -> Result<(), IoError>
 where
     T: Serialize,
 {
-    Ok(write_async(path, toml::to_string(&data)?).await?)
+    let toml_str =
+        toml::to_string(&data).map_err(|e| IoError::SerializationError(e.to_string()))?;
+    write_async(path, toml_str).await
 }
 
 // dunce canonicalize
-pub fn canonicalize(path: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, IOError> {
-    let path = path.as_ref();
-    dunce::canonicalize(path).map_err(|e| IOError::IOPathError {
-        source: e,
-        path: path.to_string_lossy().to_string(),
-    })
+
+pub fn canonicalize(path: impl AsRef<Path>) -> Result<PathBuf, IoError> {
+    let path_ref = path.as_ref();
+    dunce::canonicalize(path_ref).map_err(|e| IoError::with_path(e, path_ref))
 }
 
-pub async fn rename(
-    from: impl AsRef<std::path::Path>,
-    to: impl AsRef<std::path::Path>,
-) -> Result<(), IOError> {
-    let from = from.as_ref();
-    let to = to.as_ref();
-    tokio::fs::rename(from, to)
+pub async fn rename(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<(), IoError> {
+    let from_ref = from.as_ref();
+    tokio::fs::rename(from_ref, to.as_ref())
         .await
-        .map_err(|e| IOError::IOPathError {
-            source: e,
-            path: from.to_string_lossy().to_string(),
-        })
+        .map_err(|e| IoError::with_path(e, from_ref))
 }
 
-pub async fn remove_file(path: impl AsRef<std::path::Path>) -> Result<(), IOError> {
-    let path = path.as_ref();
-    tokio::fs::remove_file(path)
+pub async fn remove_file(path: impl AsRef<Path>) -> Result<(), IoError> {
+    let path_ref = path.as_ref();
+    tokio::fs::remove_file(path_ref)
         .await
-        .map_err(|e| IOError::IOPathError {
-            source: e,
-            path: path.to_string_lossy().to_string(),
-        })
+        .map_err(|e| IoError::with_path(e, path_ref))
 }

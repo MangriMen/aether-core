@@ -2,20 +2,20 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::features::auth::{AuthError, CredentialsStorage};
+use crate::features::auth::{AuthError, CredentialsService};
 
-pub struct LogoutUseCase<CS: CredentialsStorage> {
-    credentials_storage: Arc<CS>,
+pub struct LogoutUseCase<CS: CredentialsService> {
+    credentials_service: Arc<CS>,
 }
 
-impl<CS: CredentialsStorage> LogoutUseCase<CS> {
-    pub fn new(credentials_storage: Arc<CS>) -> Self {
+impl<CS: CredentialsService> LogoutUseCase<CS> {
+    pub fn new(credentials_service: Arc<CS>) -> Self {
         Self {
-            credentials_storage,
+            credentials_service,
         }
     }
 
     pub async fn execute(&self, account_id: Uuid) -> Result<(), AuthError> {
-        self.credentials_storage.remove(account_id).await
+        self.credentials_service.remove(account_id).await
     }
 }
