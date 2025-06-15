@@ -35,9 +35,9 @@ pub struct LaunchWithCredentialsUseCase<
 impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        PS: ProcessStorage,
+        PS: ProcessStorage + 'static,
         SS: SettingsStorage,
-        E: EventEmitter,
+        E: EventEmitter + 'static,
         MD: MinecraftDownloader,
         PGS: ProgressService,
         JIS: JavaInstallationService,

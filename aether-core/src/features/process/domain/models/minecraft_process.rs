@@ -26,16 +26,16 @@ impl MinecraftProcess {
         }
     }
 
-    pub fn try_wait(&mut self) -> crate::Result<Option<ExitStatus>> {
-        Ok(self.child.try_wait()?)
+    pub fn try_wait(&mut self) -> Result<Option<ExitStatus>, std::io::Error> {
+        self.child.try_wait()
     }
 
-    pub async fn wait(&mut self) -> crate::Result<ExitStatus> {
-        Ok(self.child.wait().await?)
+    pub async fn wait(&mut self) -> Result<ExitStatus, std::io::Error> {
+        self.child.wait().await
     }
 
-    pub async fn kill(&mut self) -> crate::Result<()> {
-        Ok(self.child.kill().await?)
+    pub async fn kill(&mut self) -> Result<(), std::io::Error> {
+        self.child.kill().await
     }
 }
 

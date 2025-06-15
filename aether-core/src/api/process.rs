@@ -36,16 +36,20 @@ pub async fn get_by_instance_id(
 pub async fn kill(uuid: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    KillProcessUseCase::new(lazy_locator.get_process_storage().await)
-        .execute(uuid)
-        .await
+    Ok(
+        KillProcessUseCase::new(lazy_locator.get_process_storage().await)
+            .execute(uuid)
+            .await?,
+    )
 }
 
 #[tracing::instrument]
 pub async fn wait_for(uuid: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    WaitForProcessUseCase::new(lazy_locator.get_process_storage().await)
-        .execute(uuid)
-        .await
+    Ok(
+        WaitForProcessUseCase::new(lazy_locator.get_process_storage().await)
+            .execute(uuid)
+            .await?,
+    )
 }

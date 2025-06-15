@@ -14,7 +14,8 @@ use crate::{
             LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
         },
         process::{
-            GetProcessMetadataByInstanceIdUseCase, MinecraftProcessMetadata, StartProcessUseCase,
+            GetProcessMetadataByInstanceIdUseCase, ManageProcessUseCase, MinecraftProcessMetadata,
+            StartProcessUseCase, TrackProcessUseCase,
         },
     },
 };
@@ -95,9 +96,22 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
         lazy_locator.get_process_storage().await,
     ));
 
+    let track_process_use_case = Arc::new(TrackProcessUseCase::new(
+        lazy_locator.get_process_storage().await,
+        lazy_locator.get_instance_storage().await,
+    ));
+
+    let manage_process_use_case = Arc::new(ManageProcessUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_process_storage().await,
+        track_process_use_case,
+        state.location_info.clone(),
+    ));
+
     let start_process_use_case = Arc::new(StartProcessUseCase::new(
         lazy_locator.get_event_emitter().await,
         lazy_locator.get_process_storage().await,
+        manage_process_use_case,
     ));
 
     let client_service = ClientService::new(
@@ -229,9 +243,22 @@ pub async fn run_credentials(
         lazy_locator.get_process_storage().await,
     ));
 
+    let track_process_use_case = Arc::new(TrackProcessUseCase::new(
+        lazy_locator.get_process_storage().await,
+        lazy_locator.get_instance_storage().await,
+    ));
+
+    let manage_process_use_case = Arc::new(ManageProcessUseCase::new(
+        lazy_locator.get_event_emitter().await,
+        lazy_locator.get_process_storage().await,
+        track_process_use_case,
+        state.location_info.clone(),
+    ));
+
     let start_process_use_case = Arc::new(StartProcessUseCase::new(
         lazy_locator.get_event_emitter().await,
         lazy_locator.get_process_storage().await,
+        manage_process_use_case,
     ));
 
     let client_service = ClientService::new(

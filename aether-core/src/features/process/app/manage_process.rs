@@ -6,7 +6,7 @@ use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProcessEventType},
         instance::{EventEmittingInstanceStorage, FsInstanceStorage},
-        process::ProcessStorage,
+        process::{ProcessError, ProcessStorage},
         settings::LocationInfo,
     },
     shared::{IoError, SerializableCommand},
@@ -44,7 +44,7 @@ impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
             location_info,
         }
     }
-    pub async fn execute(&self, params: ManageProcessParams) -> crate::Result<()> {
+    pub async fn execute(&self, params: ManageProcessParams) -> Result<(), ProcessError> {
         let ManageProcessParams {
             process_uuid,
             instance_id,
@@ -62,13 +62,13 @@ impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
         self.process_storage.remove(process_uuid).await;
 
         self.event_emitter
-            .emit_process(
+            .emit_process_safe(
                 instance_id.clone(),
                 process_uuid,
                 "Exited process".to_string(),
                 ProcessEventType::Finished,
             )
-            .await?;
+            .await;
 
         if mc_exit_status.success() {
             if let Some(command) = post_exit_command {

@@ -36,10 +36,10 @@ pub struct LaunchWithActiveAccountUseCase<
 impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        PS: ProcessStorage,
+        PS: ProcessStorage + 'static,
         CS: CredentialsStorage,
         SS: SettingsStorage,
-        E: EventEmitter,
+        E: EventEmitter + 'static,
         MD: MinecraftDownloader,
         PGS: ProgressService,
         JIS: JavaInstallationService,

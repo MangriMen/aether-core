@@ -1,7 +1,7 @@
 use tracing_error::InstrumentError;
 
 use crate::{
-    features::{auth, events, file_watcher, java, plugins, settings},
+    features::{auth, events, file_watcher, java, plugins, process, settings},
     libs::request_client,
 };
 
@@ -21,6 +21,9 @@ pub enum ErrorKind {
 
     #[error("Plugin error ({0}): {1}")]
     PluginError(String, plugins::PluginError),
+
+    #[error(transparent)]
+    ProcessError(#[from] process::ProcessError),
 
     #[error(transparent)]
     SettingsError(#[from] settings::SettingsError),

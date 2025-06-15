@@ -53,8 +53,8 @@ pub struct LaunchMinecraftUseCase<
 impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
-        PS: ProcessStorage,
-        E: EventEmitter,
+        PS: ProcessStorage + 'static,
+        E: EventEmitter + 'static,
         MD: MinecraftDownloader,
         PGS: ProgressService,
         JIS: JavaInstallationService,
@@ -295,7 +295,7 @@ impl<
             }
         }
 
-        metadata
+        Ok(metadata?)
     }
 }
 
