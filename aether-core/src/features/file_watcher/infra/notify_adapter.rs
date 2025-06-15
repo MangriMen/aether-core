@@ -19,7 +19,7 @@ pub struct NotifyFileWatcher<FEH: FileEventHandler> {
 }
 
 impl<FEH: FileEventHandler + 'static> NotifyFileWatcher<FEH> {
-    pub fn new(event_handler: Arc<FEH>) -> crate::Result<Self> {
+    pub fn new(event_handler: Arc<FEH>) -> Result<Self, FileWatcherError> {
         let (mut tx, rx) = channel(1);
 
         let watcher = new_debouncer(
@@ -57,7 +57,7 @@ impl<FEH: FileEventHandler + 'static> NotifyFileWatcher<FEH> {
                             })
                             .collect()
                     })
-                    .map_err(crate::Error::from);
+                    .map_err(FileWatcherError::from);
 
                 if let Err(e) = event_handler.handle_events(events).await {
                     tracing::error!("Failed to handle file events: {}", e);
