@@ -1,5 +1,6 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::{Path, PathBuf};
+use tokio::fs::ReadDir;
 
 #[derive(Debug, thiserror::Error)]
 pub enum IoError {
@@ -128,6 +129,20 @@ pub async fn rename(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<(), 
 pub async fn remove_file(path: impl AsRef<Path>) -> Result<(), IoError> {
     let path_ref = path.as_ref();
     tokio::fs::remove_file(path_ref)
+        .await
+        .map_err(|e| IoError::with_path(e, path_ref))
+}
+
+pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<(), IoError> {
+    let path_ref = path.as_ref();
+    tokio::fs::create_dir_all(path_ref)
+        .await
+        .map_err(|e| IoError::with_path(e, path_ref))
+}
+
+pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir, IoError> {
+    let path_ref = path.as_ref();
+    tokio::fs::read_dir(path_ref)
         .await
         .map_err(|e| IoError::with_path(e, path_ref))
 }

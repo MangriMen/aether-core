@@ -8,10 +8,10 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     features::{
-        plugins::{PluginSettings, PluginSettingsStorage},
+        plugins::{PluginError, PluginSettings, PluginSettingsStorage},
         settings::LocationInfo,
     },
-    shared::{read_toml_async, write_toml_async, StorageError},
+    shared::{read_toml_async, write_toml_async},
 };
 
 pub struct FsPluginSettingsStorage {
@@ -19,7 +19,7 @@ pub struct FsPluginSettingsStorage {
 }
 
 impl FsPluginSettingsStorage {
-    pub async fn read<T>(&self, path: &Path) -> Result<Option<T>, StorageError>
+    pub async fn read<T>(&self, path: &Path) -> Result<Option<T>, PluginError>
     where
         T: DeserializeOwned,
     {
@@ -27,20 +27,16 @@ impl FsPluginSettingsStorage {
             return Ok(None);
         }
 
-        let value = read_toml_async::<T>(path)
-            .await
-            .map_err(|err| StorageError::ReadError(err.to_string()))?;
+        let value = read_toml_async::<T>(path).await?;
 
         Ok(Some(value))
     }
 
-    pub async fn write<T>(&self, path: &Path, value: &T) -> Result<(), StorageError>
+    pub async fn write<T>(&self, path: &Path, value: &T) -> Result<(), PluginError>
     where
         T: Serialize,
     {
-        write_toml_async(path, value)
-            .await
-            .map_err(|err| StorageError::WriteError(err.to_string()))
+        Ok(write_toml_async(path, value).await?)
     }
 }
 
@@ -56,11 +52,11 @@ impl FsPluginSettingsStorage {
 
 #[async_trait]
 impl PluginSettingsStorage for FsPluginSettingsStorage {
-    async fn get(&self, plugin_id: &str) -> Result<Option<PluginSettings>, StorageError> {
+    async fn get(&self, plugin_id: &str) -> Result<Option<PluginSettings>, PluginError> {
         self.read(&self.get_plugin_settings_path(plugin_id)).await
     }
 
-    async fn upsert(&self, plugin_id: &str, settings: &PluginSettings) -> Result<(), StorageError> {
+    async fn upsert(&self, plugin_id: &str, settings: &PluginSettings) -> Result<(), PluginError> {
         self.write(&self.get_plugin_settings_path(plugin_id), settings)
             .await
     }

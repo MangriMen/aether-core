@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::features::plugins::{PathMapping, PluginSettings, PluginSettingsStorage};
+use crate::features::plugins::{PathMapping, PluginError, PluginSettings, PluginSettingsStorage};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EditPluginSettings {
@@ -25,17 +25,17 @@ impl<PSS: PluginSettingsStorage> EditPluginSettingsUseCase<PSS> {
         &self,
         plugin_id: String,
         edit_settings: EditPluginSettings,
-    ) -> crate::Result<()> {
+    ) -> Result<(), PluginError> {
         let current = self
             .plugin_settings_storage
             .get(&plugin_id)
             .await?
             .unwrap_or_default();
         let merged = apply_edit_changes(current, &edit_settings);
-        Ok(self
-            .plugin_settings_storage
+
+        self.plugin_settings_storage
             .upsert(&plugin_id, &merged)
-            .await?)
+            .await
     }
 }
 

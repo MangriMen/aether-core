@@ -10,17 +10,17 @@ pub enum ErrorKind {
     #[error(transparent)]
     AuthError(#[from] auth::AuthError),
 
-    #[error("Event error: {0}")]
+    #[error(transparent)]
     EventError(#[from] events::EventError),
 
-    #[error("File watcher error: {0}")]
+    #[error(transparent)]
     FileWatcherError(#[from] file_watcher::FileWatcherError),
 
-    #[error("JRE error: {0}")]
+    #[error(transparent)]
     JavaError(#[from] java::JavaError),
 
-    #[error("Plugin error ({0}): {1}")]
-    PluginError(String, plugins::PluginError),
+    #[error(transparent)]
+    PluginError(#[from] plugins::PluginError),
 
     #[error(transparent)]
     ProcessError(#[from] process::ProcessError),
@@ -54,9 +54,6 @@ pub enum ErrorKind {
     #[error("Error fetching URL: {0}")]
     FetchError(#[from] reqwest::Error),
 
-    #[error("Invalid input: {0}")]
-    InputError(String),
-
     #[error("Join handle error: {0}")]
     JoinError(#[from] tokio::task::JoinError),
 
@@ -78,29 +75,11 @@ pub enum ErrorKind {
     #[error("Error parsing date: {0}")]
     ChronoParseError(#[from] chrono::ParseError),
 
-    #[error("Zip error: {0}")]
-    ZipError(#[from] async_zip::error::ZipError),
-
-    #[error("File watching error: {0}")]
-    NotifyError(#[from] notify::Error),
-
     #[error("Error stripping prefix: {0}")]
     StripPrefixError(#[from] std::path::StripPrefixError),
 
     #[error("Error: {0}")]
     OtherError(String),
-
-    #[error("Move directory error: {0}")]
-    DirectoryMoveError(String),
-
-    #[error("Plugin not found error: {0}")]
-    PluginNotFoundError(String),
-
-    #[error("Plugin load error: {0}")]
-    PluginLoadError(String),
-
-    #[error("Plugin {0} tried to access disallowed path {1}")]
-    PluginNotAllowedPathError(String, String),
 
     #[error("Serialization error (TOML): {0}")]
     TomlSerializationError(#[from] toml::ser::Error),

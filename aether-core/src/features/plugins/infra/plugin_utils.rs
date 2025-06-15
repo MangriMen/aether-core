@@ -4,7 +4,9 @@ use std::{
 };
 
 use crate::{
-    core::LauncherState, features::settings::LocationInfo, shared::domain::SerializableCommand,
+    core::LauncherState,
+    features::{plugins::PluginError, settings::LocationInfo},
+    shared::{domain::SerializableCommand, IoError},
 };
 
 pub fn get_default_allowed_paths(
@@ -30,7 +32,7 @@ pub fn plugin_path_to_relative<I, T>(
     id: &str,
     path: &str,
     allowed_prefixes: I,
-) -> crate::Result<PathBuf>
+) -> Result<PathBuf, PluginError>
 where
     I: IntoIterator<Item = T>,
     T: AsRef<str>,
@@ -38,8 +40,9 @@ where
     let prefix = allowed_prefixes
         .into_iter()
         .find(|prefix| path.starts_with(prefix.as_ref()))
-        .ok_or_else(|| {
-            crate::ErrorKind::PluginNotAllowedPathError(id.to_string(), path.to_string()).as_error()
+        .ok_or(PluginError::PluginPathAccessViolationError {
+            plugin_id: id.to_owned(),
+            path: path.to_owned(),
         })?;
 
     let stripped = path.strip_prefix(prefix.as_ref()).unwrap_or(path);
@@ -58,31 +61,29 @@ pub fn get_first_segment(path: &str) -> &str {
     }
 }
 
-pub fn plugin_path_to_host(id: &str, path: &str) -> crate::Result<PathBuf> {
+pub fn plugin_path_to_host(id: &str, path: &str) -> Result<PathBuf, PluginError> {
     if !path.starts_with('#') {
         return Ok(PathBuf::from(path));
     }
 
     let state = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(LauncherState::get())
-    })?;
+    })
+    .map_err(|e| PluginError::HostFunctionError(e.to_string()))?;
 
     let cleaned_path_str = path.strip_prefix('#').unwrap_or(path);
     let cleaned_path_start_segment = get_first_segment(cleaned_path_str);
 
     let allowed_paths = get_default_allowed_paths(&state.location_info, id);
-    let base_dir = allowed_paths
-        .get(cleaned_path_start_segment)
-        .ok_or_else(|| {
-            crate::ErrorKind::PluginNotAllowedPathError(
-                id.to_string(),
-                cleaned_path_str.to_string(),
-            )
-            .as_error()
-        })?;
+    let base_dir = allowed_paths.get(cleaned_path_start_segment).ok_or(
+        PluginError::PluginPathAccessViolationError {
+            plugin_id: id.to_owned(),
+            path: path.to_owned(),
+        },
+    )?;
 
     if !base_dir.is_dir() {
-        std::fs::create_dir_all(base_dir)?;
+        std::fs::create_dir_all(base_dir).map_err(|e| IoError::with_path(e, path))?;
     }
 
     let stripped_path = plugin_path_to_relative(id, cleaned_path_str, allowed_paths.keys())?;
@@ -92,24 +93,23 @@ pub fn plugin_path_to_host(id: &str, path: &str) -> crate::Result<PathBuf> {
     let canonical_host = crate::shared::canonicalize(&host_path)?;
 
     if !canonical_host.starts_with(&canonical_base) {
-        return Err(crate::ErrorKind::PluginNotAllowedPathError(
-            id.to_string(),
-            canonical_host.to_string_lossy().to_string(),
-        )
-        .as_error());
+        return Err(PluginError::PluginPathAccessViolationError {
+            plugin_id: id.to_owned(),
+            path: canonical_host.to_string_lossy().to_string(),
+        });
     }
 
     Ok(host_path)
 }
 
-pub fn plugin_path_to_host_from_path(id: &str, path: &Path) -> crate::Result<PathBuf> {
+pub fn plugin_path_to_host_from_path(id: &str, path: &Path) -> Result<PathBuf, PluginError> {
     plugin_path_to_host(id, path.to_string_lossy().as_ref())
 }
 
 pub fn plugin_command_to_host(
     id: &str,
     command: &SerializableCommand,
-) -> crate::Result<SerializableCommand> {
+) -> Result<SerializableCommand, PluginError> {
     let fixed_program = plugin_path_to_host(id, &command.program)
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| command.program.clone());
@@ -118,7 +118,7 @@ pub fn plugin_command_to_host(
         .args
         .iter()
         .map(|arg| plugin_path_to_host(id, arg).map(|p| p.to_string_lossy().to_string()))
-        .collect::<crate::Result<_>>()?;
+        .collect::<Result<_, PluginError>>()?;
 
     let fixed_current_dir = command
         .current_dir

@@ -5,11 +5,11 @@ use crate::features::plugins::PluginInstance;
 
 use super::PluginManifest;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Plugin {
     pub manifest: PluginManifest,
     pub hash: String,
-    pub instance: Option<Arc<Mutex<PluginInstance>>>,
+    pub instance: Option<Arc<Mutex<dyn PluginInstance>>>,
 }
 
 impl Plugin {

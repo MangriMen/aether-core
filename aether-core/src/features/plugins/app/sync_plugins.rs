@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::features::{
-    plugins::{Plugin, PluginLoader, PluginRegistry, PluginStorage},
+    plugins::{Plugin, PluginError, PluginLoader, PluginRegistry, PluginStorage},
     settings::SettingsStorage,
 };
 
@@ -29,7 +29,10 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
         }
     }
 
-    async fn sync_plugins(&self, found_plugins: HashMap<String, Plugin>) -> crate::Result<()> {
+    async fn sync_plugins(
+        &self,
+        found_plugins: HashMap<String, Plugin>,
+    ) -> Result<(), PluginError> {
         let existing_plugins = self.plugin_registry.get_ids();
 
         let new_plugins = found_plugins.keys().cloned().collect::<HashSet<_>>();
@@ -86,7 +89,7 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
         &self,
         existing_plugins: &HashSet<String>,
         new_plugins: &HashSet<String>,
-    ) -> crate::Result<()> {
+    ) -> Result<(), PluginError> {
         for plugin_id in existing_plugins.difference(new_plugins) {
             log::debug!("Removing plugin {}", plugin_id);
             self.remove_plugin(plugin_id).await?;
@@ -94,7 +97,10 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
         Ok(())
     }
 
-    async fn remove_changed_plugins(&self, changed_plugins: &HashSet<String>) -> crate::Result<()> {
+    async fn remove_changed_plugins(
+        &self,
+        changed_plugins: &HashSet<String>,
+    ) -> Result<(), PluginError> {
         for plugin_id in changed_plugins {
             log::debug!("Removing changed plugin {}", plugin_id);
             self.remove_plugin(plugin_id).await?;
@@ -106,7 +112,7 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
         &self,
         plugins_to_add: &HashSet<String>,
         found_plugins: &HashMap<String, Plugin>,
-    ) -> crate::Result<()> {
+    ) -> Result<(), PluginError> {
         for plugin_id in plugins_to_add {
             if let Some(plugin_state) = found_plugins.get(plugin_id) {
                 log::debug!("Adding plugin {}", plugin_id);
@@ -117,7 +123,7 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
         Ok(())
     }
 
-    async fn remove_plugin(&self, plugin_id: &str) -> crate::Result<()> {
+    async fn remove_plugin(&self, plugin_id: &str) -> Result<(), PluginError> {
         self.disable_plugin_use_case
             .execute(plugin_id.to_string())
             .await?;
@@ -125,7 +131,7 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
         Ok(())
     }
 
-    pub async fn execute(&self) -> crate::Result<()> {
+    pub async fn execute(&self) -> Result<(), PluginError> {
         let found_plugins = self.plugin_storage.list().await?;
         self.sync_plugins(found_plugins).await
     }

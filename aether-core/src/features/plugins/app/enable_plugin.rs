@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
-
 use crate::features::{
-    plugins::{PluginLoader, PluginLoaderRegistry, PluginRegistry, PluginSettingsStorage},
+    plugins::{
+        PluginError, PluginLoader, PluginLoaderRegistry, PluginRegistry, PluginSettingsStorage,
+    },
     settings::SettingsStorage,
 };
 
@@ -31,7 +31,7 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
         }
     }
 
-    pub async fn execute(&self, plugin_id: String) -> crate::Result<()> {
+    pub async fn execute(&self, plugin_id: String) -> Result<(), PluginError> {
         let plugin = self.plugin_registry.get(&plugin_id)?;
 
         let plugin_settings = self.plugin_settings_storage.get(&plugin_id).await?;
@@ -43,7 +43,7 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
         let plugin_instance = loader.load(&plugin, &plugin_settings).await?;
 
         let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;
-        plugin.instance = Some(Arc::new(Mutex::new(plugin_instance)));
+        plugin.instance = Some(plugin_instance);
 
         let mut settings = self.settings_storage.get().await?;
         if !settings.enabled_plugins.contains(&plugin_id) {

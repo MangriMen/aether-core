@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
-use crate::{
-    features::{
-        plugins::{PluginLoader, PluginLoaderRegistry, PluginRegistry},
-        settings::SettingsStorage,
-    },
-    ErrorKind,
+use crate::features::{
+    plugins::{PluginError, PluginLoader, PluginLoaderRegistry, PluginRegistry},
+    settings::SettingsStorage,
 };
 
 pub struct DisablePluginUseCase<SS, PL> {
@@ -27,7 +24,7 @@ impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
         }
     }
 
-    pub async fn execute(&self, plugin_id: String) -> crate::Result<()> {
+    pub async fn execute(&self, plugin_id: String) -> Result<(), PluginError> {
         let plugin = self.plugin_registry.get(&plugin_id)?;
 
         let loader = self
@@ -40,10 +37,7 @@ impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
             let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;
             plugin.instance = None;
         } else {
-            return Err(
-                ErrorKind::PluginLoadError(format!("Plugin {} is not loaded", plugin_id))
-                    .as_error(),
-            );
+            return Err(PluginError::PluginNotFoundError { plugin_id });
         }
 
         let mut settings = self.settings_storage.get().await?;

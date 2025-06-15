@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    features::plugins::{LoadConfigType, PluginLoader},
-    ErrorKind,
-};
+use crate::features::plugins::{LoadConfigType, PluginError, PluginLoader};
 
 #[derive(Default)]
 pub struct PluginLoaderRegistry<PL> {
@@ -15,11 +12,12 @@ impl<PL: PluginLoader> PluginLoaderRegistry<PL> {
         Self { loaders }
     }
 
-    pub fn get(&self, load_config_type: &LoadConfigType) -> crate::Result<&PL> {
-        self.loaders.get(load_config_type).ok_or_else(|| {
-            ErrorKind::PluginLoadError(format!("Not found loader for {:?}", &load_config_type))
-                .as_error()
-        })
+    pub fn get(&self, load_config_type: &LoadConfigType) -> Result<&PL, PluginError> {
+        self.loaders
+            .get(load_config_type)
+            .ok_or(PluginError::LoaderNotFoundError {
+                load_config_type: *load_config_type,
+            })
     }
 
     // pub fn list(&self) -> HashMap<LoadConfigType, String> {

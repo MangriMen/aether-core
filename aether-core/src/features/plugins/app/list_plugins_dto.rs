@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::features::plugins::PluginRegistry;
+use crate::features::plugins::{PluginError, PluginRegistry};
 
 use super::PluginDto;
 
@@ -13,7 +13,7 @@ impl ListPluginsDtoUseCase {
         Self { plugin_registry }
     }
 
-    pub async fn execute(&self) -> crate::Result<Vec<PluginDto>> {
+    pub async fn execute(&self) -> Result<Vec<PluginDto>, PluginError> {
         Ok(self.plugin_registry.list().map(PluginDto::from).collect())
     }
 }
