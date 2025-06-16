@@ -3,7 +3,11 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::{
-    features::{auth::Credentials, minecraft::parse_arguments, settings::WindowSize},
+    features::{
+        auth::Credentials,
+        minecraft::{parse_arguments, MinecraftError},
+        settings::WindowSize,
+    },
     shared::canonicalize,
 };
 
@@ -22,7 +26,7 @@ pub fn get_minecraft_arguments(
     version_type: &daedalus::minecraft::VersionType,
     resolution: WindowSize,
     java_arch: &str,
-) -> crate::Result<Vec<String>> {
+) -> Result<Vec<String>, MinecraftError> {
     if let Some(arguments) = arguments {
         let mut parsed_arguments = Vec::new();
 
@@ -81,16 +85,12 @@ fn replace_placeholders_in_argument_string(
     assets_directory: &Path,
     version_type: &daedalus::minecraft::VersionType,
     resolution: WindowSize,
-) -> crate::Result<String> {
-    fn resolve_path(path: &Path, name: &str) -> crate::Result<String> {
+) -> Result<String, MinecraftError> {
+    fn resolve_path(path: &Path, name: &str) -> Result<String, MinecraftError> {
         Ok(canonicalize(path)
-            .map_err(|_| {
-                crate::ErrorKind::LauncherError(format!(
-                    "Specified {} directory {} does not exist",
-                    name,
-                    path.to_string_lossy()
-                ))
-                .as_error()
+            .map_err(|_| MinecraftError::PathNotFoundError {
+                path: path.to_path_buf(),
+                entity_type: name.to_owned(),
             })?
             .to_string_lossy()
             .to_string())

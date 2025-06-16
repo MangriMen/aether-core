@@ -2,13 +2,13 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
     features::{
-        events::{ProgressBarId, ProgressEventType, ProgressService},
+        events::{ProgressBarId, ProgressEventType, ProgressService, ProgressServiceExt},
         instance::{Instance, InstanceInstallStage, InstanceStorage, InstanceStorageExt},
         java::{GetJavaUseCase, InstallJavaUseCase, Java, JavaInstallationService, JavaStorage},
         minecraft::{
             get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,
-            GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
-            ModLoaderProcessor, ReadMetadataStorage,
+            GetVersionManifestUseCase, LoaderVersionResolver, MinecraftDownloader, MinecraftError,
+            ModLoader, ModLoaderProcessor, ReadMetadataStorage,
         },
         settings::LocationInfo,
     },
@@ -77,7 +77,7 @@ impl<
         version_info: &mut daedalus::minecraft::VersionInfo,
         java_version: &Java,
         loading_bar: Option<&ProgressBarId>,
-    ) -> crate::Result<()> {
+    ) -> Result<(), MinecraftError> {
         match instance.loader {
             ModLoader::Vanilla => Ok(()),
             ModLoader::Forge => {
@@ -103,7 +103,7 @@ impl<
         instance_id: String,
         loading_bar: Option<ProgressBarId>,
         force: bool,
-    ) -> crate::Result<()> {
+    ) -> Result<(), MinecraftError> {
         let instance = self.instance_storage.get(&instance_id).await?;
 
         log::info!(
@@ -243,8 +243,8 @@ impl<
                 .await?;
 
             self.progress_service
-                .emit_progress(&loading_bar, 1.000_000_000_01, Some("Finished installing"))
-                .await?;
+                .emit_progress_safe(&loading_bar, 1.000_000_000_01, Some("Finished installing"))
+                .await;
 
             Ok(())
         }

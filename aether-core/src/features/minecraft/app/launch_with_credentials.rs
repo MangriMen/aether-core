@@ -6,7 +6,7 @@ use crate::{
         events::{EventEmitter, ProgressService},
         instance::{Instance, InstanceStorage},
         java::{JavaInstallationService, JavaStorage},
-        minecraft::{LaunchSettings, MinecraftDownloader, ReadMetadataStorage},
+        minecraft::{LaunchSettings, MinecraftDownloader, MinecraftError, ReadMetadataStorage},
         process::{MinecraftProcessMetadata, ProcessStorage},
         settings::{Hooks, Settings, SettingsStorage},
     },
@@ -99,7 +99,7 @@ impl<
         &self,
         instance_id: String,
         credentials: Credentials,
-    ) -> crate::Result<MinecraftProcessMetadata> {
+    ) -> Result<MinecraftProcessMetadata, MinecraftError> {
         let settings = self.settings_storage.get().await?;
         let instance = self.instance_storage.get(&instance_id).await?;
 

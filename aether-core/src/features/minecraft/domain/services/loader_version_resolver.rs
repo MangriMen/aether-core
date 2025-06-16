@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::features::minecraft::{ModLoader, ReadMetadataStorage};
+use crate::features::minecraft::{MinecraftError, ModLoader, ReadMetadataStorage};
 
 pub struct LoaderVersionResolver<MS> {
     metadata_storage: Arc<MS>,
@@ -16,7 +16,7 @@ impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
         game_version: &str,
         mod_loader: &ModLoader,
         loader_version: &Option<String>,
-    ) -> crate::Result<Option<daedalus::modded::LoaderVersion>> {
+    ) -> Result<Option<daedalus::modded::LoaderVersion>, MinecraftError> {
         if !matches!(mod_loader, ModLoader::Vanilla) {
             let loader_version_manifest = self
                 .metadata_storage
@@ -42,7 +42,7 @@ pub async fn resolve_loader_version(
     loader: &ModLoader,
     loader_version: Option<&str>,
     loader_version_manifest: &daedalus::modded::Manifest,
-) -> crate::Result<Option<daedalus::modded::LoaderVersion>> {
+) -> Result<Option<daedalus::modded::LoaderVersion>, MinecraftError> {
     if matches!(loader, ModLoader::Vanilla) {
         return Ok(None);
     }

@@ -8,11 +8,11 @@ use crate::{
             try_for_each_concurrent_with_progress, ProgressConfig, ProgressConfigWithMessage,
             ProgressService,
         },
-        minecraft::parse_rules,
+        minecraft::{parse_rules, MinecraftError},
         settings::LocationInfo,
     },
     libs::request_client::{Request, RequestClient},
-    shared::write_async,
+    shared::{write_async, IoError},
 };
 
 const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
@@ -44,16 +44,17 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         force: bool,
         minecraft_updated: bool,
         progress_config: Option<&ProgressConfig<'_>>,
-    ) -> crate::Result<()> {
+    ) -> Result<(), MinecraftError> {
         log::info!("Downloading libraries for {}", version_info.id);
 
         tokio::try_join! {
             tokio::fs::create_dir_all(self.location_info.libraries_dir()),
             tokio::fs::create_dir_all(self.location_info.version_natives_dir(&version_info.id)),
-        }?;
+        }
+        .map_err(IoError::from)?;
 
         let libraries_stream = futures::stream::iter(libraries.iter())
-            .map(Ok::<&daedalus::minecraft::Library, crate::Error>);
+            .map(Ok::<&daedalus::minecraft::Library, MinecraftError>);
 
         let futures_count = libraries.len();
 
@@ -90,7 +91,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         java_arch: &str,
         force: bool,
         minecraft_updated: bool,
-    ) -> crate::Result<()> {
+    ) -> Result<(), MinecraftError> {
         if let Some(rules) = &library.rules {
             if !parse_rules(rules, java_arch, minecraft_updated) {
                 return Ok(());
@@ -113,14 +114,14 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         &self,
         library: &daedalus::minecraft::Library,
         force: bool,
-    ) -> crate::Result<()> {
+    ) -> Result<(), MinecraftError> {
         log::debug!("Downloading java library \"{}\"", &library.name);
 
         let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
         let library_path = self.location_info.libraries_dir().join(&library_path_part);
 
         if library_path.exists() && !force {
-            return Ok::<(), crate::Error>(());
+            return Ok(());
         }
 
         // Get library by artifact url
@@ -133,9 +134,15 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
                 let bytes = self
                     .request_client
                     .fetch_bytes(Request::get(&artifact.url))
-                    .await?;
+                    .await
+                    .map_err(|err| {
+                        IoError::IOError(std::io::Error::new(
+                            std::io::ErrorKind::NetworkUnreachable,
+                            err,
+                        ))
+                    })?;
                 write_async(&library_path, &bytes).await?;
-                return Ok::<(), crate::Error>(());
+                return Ok(());
             }
         }
         log::debug!(
@@ -169,7 +176,10 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
             }
             Err(err) => {
                 log::error!("Failed downloading java library \"{}\"", &library.name,);
-                Err(err.into())
+                Ok(Err(IoError::IOError(std::io::Error::new(
+                    std::io::ErrorKind::NetworkUnreachable,
+                    err,
+                )))?)
             }
         }
     }
@@ -180,7 +190,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         version_info: &daedalus::minecraft::VersionInfo,
         java_arch: &str,
         _force: bool,
-    ) -> crate::Result<()> {
+    ) -> Result<(), MinecraftError> {
         use crate::shared::OsExt;
         use daedalus::minecraft::Os;
 
@@ -198,7 +208,13 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
                 let bytes = self
                     .request_client
                     .fetch_bytes(Request::get(&native.url))
-                    .await?;
+                    .await
+                    .map_err(|err| {
+                        IoError::IOError(std::io::Error::new(
+                            std::io::ErrorKind::NetworkUnreachable,
+                            err,
+                        ))
+                    })?;
                 let reader = std::io::Cursor::new(&bytes);
 
                 if let Ok(mut archive) = zip::ZipArchive::new(reader) {

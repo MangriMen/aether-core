@@ -1,7 +1,7 @@
 use tracing_error::InstrumentError;
 
 use crate::{
-    features::{auth, events, file_watcher, java, plugins, process, settings},
+    features::{auth, events, file_watcher, java, minecraft, plugins, process, settings},
     libs::request_client,
 };
 
@@ -18,6 +18,9 @@ pub enum ErrorKind {
 
     #[error(transparent)]
     JavaError(#[from] java::JavaError),
+
+    #[error(transparent)]
+    MinecraftError(#[from] minecraft::MinecraftError),
 
     #[error(transparent)]
     PluginError(#[from] plugins::PluginError),

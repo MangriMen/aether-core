@@ -156,12 +156,12 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
         launch_minecraft_use_case,
     );
 
-    LaunchWithActiveAccountUseCase::new(
+    Ok(LaunchWithActiveAccountUseCase::new(
         lazy_locator.get_credentials_storage().await,
         launch_with_credentials_use_case,
     )
     .execute(instance_id)
-    .await
+    .await?)
 }
 
 #[tracing::instrument]
@@ -297,11 +297,11 @@ pub async fn run_credentials(
         get_java_use_case.clone(),
     );
 
-    LaunchWithCredentialsUseCase::new(
+    Ok(LaunchWithCredentialsUseCase::new(
         lazy_locator.get_instance_storage().await,
         lazy_locator.get_settings_storage().await,
         launch_minecraft_use_case,
     )
     .execute(instance_id, credentials)
-    .await
+    .await?)
 }

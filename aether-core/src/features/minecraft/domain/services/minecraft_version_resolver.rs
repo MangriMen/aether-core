@@ -1,13 +1,17 @@
+use crate::features::minecraft::MinecraftError;
+
 pub fn resolve_minecraft_version(
     game_version: &str,
     version_manifest: daedalus::minecraft::VersionManifest,
-) -> crate::Result<(daedalus::minecraft::Version, bool)> {
+) -> Result<(daedalus::minecraft::Version, bool), MinecraftError> {
     let (index, version) = version_manifest
         .versions
         .iter()
         .enumerate()
         .find(|(_, v)| v.id == game_version)
-        .ok_or_else(|| crate::ErrorKind::NoValueFor("minecraft versions".into()))?;
+        .ok_or(MinecraftError::VersionNotFoundError {
+            version: game_version.to_owned(),
+        })?;
 
     let is_updated = is_minecraft_updated(index, &version_manifest);
 

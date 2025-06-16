@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::features::minecraft::ReadMetadataStorage;
+use crate::features::minecraft::{MinecraftError, ReadMetadataStorage};
 
 pub struct GetLoaderVersionManifestUseCase<MS: ReadMetadataStorage> {
     metadata_storage: Arc<MS>,
@@ -11,7 +11,10 @@ impl<MS: ReadMetadataStorage> GetLoaderVersionManifestUseCase<MS> {
         Self { metadata_storage }
     }
 
-    pub async fn execute(&self, loader: String) -> crate::Result<daedalus::modded::Manifest> {
+    pub async fn execute(
+        &self,
+        loader: String,
+    ) -> Result<daedalus::modded::Manifest, MinecraftError> {
         Ok(self
             .metadata_storage
             .get_loader_version_manifest(&loader)

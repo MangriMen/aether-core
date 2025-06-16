@@ -2,7 +2,7 @@ use std::{future::Future, sync::Arc};
 
 use futures::TryStream;
 
-use crate::features::events::{ProgressBarId, ProgressService};
+use crate::features::events::{ProgressBarId, ProgressService, ProgressServiceExt};
 
 #[derive(Debug)]
 pub struct ProgressConfigWithMessage<'a> {
@@ -17,19 +17,19 @@ pub struct ProgressConfigWithMessage<'a> {
 // If message is Some(t) you will overwrite this loading bar's message with a custom one
 // futures_count is the number of futures that will be run, which is needed as we allow Iterator to be passed in, which doesn't have a size
 #[tracing::instrument(skip(progress_service, stream, f))]
-pub async fn try_for_each_concurrent_with_progress<PS, I, F, Fut, T>(
+pub async fn try_for_each_concurrent_with_progress<PS, ST, Fut, F, T, E>(
     progress_service: Arc<PS>,
-    stream: I,
+    stream: ST,
     limit: Option<usize>,
     futures_count: usize, // num is in here as we allow Iterator to be passed in, which doesn't have a size
     progress_config: Option<&ProgressConfigWithMessage<'_>>,
     mut f: F,
-) -> crate::Result<()>
+) -> Result<(), E>
 where
     PS: ProgressService,
-    I: futures::TryStreamExt<Error = crate::Error> + TryStream<Ok = T>,
+    ST: TryStream<Ok = T> + futures::TryStreamExt<Error = E>,
     F: FnMut(T) -> Fut + Send,
-    Fut: Future<Output = crate::Result<()>> + Send,
+    Fut: Future<Output = Result<(), ST::Error>> + Send,
     T: Send,
 {
     let progress_increment = progress_config
@@ -48,12 +48,12 @@ where
 
                 if let Some(cfg) = progress_config {
                     progress_service
-                        .emit_progress(
+                        .emit_progress_safe(
                             cfg.progress_bar_id,
                             progress_increment,
                             cfg.progress_message,
                         )
-                        .await?;
+                        .await;
                 }
 
                 Ok(())

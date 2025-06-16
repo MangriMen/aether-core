@@ -10,7 +10,7 @@ use crate::{
         minecraft::{
             get_compatible_java_version, resolve_minecraft_version, GetVersionManifestUseCase,
             InstallMinecraftUseCase, LaunchSettings, LoaderVersionResolver, MinecraftDownloader,
-            ModLoader, ReadMetadataStorage,
+            MinecraftError, ModLoader, ReadMetadataStorage,
         },
         plugins::PluginEvent,
         process::{
@@ -91,7 +91,7 @@ impl<
         instance_id: String,
         launch_settings: LaunchSettings,
         credentials: Credentials,
-    ) -> crate::Result<MinecraftProcessMetadata> {
+    ) -> Result<MinecraftProcessMetadata, MinecraftError> {
         let instance = self.instance_storage.get(&instance_id).await?;
 
         if instance.install_stage == InstanceInstallStage::PackInstalling
@@ -302,7 +302,7 @@ impl<
 async fn run_pre_launch_command(
     pre_launch_command: &Option<&String>,
     working_dir: &Path,
-) -> crate::Result<()> {
+) -> Result<(), MinecraftError> {
     if let Some(command) = pre_launch_command {
         if let Ok(cmd) = SerializableCommand::from_string(command, Some(&working_dir.to_path_buf()))
         {
@@ -315,11 +315,9 @@ async fn run_pre_launch_command(
                 .map_err(IoError::from)?;
 
             if !result.success() {
-                return Err(crate::ErrorKind::LauncherError(format!(
-                    "Non-zero exit code for pre-launch hook: {}",
-                    result.code().unwrap_or(-1)
-                ))
-                .as_error());
+                return Err(MinecraftError::PreLaunchCommandError {
+                    code: result.code().unwrap_or(-1),
+                });
             }
         }
     }
