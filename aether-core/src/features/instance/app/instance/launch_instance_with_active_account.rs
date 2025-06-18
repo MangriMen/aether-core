@@ -4,18 +4,16 @@ use crate::{
     features::{
         auth::CredentialsStorage,
         events::{EventEmitter, ProgressService},
-        instance::InstanceStorage,
+        instance::{InstanceStorage, LaunchInstanceUseCase},
         java::{JavaInstallationService, JavaStorage},
-        minecraft::{MinecraftDownloader, MinecraftError, ReadMetadataStorage},
+        minecraft::{MinecraftDownloader, ReadMetadataStorage},
         process::{MinecraftProcessMetadata, ProcessStorage},
         settings::SettingsStorage,
     },
     libs::request_client::RequestClient,
 };
 
-use super::LaunchWithCredentialsUseCase;
-
-pub struct LaunchWithActiveAccountUseCase<
+pub struct LaunchInstanceWithActiveAccountUseCase<
     IS: InstanceStorage,
     MS: ReadMetadataStorage,
     PS: ProcessStorage,
@@ -29,8 +27,7 @@ pub struct LaunchWithActiveAccountUseCase<
     RC: RequestClient,
 > {
     credentials_storage: Arc<CS>,
-    launch_with_credentials_use_case:
-        LaunchWithCredentialsUseCase<IS, MS, PS, SS, E, MD, PGS, JIS, JS, RC>,
+    launch_instance_use_case: LaunchInstanceUseCase<IS, MS, PS, SS, E, MD, PGS, JIS, JS, RC>,
 }
 
 impl<
@@ -45,11 +42,11 @@ impl<
         JIS: JavaInstallationService,
         JS: JavaStorage,
         RC: RequestClient,
-    > LaunchWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, MD, PGS, JIS, JS, RC>
+    > LaunchInstanceWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, MD, PGS, JIS, JS, RC>
 {
     pub fn new(
         credentials_storage: Arc<CS>,
-        launch_with_credentials_use_case: LaunchWithCredentialsUseCase<
+        launch_with_credentials_use_case: LaunchInstanceUseCase<
             IS,
             MS,
             PS,
@@ -64,17 +61,14 @@ impl<
     ) -> Self {
         Self {
             credentials_storage,
-            launch_with_credentials_use_case,
+            launch_instance_use_case: launch_with_credentials_use_case,
         }
     }
 
-    pub async fn execute(
-        &self,
-        instance_id: String,
-    ) -> Result<MinecraftProcessMetadata, MinecraftError> {
+    pub async fn execute(&self, instance_id: String) -> crate::Result<MinecraftProcessMetadata> {
         let default_account = self.credentials_storage.get_active().await?;
 
-        self.launch_with_credentials_use_case
+        self.launch_instance_use_case
             .execute(instance_id, default_account)
             .await
     }

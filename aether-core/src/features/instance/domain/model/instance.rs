@@ -6,7 +6,7 @@ use extism_convert::{encoding, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
-    minecraft::ModLoader,
+    minecraft::{LoaderVersionPreference, ModLoader},
     settings::{Hooks, MemorySettings, WindowSize},
 };
 
@@ -34,7 +34,7 @@ pub struct Instance {
     // Main minecraft metadata
     pub game_version: String,
     pub loader: ModLoader,
-    pub loader_version: Option<String>,
+    pub loader_version: Option<LoaderVersionPreference>,
 
     // Launch arguments
     pub java_path: Option<String>,

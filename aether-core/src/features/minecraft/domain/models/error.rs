@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::shared::IoError;
+use crate::{features::minecraft::LoaderVersionPreference, shared::IoError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum MinecraftError {
@@ -9,6 +9,22 @@ pub enum MinecraftError {
 
     #[error("Minecraft version {version} not found")]
     VersionNotFoundError { version: String },
+
+    // TODO: maybe specify message in which case it throws
+    #[error("Minecraft version not found for loader version {loader_version_preference:?}")]
+    MinecraftVersionForLoaderNotFoundError {
+        loader_version_preference: LoaderVersionPreference,
+    },
+
+    #[error("Loader version {loader_version_preference:?} not found")]
+    LoaderVersionNotFoundError {
+        loader_version_preference: LoaderVersionPreference,
+    },
+
+    #[error(
+        "Loader version not specified. If loader is not vanilla, loader version must be specified"
+    )]
+    LoaderVersionNotSpecified,
 
     #[error("Path not found: {path:?}")]
     PathNotFoundError { path: PathBuf, entity_type: String },
@@ -24,4 +40,13 @@ pub enum MinecraftError {
 
     #[error("Modloader processor error: {0}")]
     ModLoaderProcessorError(String),
+
+    #[error("No java found at path: {path:?}")]
+    JavaNotFound { path: PathBuf },
+
+    #[error("Java version {version} not found")]
+    JavaVersionNotFound { version: u32 },
+
+    #[error("Java auto installation failed: {0}")]
+    JavaInstallationFailed(String),
 }

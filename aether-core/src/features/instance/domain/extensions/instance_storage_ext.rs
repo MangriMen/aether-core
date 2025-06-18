@@ -8,13 +8,6 @@ use async_trait::async_trait;
 pub trait InstanceStorageExt: InstanceStorage {
     async fn upsert_with<F>(&self, id: &str, update_fn: F) -> Result<(), StorageError>
     where
-        F: FnOnce(&mut Instance) -> Result<(), StorageError> + Send;
-}
-
-#[async_trait]
-impl<IS: InstanceStorage> InstanceStorageExt for IS {
-    async fn upsert_with<F>(&self, id: &str, update_fn: F) -> Result<(), StorageError>
-    where
         F: FnOnce(&mut Instance) -> Result<(), StorageError> + Send,
     {
         let mut instance = self.get(id).await?;
@@ -22,3 +15,6 @@ impl<IS: InstanceStorage> InstanceStorageExt for IS {
         self.upsert(&instance).await
     }
 }
+
+#[async_trait]
+impl<IS: InstanceStorage> InstanceStorageExt for IS {}

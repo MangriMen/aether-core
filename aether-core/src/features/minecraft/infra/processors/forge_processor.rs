@@ -12,7 +12,6 @@ use tokio::process::Command;
 use crate::{
     features::{
         events::{ProgressBarId, ProgressService, ProgressServiceExt},
-        instance::Instance,
         java::Java,
         minecraft::{self, MinecraftError, ModLoaderProcessor},
         settings::LocationInfo,
@@ -87,9 +86,9 @@ impl<PS: ProgressService> ForgeProcessor<PS> {
 impl<PS: ProgressService> ModLoaderProcessor for ForgeProcessor<PS> {
     async fn run(
         &self,
-        instance: &Instance,
+        game_version: String,
         version_jar: String,
-        instance_path: &Path,
+        minecraft_dir: &Path,
         version_info: &mut VersionInfo,
         java_version: &Java,
         loading_bar: Option<&ProgressBarId>,
@@ -118,10 +117,10 @@ impl<PS: ProgressService> ModLoaderProcessor for ForgeProcessor<PS> {
                 client => client_path.to_string_lossy(),
                 server => "";
             "MINECRAFT_VERSION":
-                client => instance.game_version.clone(),
+                client => game_version.clone(),
                 server => "";
             "ROOT":
-                client => instance_path.to_string_lossy(),
+                client => minecraft_dir.to_string_lossy(),
                 server => "";
             "LIBRARY_DIR":
                 client => libraries_dir.to_string_lossy(),

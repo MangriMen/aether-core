@@ -77,7 +77,6 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
 
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
-        lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
@@ -87,10 +86,17 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         install_java_use_case.clone(),
     ));
 
+    let install_instance_use_case = Arc::new(InstallInstanceUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        install_minecraft_use_case,
+        lazy_locator.get_progress_service().await,
+        state.location_info.clone(),
+    ));
+
     CreateInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
         loader_version_resolver,
-        install_minecraft_use_case,
+        install_instance_use_case,
         state.location_info.clone(),
         lazy_locator.get_event_emitter().await,
         lazy_locator.get_instance_watcher_service().await?,
@@ -157,7 +163,6 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
 
     let install_minecraft_use_case = Arc::new(InstallMinecraftUseCase::new(
         lazy_locator.get_progress_service().await,
-        lazy_locator.get_instance_storage().await,
         loader_version_resolver.clone(),
         get_loader_manifest_use_case.clone(),
         state.location_info.clone(),
@@ -170,6 +175,8 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
     InstallInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
         install_minecraft_use_case,
+        lazy_locator.get_progress_service().await,
+        state.location_info.clone(),
     )
     .execute(instance_id, force)
     .await

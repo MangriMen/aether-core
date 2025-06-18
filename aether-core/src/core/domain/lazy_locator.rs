@@ -36,7 +36,7 @@ static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 
 const CACHE_TTL: Duration = Duration::from_secs(120);
 
-type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgressBarStorage>;
+pub type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgressBarStorage>;
 
 pub struct LazyLocator {
     state: Arc<LauncherState>,

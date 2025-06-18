@@ -13,11 +13,12 @@ use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProgressService},
         instance::{
-            Instance, InstanceInstallStage, InstanceStorage, InstanceWatcherService, PackInfo,
+            InstallInstanceUseCase, Instance, InstanceInstallStage, InstanceStorage,
+            InstanceWatcherService, PackInfo,
         },
         java::{JavaInstallationService, JavaStorage},
         minecraft::{
-            InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+            LoaderVersionPreference, LoaderVersionResolver, MinecraftDownloader, ModLoader,
             ReadMetadataStorage,
         },
         settings::{Hooks, LocationInfo},
@@ -32,7 +33,7 @@ pub struct NewInstance {
     pub name: String,
     pub game_version: String,
     pub mod_loader: ModLoader,
-    pub loader_version: Option<String>,
+    pub loader_version: Option<LoaderVersionPreference>,
     pub icon_path: Option<String>,
     pub skip_install_instance: Option<bool>,
     pub pack_info: Option<PackInfo>,
@@ -51,7 +52,7 @@ pub struct CreateInstanceUseCase<
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
+    install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
     location_info: Arc<LocationInfo>,
     event_emitter: Arc<E>,
     instance_watcher_service: Arc<IWS>,
@@ -72,7 +73,7 @@ impl<
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
+        install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
         location_info: Arc<LocationInfo>,
         event_emitter: Arc<E>,
         instance_watcher_service: Arc<IWS>,
@@ -80,7 +81,7 @@ impl<
         Self {
             instance_storage,
             loader_version_resolver,
-            install_minecraft_use_case,
+            install_instance_use_case,
             location_info,
             event_emitter,
             instance_watcher_service,
@@ -98,8 +99,8 @@ impl<
             .await?;
 
         if !skip_install_instance.unwrap_or(false) {
-            self.install_minecraft_use_case
-                .execute(instance.id.clone(), None, false)
+            self.install_instance_use_case
+                .execute(instance.id.clone(), false)
                 .await?;
         }
 
@@ -127,7 +128,7 @@ impl<
 
         let loader_version = self
             .loader_version_resolver
-            .resolve(&game_version, &mod_loader, &loader_version)
+            .resolve(&game_version, &mod_loader, loader_version.as_ref())
             .await?;
 
         let instance = build_instance(
@@ -186,7 +187,7 @@ fn build_instance(
         install_stage: InstanceInstallStage::NotInstalled,
         game_version: game_version.to_owned(),
         loader: mod_loader,
-        loader_version: loader_version.map(|v| v.id.clone()),
+        loader_version: loader_version.map(|v| LoaderVersionPreference::Exact(v.id.clone())),
         java_path: None,
         extra_launch_args: None,
         custom_env_vars: None,
