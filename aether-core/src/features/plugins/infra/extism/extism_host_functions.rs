@@ -65,7 +65,7 @@ pub get_id(user_data: PluginContext;) -> extism::Result<String> {
 
 host_fn!(
 pub instance_get_dir(user_data: PluginContext; id: String) -> extism::Result<String> {
-   let res = tokio::task::block_in_place(|| -> crate::Result<PathBuf> {
+   let res = tokio::task::block_in_place(|| -> anyhow::Result<PathBuf> {
         let state = tokio::runtime::Handle::current().block_on(
             LauncherState::get()
         )?;
@@ -139,7 +139,7 @@ pub run_command(user_data: PluginContext; command: SerializableCommand) -> extis
 
     log::debug!("Processing command from plugin: {:?}", command);
 
-    let output = tokio::task::block_in_place(|| -> crate::Result<Output> {
+    let output = tokio::task::block_in_place(|| -> anyhow::Result<Output> {
         let host_command = plugin_utils::plugin_command_to_host(&id, &command)?;
         let mut cmd = host_command.to_tokio_command();
 

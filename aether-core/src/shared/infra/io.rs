@@ -112,6 +112,21 @@ where
     write_async(path, toml_str).await
 }
 
+pub async fn ensure_read_toml_async<T>(path: impl AsRef<Path>) -> Result<T, IoError>
+where
+    T: Serialize + DeserializeOwned + Default,
+{
+    let path_ref = path.as_ref();
+
+    if !path_ref.exists() {
+        let default = T::default();
+        write_toml_async(path, &default).await?;
+        return Ok(default);
+    }
+
+    read_toml_async(path).await
+}
+
 // dunce canonicalize
 
 pub fn canonicalize(path: impl AsRef<Path>) -> Result<PathBuf, IoError> {
@@ -136,6 +151,13 @@ pub async fn remove_file(path: impl AsRef<Path>) -> Result<(), IoError> {
 pub async fn create_dir_all(path: impl AsRef<Path>) -> Result<(), IoError> {
     let path_ref = path.as_ref();
     tokio::fs::create_dir_all(path_ref)
+        .await
+        .map_err(|e| IoError::with_path(e, path_ref))
+}
+
+pub async fn remove_dir_all(path: impl AsRef<Path>) -> Result<(), IoError> {
+    let path_ref = path.as_ref();
+    tokio::fs::remove_dir_all(path_ref)
         .await
         .map_err(|e| IoError::with_path(e, path_ref))
 }

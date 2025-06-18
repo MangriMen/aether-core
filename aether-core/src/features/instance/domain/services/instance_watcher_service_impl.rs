@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::features::{
     file_watcher::FileWatcher,
-    instance::{ContentType, InstanceWatcherService},
+    instance::{ContentType, InstanceError, InstanceWatcherService},
     settings::LocationInfo,
 };
 
@@ -24,7 +24,7 @@ impl<FW: FileWatcher> InstanceWatcherServiceImpl<FW> {
 
 #[async_trait]
 impl<FW: FileWatcher> InstanceWatcherService for InstanceWatcherServiceImpl<FW> {
-    async fn watch_instances(&self) -> crate::Result<()> {
+    async fn watch_instances(&self) -> Result<(), InstanceError> {
         if let Ok(instances_dir) = std::fs::read_dir(self.location_info.instances_dir()) {
             for instance_dir in instances_dir {
                 if let Ok(file_name) = instance_dir.map(|x| x.file_name()) {
@@ -42,7 +42,7 @@ impl<FW: FileWatcher> InstanceWatcherService for InstanceWatcherServiceImpl<FW> 
         Ok(())
     }
 
-    async fn watch_instance(&self, instance_id: &str) -> crate::Result<()> {
+    async fn watch_instance(&self, instance_id: &str) -> Result<(), InstanceError> {
         let instance_dir = self.location_info.instance_dir(instance_id);
 
         if instance_dir.exists() && instance_dir.is_dir() {
@@ -70,8 +70,11 @@ impl<FW: FileWatcher> InstanceWatcherService for InstanceWatcherServiceImpl<FW> 
         Ok(())
     }
 
-    async fn unwatch_instance(&self, instance_id: &str) -> crate::Result<()> {
+    async fn unwatch_instance(&self, instance_id: &str) -> Result<(), InstanceError> {
         let path = self.location_info.instance_dir(instance_id);
-        self.file_watcher.unwatch(&path).await.map_err(Into::into)
+        if let Err(e) = self.file_watcher.unwatch(&path).await {
+            tracing::error!("Failed to unwatch directory for watcher {path:?}: {e}");
+        }
+        Ok(())
     }
 }

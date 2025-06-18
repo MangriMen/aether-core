@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::features::instance::{InstanceStorage, InstanceWatcherService};
+use crate::features::instance::{InstanceError, InstanceStorage, InstanceWatcherService};
 
 pub struct RemoveInstanceUseCase<IS, IWS> {
     instance_storage: Arc<IS>,
@@ -15,7 +15,7 @@ impl<IS: InstanceStorage, IWS: InstanceWatcherService> RemoveInstanceUseCase<IS,
         }
     }
 
-    pub async fn execute(&self, instance_id: String) -> crate::Result<()> {
+    pub async fn execute(&self, instance_id: String) -> Result<(), InstanceError> {
         self.instance_watcher_service
             .unwatch_instance(&instance_id)
             .await?;

@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use crate::{libs::request_client::RequestError, shared::StorageError};
+use crate::{libs::request_client::RequestError, shared::IoError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum JavaError {
-    #[error(transparent)]
-    StorageError(#[from] StorageError),
+    #[error("Storage failure: {0}")]
+    StorageFailure(#[from] IoError),
 
     #[error("No java found for version {version}")]
     JavaNotFound { version: u32 },

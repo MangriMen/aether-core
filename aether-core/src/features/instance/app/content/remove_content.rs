@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, InstanceEventType},
-        instance::PackStorage,
+        instance::{InstanceError, PackStorage},
         settings::LocationInfo,
     },
     shared::remove_file,
@@ -49,7 +49,7 @@ impl<E: EventEmitter, PS: PackStorage> RemoveContentUseCase<E, PS> {
         }
     }
 
-    pub async fn execute(&self, input: RemoveContent) -> crate::Result<()> {
+    pub async fn execute(&self, input: RemoveContent) -> Result<(), InstanceError> {
         let RemoveContent {
             instance_id,
             content_paths,
@@ -66,8 +66,8 @@ impl<E: EventEmitter, PS: PackStorage> RemoveContentUseCase<E, PS> {
             .await?;
 
         self.event_emitter
-            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)
-            .await?;
+            .emit_instance_safe(instance_id.to_string(), InstanceEventType::Edited)
+            .await;
 
         Ok(())
     }

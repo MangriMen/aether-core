@@ -1,6 +1,6 @@
 use crate::{
     features::java::{Java, JavaError, JavaStorage},
-    shared::{read_json_async, write_json_async, StorageError},
+    shared::{read_json_async, write_json_async},
 };
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
@@ -23,15 +23,11 @@ impl FsJavaStorage {
             return Ok(default);
         }
 
-        Ok(read_json_async(&self.java_versions_file)
-            .await
-            .map_err(|err| StorageError::ReadError(err.to_string()))?)
+        Ok(read_json_async(&self.java_versions_file).await?)
     }
 
     async fn write(&self, data: &Vec<Java>) -> Result<(), JavaError> {
-        Ok(write_json_async(&self.java_versions_file, &data)
-            .await
-            .map_err(|err| StorageError::WriteError(err.to_string()))?)
+        Ok(write_json_async(&self.java_versions_file, &data).await?)
     }
 }
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::features::instance::{ContentProvider, ContentProviderRegistry};
+use crate::features::instance::{ContentProvider, ContentProviderRegistry, InstanceError};
 
 pub struct GetProviderMetadataUseCase<CP: ContentProvider> {
     provider_registry: Arc<ContentProviderRegistry<CP>>,
@@ -11,7 +11,7 @@ impl<CP: ContentProvider> GetProviderMetadataUseCase<CP> {
         Self { provider_registry }
     }
 
-    pub async fn execute(&self, provider_id: String) -> crate::Result<String> {
+    pub async fn execute(&self, provider_id: String) -> Result<String, InstanceError> {
         let provider = self.provider_registry.get(&provider_id)?;
         Ok(provider.get_update_data_id_field())
     }

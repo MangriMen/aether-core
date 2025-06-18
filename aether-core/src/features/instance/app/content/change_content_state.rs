@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, InstanceEventType},
+        instance::InstanceError,
         settings::LocationInfo,
     },
     shared::rename,
@@ -58,14 +59,14 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         &self,
         instance_id: &str,
         content_paths: &[String],
-    ) -> crate::Result<()> {
+    ) -> Result<(), InstanceError> {
         for content_path in content_paths {
             self.enable(instance_id, content_path).await?;
         }
 
         self.event_emitter
-            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)
-            .await?;
+            .emit_instance_safe(instance_id.to_string(), InstanceEventType::Edited)
+            .await;
 
         Ok(())
     }
@@ -74,19 +75,23 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         &self,
         instance_id: &str,
         content_paths: &[String],
-    ) -> crate::Result<()> {
+    ) -> Result<(), InstanceError> {
         for content_path in content_paths {
             self.disable(instance_id, content_path).await?;
         }
 
         self.event_emitter
-            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)
-            .await?;
+            .emit_instance_safe(instance_id.to_string(), InstanceEventType::Edited)
+            .await;
 
         Ok(())
     }
 
-    async fn enable(&self, instance_id: &str, content_path: &str) -> crate::Result<Option<String>> {
+    async fn enable(
+        &self,
+        instance_id: &str,
+        content_path: &str,
+    ) -> Result<Option<String>, InstanceError> {
         if !content_path.ends_with(".disabled") {
             return Ok(None);
         }
@@ -102,7 +107,7 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         &self,
         instance_id: &str,
         content_path: &str,
-    ) -> crate::Result<Option<String>> {
+    ) -> Result<Option<String>, InstanceError> {
         if content_path.ends_with(".disabled") {
             return Ok(None);
         }
@@ -119,12 +124,12 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         instance_id: &str,
         from: &str,
         to: &str,
-    ) -> crate::Result<()> {
+    ) -> Result<(), InstanceError> {
         let instance_dir = self.location_info.instance_dir(instance_id);
         Ok(rename(&instance_dir.join(from), &instance_dir.join(to)).await?)
     }
 
-    pub async fn execute(&self, input: ChangeContentState) -> crate::Result<()> {
+    pub async fn execute(&self, input: ChangeContentState) -> Result<(), InstanceError> {
         let ChangeContentState {
             instance_id,
             content_paths,

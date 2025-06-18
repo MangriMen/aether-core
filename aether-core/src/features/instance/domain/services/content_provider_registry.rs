@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::features::instance::ContentProvider;
+use crate::features::instance::{ContentProvider, InstanceError};
 
 #[derive(Default)]
 pub struct ContentProviderRegistry<CP> {
@@ -12,13 +12,12 @@ impl<CP: ContentProvider> ContentProviderRegistry<CP> {
         Self { providers }
     }
 
-    pub fn get(&self, provider_id: &str) -> crate::Result<&CP> {
-        self.providers.get(provider_id).ok_or_else(|| {
-            crate::ErrorKind::ContentProviderNotFound {
-                provider: provider_id.to_string(),
-            }
-            .as_error()
-        })
+    pub fn get(&self, provider_id: &str) -> Result<&CP, InstanceError> {
+        self.providers
+            .get(provider_id)
+            .ok_or(InstanceError::ContentProviderNotFound {
+                provider_id: provider_id.to_string(),
+            })
     }
 
     pub fn list(&self) -> HashMap<String, String> {

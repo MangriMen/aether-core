@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::features::instance::{
-    ContentInstallParams, ContentProvider, ContentProviderRegistry, PackFile, PackStorage,
+    ContentInstallParams, ContentProvider, ContentProviderRegistry, InstanceError, PackFile,
+    PackStorage,
 };
 
 pub struct InstallContentUseCase<PS: PackStorage, CP: ContentProvider> {
@@ -21,7 +22,7 @@ impl<PS: PackStorage, CP: ContentProvider> InstallContentUseCase<PS, CP> {
         &self,
         instance_id: String,
         install_params: ContentInstallParams,
-    ) -> crate::Result<()> {
+    ) -> Result<(), InstanceError> {
         let provider = self
             .provider_registry
             .get(&install_params.provider.to_string())?;

@@ -195,12 +195,12 @@ pub async fn run(instance_id: String) -> crate::Result<MinecraftProcessMetadata>
 
     let launch_instance_use_case = get_launch_instance_use_case(&state, &lazy_locator).await;
 
-    LaunchInstanceWithActiveAccountUseCase::new(
+    Ok(LaunchInstanceWithActiveAccountUseCase::new(
         lazy_locator.get_credentials_storage().await,
         launch_instance_use_case,
     )
     .execute(instance_id)
-    .await
+    .await?)
 }
 
 #[tracing::instrument]
@@ -211,8 +211,8 @@ pub async fn run_credentials(
     let state = LauncherState::get().await?;
     let lazy_locator = LazyLocator::get().await?;
 
-    get_launch_instance_use_case(&state, &lazy_locator)
+    Ok(get_launch_instance_use_case(&state, &lazy_locator)
         .await
         .execute(instance_id, credentials)
-        .await
+        .await?)
 }

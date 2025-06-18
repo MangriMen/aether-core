@@ -4,7 +4,7 @@ use crate::{
     features::{
         auth::CredentialsStorage,
         events::{EventEmitter, ProgressService},
-        instance::{InstanceStorage, LaunchInstanceUseCase},
+        instance::{InstanceError, InstanceStorage, LaunchInstanceUseCase},
         java::{JavaInstallationService, JavaStorage},
         minecraft::{MinecraftDownloader, ReadMetadataStorage},
         process::{MinecraftProcessMetadata, ProcessStorage},
@@ -65,7 +65,10 @@ impl<
         }
     }
 
-    pub async fn execute(&self, instance_id: String) -> crate::Result<MinecraftProcessMetadata> {
+    pub async fn execute(
+        &self,
+        instance_id: String,
+    ) -> Result<MinecraftProcessMetadata, InstanceError> {
         let default_account = self.credentials_storage.get_active().await?;
 
         self.launch_instance_use_case

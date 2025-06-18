@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::libs::request_client::{Request, RequestClient, RequestClientExt};
+use crate::{
+    features::instance::InstanceError,
+    libs::request_client::{Request, RequestClient, RequestClientExt},
+};
 
 use super::{
     ListProjectVersionsParams, ListProjectsVersionsResponse, ProjectSearchParams,
@@ -31,7 +34,7 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
     pub async fn search(
         &self,
         search_params: &ProjectSearchParams,
-    ) -> crate::Result<ProjectSearchResponse> {
+    ) -> Result<ProjectSearchResponse, InstanceError> {
         let query_string = serde_qs::to_string(&search_params).unwrap();
         let url = format!("{}/search?{query_string}", self.base_url);
 
@@ -40,16 +43,16 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
             request = request.with_headers(base_headers);
         }
 
-        Ok(self
-            .request_client
+        self.request_client
             .fetch_json_with_progress(request, None)
-            .await?)
+            .await
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))
     }
 
     pub async fn get_project_version(
         &self,
         project_version: &str,
-    ) -> crate::Result<ProjectVersionResponse> {
+    ) -> Result<ProjectVersionResponse, InstanceError> {
         let url = format!("{}/version/{project_version}", self.base_url);
 
         let mut request = Request::get(&url);
@@ -57,10 +60,10 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
             request = request.with_headers(base_headers);
         }
 
-        Ok(self
-            .request_client
+        self.request_client
             .fetch_json_with_progress(request, None)
-            .await?)
+            .await
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))
     }
 
     pub async fn get_project_version_for_game_version(
@@ -68,7 +71,7 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
         project_id: &str,
         game_version: &str,
         loader: &Option<String>,
-    ) -> crate::Result<ProjectVersionResponse> {
+    ) -> Result<ProjectVersionResponse, InstanceError> {
         let params = ListProjectVersionsParams {
             loaders: loader.as_ref().map(|l| vec![l.clone()]),
             game_versions: vec![game_version.to_string()],
@@ -88,7 +91,8 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
         let response: ListProjectsVersionsResponse = self
             .request_client
             .fetch_json_with_progress(request, None)
-            .await?;
+            .await
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))?;
 
         let version = response
             .iter()
@@ -97,15 +101,13 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
         if let Some(version) = version {
             Ok(version.clone())
         } else {
-            Err(crate::ErrorKind::NoValueFor(format!(
-                "Content for version \"{}\" not found",
-                game_version
-            ))
-            .as_error())
+            Err(InstanceError::ContentForGameVersionNotFound {
+                game_version: game_version.to_owned(),
+            })
         }
     }
 
-    pub async fn get_file(&self, url: &str) -> crate::Result<Bytes> {
+    pub async fn get_file(&self, url: &str) -> Result<Bytes, InstanceError> {
         let mut request = Request::get(url);
         if let Some(base_headers) = self.base_headers.clone() {
             request = request.with_headers(base_headers);
@@ -114,6 +116,6 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
         self.request_client
             .fetch_bytes_with_progress(request, None)
             .await
-            .map_err(Into::into)
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))
     }
 }

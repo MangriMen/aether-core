@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     features::{
         events::{ProgressEventType, ProgressService, ProgressServiceExt},
-        instance::{Instance, InstanceInstallStage, InstanceStorage},
+        instance::{Instance, InstanceError, InstanceInstallStage, InstanceStorage},
         java::{JavaInstallationService, JavaStorage},
         minecraft::{
             InstallMinecraftParams, InstallMinecraftUseCase, LoaderVersionPreference,
@@ -53,7 +53,10 @@ impl<
         }
     }
 
-    async fn handle_success_installation(&self, instance: &mut Instance) -> crate::Result<()> {
+    async fn handle_success_installation(
+        &self,
+        instance: &mut Instance,
+    ) -> Result<(), InstanceError> {
         log::info!(
             "Installed instance: \"{}\" (minecraft: \"{}\", modloader: \"{:?}\" \"{:?}\")",
             instance.name,
@@ -67,7 +70,10 @@ impl<
         Ok(())
     }
 
-    async fn handle_failed_installation(&self, instance: &mut Instance) -> crate::Result<()> {
+    async fn handle_failed_installation(
+        &self,
+        instance: &mut Instance,
+    ) -> Result<(), InstanceError> {
         if instance.install_stage != InstanceInstallStage::Installed {
             instance.install_stage = InstanceInstallStage::NotInstalled;
             self.instance_storage.upsert(instance).await?;
@@ -75,7 +81,7 @@ impl<
         Ok(())
     }
 
-    pub async fn execute(&self, instance_id: String, force: bool) -> crate::Result<()> {
+    pub async fn execute(&self, instance_id: String, force: bool) -> Result<(), InstanceError> {
         let mut instance = self.instance_storage.get(&instance_id).await?;
 
         if instance.loader != ModLoader::Vanilla && instance.loader_version.is_none() {
@@ -89,7 +95,7 @@ impl<
 
         let loading_bar = self
             .progress_service
-            .init_progress(
+            .init_progress_safe(
                 ProgressEventType::MinecraftDownload {
                     instance_id: instance.id.clone(),
                     instance_name: instance.name.clone(),
@@ -97,7 +103,7 @@ impl<
                 100.0,
                 "Downloading Minecraft".to_string(),
             )
-            .await?;
+            .await;
 
         log::info!(
             "Installing instance: \"{}\" (minecraft: \"{}\", modloader: \"{:?}\" \"{:?}\")",
@@ -117,7 +123,7 @@ impl<
                     install_dir,
                     java_path: instance.java_path.clone(),
                 },
-                Some(&loading_bar),
+                loading_bar.as_ref(),
                 force,
             )
             .await;
@@ -127,9 +133,11 @@ impl<
             Err(_) => self.handle_failed_installation(&mut instance).await,
         }?;
 
-        self.progress_service
-            .emit_progress_safe(&loading_bar, 1.000_000_000_01, Some("Finished installing"))
-            .await;
+        if let Some(loading_bar) = loading_bar {
+            self.progress_service
+                .emit_progress_safe(&loading_bar, 1.000_000_000_01, Some("Finished installing"))
+                .await;
+        }
 
         Ok(result?)
     }

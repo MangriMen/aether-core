@@ -141,7 +141,7 @@ impl LazyLocator {
         }
 
         LAZY_LOCATOR.get().map(Arc::clone).ok_or_else(|| {
-            ErrorKind::LauncherError("LazyLocator is not initialized!".to_string()).as_error()
+            ErrorKind::CoreError("LazyLocator is not initialized!".to_string()).as_error()
         })
     }
 
@@ -153,10 +153,10 @@ impl LazyLocator {
 
         while !LAZY_LOCATOR.initialized() {
             if start.elapsed() > INIT_TIMEOUT {
-                return Err(ErrorKind::LauncherError(
-                    "LazyLocator initialization timeout".to_string(),
-                )
-                .as_error());
+                return Err(
+                    ErrorKind::CoreError("LazyLocator initialization timeout".to_string())
+                        .as_error(),
+                );
             }
             tokio::time::sleep(POLL_INTERVAL).await;
         }

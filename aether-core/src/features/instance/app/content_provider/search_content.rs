@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::features::instance::{
     ContentProvider, ContentProviderRegistry, ContentSearchParams, ContentSearchResult,
+    InstanceError,
 };
 
 pub struct SearchContentUseCase<CP: ContentProvider> {
@@ -16,7 +17,7 @@ impl<CP: ContentProvider> SearchContentUseCase<CP> {
     pub async fn execute(
         &self,
         search_params: ContentSearchParams,
-    ) -> crate::Result<ContentSearchResult> {
+    ) -> Result<ContentSearchResult, InstanceError> {
         let provider = self
             .provider_registry
             .get(&search_params.provider.to_string())?;

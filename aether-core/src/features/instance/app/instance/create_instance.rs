@@ -13,7 +13,7 @@ use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProgressService},
         instance::{
-            InstallInstanceUseCase, Instance, InstanceInstallStage, InstanceStorage,
+            InstallInstanceUseCase, Instance, InstanceError, InstanceInstallStage, InstanceStorage,
             InstanceWatcherService, PackInfo,
         },
         java::{JavaInstallationService, JavaStorage},
@@ -24,6 +24,7 @@ use crate::{
         settings::{Hooks, LocationInfo},
     },
     libs::request_client::RequestClient,
+    shared::create_dir_all,
 };
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -91,7 +92,7 @@ impl<
         &self,
         instance: &Instance,
         skip_install_instance: Option<bool>,
-    ) -> crate::Result<String> {
+    ) -> Result<String, InstanceError> {
         self.instance_storage.upsert(instance).await?;
 
         self.instance_watcher_service
@@ -107,7 +108,7 @@ impl<
         Ok(instance.id.clone())
     }
 
-    pub async fn execute(&self, new_instance: NewInstance) -> crate::Result<String> {
+    pub async fn execute(&self, new_instance: NewInstance) -> Result<String, InstanceError> {
         let NewInstance {
             name,
             game_version,
@@ -207,9 +208,9 @@ fn build_instance(
 async fn create_unique_instance_dir(
     name: &str,
     base_dir: &Path,
-) -> crate::Result<(PathBuf, String)> {
+) -> Result<(PathBuf, String), InstanceError> {
     let (instance_path, sanitized_name) = create_unique_instance_path(name, base_dir);
-    tokio::fs::create_dir_all(&instance_path).await?;
+    create_dir_all(&instance_path).await?;
     Ok((instance_path, sanitized_name))
 }
 

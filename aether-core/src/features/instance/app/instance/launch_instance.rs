@@ -5,7 +5,7 @@ use crate::{
         auth::Credentials,
         events::{EventEmitter, ProgressService},
         instance::{
-            InstallInstanceUseCase, Instance, InstanceInstallStage, InstanceStorage,
+            InstallInstanceUseCase, Instance, InstanceError, InstanceInstallStage, InstanceStorage,
             InstanceStorageExt,
         },
         java::{JavaInstallationService, JavaStorage},
@@ -119,7 +119,7 @@ impl<
         &self,
         instance_id: String,
         credentials: Credentials,
-    ) -> crate::Result<MinecraftProcessMetadata> {
+    ) -> Result<MinecraftProcessMetadata, InstanceError> {
         let settings = self.settings_storage.get().await?;
         let instance = self.instance_storage.get(&instance_id).await?;
 
@@ -130,26 +130,21 @@ impl<
         if instance.install_stage == InstanceInstallStage::PackInstalling
             || instance.install_stage == InstanceInstallStage::Installing
         {
-            return Err(crate::ErrorKind::LauncherError(
-                "Instance is still installing".to_string(),
-            )
-            .into());
+            return Err(InstanceError::InstanceStillInstalling { instance_id });
         }
 
         // Check if profile has a running profile, and reject running the command if it does
         // Done late so a quick double call doesn't launch two instances
-
         if let Some(process) = self
             .get_process_by_instance_id_use_case
             .execute(instance.id.clone())
             .await
             .first()
         {
-            return Err(crate::ErrorKind::LauncherError(format!(
-                "Profile {} is already running at path: {}",
-                instance.id, process.uuid
-            ))
-            .as_error());
+            return Err(InstanceError::InstanceAlreadyRunning {
+                instance_id,
+                process_id: process.uuid,
+            });
         }
 
         if instance.install_stage != InstanceInstallStage::Installed {
@@ -168,22 +163,18 @@ impl<
 
         if let Some(command) = pre_launch_command {
             if let Ok(cmd) = SerializableCommand::from_string(command, Some(&instance_path)) {
-                if !cmd
+                let result = cmd
                     .to_tokio_command()
                     .spawn()
                     .map_err(|e| IoError::with_path(e, &instance_path))?
                     .wait()
                     .await
-                    .map_err(IoError::from)?
-                    .success()
-                {
-                    return Err(crate::ErrorKind::LauncherError(
-                        "Pre launch command error".to_string(),
-                    )
-                    .as_error());
-                    // return Err(MinecraftError::PreLaunchCommandError {
-                    //     code: result.code().unwrap_or(-1),
-                    // });
+                    .map_err(IoError::from)?;
+
+                if !result.success() {
+                    return Err(InstanceError::PrelaunchCommandError {
+                        code: result.code().unwrap_or(-1),
+                    });
                 }
             }
         }

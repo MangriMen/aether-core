@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::features::instance::{Instance, InstanceStorage};
+use crate::features::instance::{Instance, InstanceError, InstanceStorage};
 
 pub struct ListInstancesUseCase<IS> {
     instance_storage: Arc<IS>,
@@ -11,7 +11,7 @@ impl<IS: InstanceStorage> ListInstancesUseCase<IS> {
         Self { instance_storage }
     }
 
-    pub async fn execute(&self) -> crate::Result<Vec<Instance>> {
-        Ok(self.instance_storage.list().await?)
+    pub async fn execute(&self) -> Result<Vec<Instance>, InstanceError> {
+        self.instance_storage.list().await
     }
 }

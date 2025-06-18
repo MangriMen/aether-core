@@ -3,12 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use log::error;
 
-use crate::{
-    features::{
-        events::{EventEmitter, EventEmitterExt, InstanceEventType},
-        instance::{Instance, InstanceStorage},
-    },
-    shared::StorageError,
+use crate::features::{
+    events::{EventEmitter, EventEmitterExt, InstanceEventType},
+    instance::{Instance, InstanceError, InstanceStorage},
 };
 
 pub struct EventEmittingInstanceStorage<E, IS> {
@@ -27,15 +24,15 @@ impl<E: EventEmitter, IS: InstanceStorage> EventEmittingInstanceStorage<E, IS> {
 
 #[async_trait]
 impl<E: EventEmitter, IS: InstanceStorage> InstanceStorage for EventEmittingInstanceStorage<E, IS> {
-    async fn list(&self) -> Result<Vec<Instance>, StorageError> {
+    async fn list(&self) -> Result<Vec<Instance>, InstanceError> {
         Ok(self.instance_storage.list().await?)
     }
 
-    async fn get(&self, id: &str) -> Result<Instance, StorageError> {
+    async fn get(&self, id: &str) -> Result<Instance, InstanceError> {
         Ok(self.instance_storage.get(id).await?)
     }
 
-    async fn upsert(&self, instance: &Instance) -> Result<(), StorageError> {
+    async fn upsert(&self, instance: &Instance) -> Result<(), InstanceError> {
         self.instance_storage.upsert(instance).await?;
         if let Err(e) = self
             .event_emitter
@@ -48,7 +45,7 @@ impl<E: EventEmitter, IS: InstanceStorage> InstanceStorage for EventEmittingInst
         Ok(())
     }
 
-    async fn remove(&self, id: &str) -> Result<(), StorageError> {
+    async fn remove(&self, id: &str) -> Result<(), InstanceError> {
         self.instance_storage.remove(id).await?;
         if let Err(e) = self
             .event_emitter

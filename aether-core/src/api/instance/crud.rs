@@ -5,7 +5,7 @@ use crate::{
     features::{
         instance::{
             CreateInstanceUseCase, EditInstance, EditInstanceUseCase, GetInstanceUseCase,
-            InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
+            InstallInstanceUseCase, Instance, InstanceError, ListInstancesUseCase, NewInstance,
             RemoveInstanceUseCase,
         },
         java::{
@@ -93,7 +93,7 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         state.location_info.clone(),
     ));
 
-    CreateInstanceUseCase::new(
+    Ok(CreateInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
         loader_version_resolver,
         install_instance_use_case,
@@ -102,7 +102,7 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         lazy_locator.get_instance_watcher_service().await?,
     )
     .execute(new_instance)
-    .await
+    .await?)
 }
 
 #[tracing::instrument]
@@ -172,14 +172,14 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
         install_java_use_case.clone(),
     ));
 
-    InstallInstanceUseCase::new(
+    Ok(InstallInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
         install_minecraft_use_case,
         lazy_locator.get_progress_service().await,
         state.location_info.clone(),
     )
     .execute(instance_id, force)
-    .await
+    .await?)
 }
 
 #[tracing::instrument]
@@ -192,35 +192,35 @@ pub async fn update(instance_id: String) -> crate::Result<()> {
             if let Ok(plugin) = plugin_registry.get(&pack_info.pack_type) {
                 if let Some(plugin) = &plugin.instance {
                     plugin.lock().await.update(&instance_id).map_err(|_| {
-                        crate::ErrorKind::InstanceUpdateError(format!(
+                        InstanceError::InstanceUpdateError(format!(
                             "Failed to import instance from plugin {}",
                             pack_info.pack_type
                         ))
-                        .as_error()
                     })?;
                 } else {
-                    return Err(crate::ErrorKind::InstanceUpdateError(format!(
+                    return Err(InstanceError::InstanceUpdateError(format!(
                         "Can't get plugin \"{}\" to update instance. Check if it is installed and enabled",
                         &pack_info.pack_type
-                    ))
-                    .as_error());
+                    )).into()
+                    );
                 }
 
                 return Ok(());
             } else {
-                return Err(crate::ErrorKind::InstanceUpdateError(
-                    "Unsupported pack type".to_owned(),
-                )
-                .as_error());
+                return Err(
+                    InstanceError::InstanceUpdateError("Unsupported pack type".to_owned()).into(),
+                );
             };
         } else {
             return Err(
-                crate::ErrorKind::InstanceUpdateError("There is not pack info".to_owned())
-                    .as_error(),
+                InstanceError::InstanceUpdateError("There is not pack info".to_owned()).into(),
             );
         };
     } else {
-        return Err(crate::ErrorKind::UnmanagedProfileError(instance_id.to_string()).as_error());
+        return Err(InstanceError::UnmanagedInstance {
+            instance_id: instance_id.to_string(),
+        }
+        .into());
     }
 }
 
@@ -228,37 +228,43 @@ pub async fn update(instance_id: String) -> crate::Result<()> {
 pub async fn list() -> crate::Result<Vec<Instance>> {
     let lazy_locator = LazyLocator::get().await?;
 
-    ListInstancesUseCase::new(lazy_locator.get_instance_storage().await)
-        .execute()
-        .await
+    Ok(
+        ListInstancesUseCase::new(lazy_locator.get_instance_storage().await)
+            .execute()
+            .await?,
+    )
 }
 
 #[tracing::instrument]
 pub async fn get(instance_id: String) -> crate::Result<Instance> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetInstanceUseCase::new(lazy_locator.get_instance_storage().await)
-        .execute(instance_id)
-        .await
+    Ok(
+        GetInstanceUseCase::new(lazy_locator.get_instance_storage().await)
+            .execute(instance_id)
+            .await?,
+    )
 }
 
 #[tracing::instrument]
 pub async fn edit(instance_id: String, edit_instance: EditInstance) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    EditInstanceUseCase::new(lazy_locator.get_instance_storage().await)
-        .execute(instance_id, edit_instance)
-        .await
+    Ok(
+        EditInstanceUseCase::new(lazy_locator.get_instance_storage().await)
+            .execute(instance_id, edit_instance)
+            .await?,
+    )
 }
 
 #[tracing::instrument]
 pub async fn remove(instance_id: String) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    RemoveInstanceUseCase::new(
+    Ok(RemoveInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
         lazy_locator.get_instance_watcher_service().await?,
     )
     .execute(instance_id)
-    .await
+    .await?)
 }

@@ -6,7 +6,7 @@ use extism_convert::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
-    instance::{Instance, InstanceStorage},
+    instance::{Instance, InstanceError, InstanceStorage},
     settings::{MemorySettings, WindowSize},
 };
 
@@ -35,11 +35,11 @@ impl<IS: InstanceStorage> EditInstanceUseCase<IS> {
         &self,
         instance_id: String,
         edit_instance: EditInstance,
-    ) -> crate::Result<()> {
+    ) -> Result<(), InstanceError> {
         validate_edit(&edit_instance)?;
         let mut instance = self.instance_storage.get(&instance_id).await?;
         apply_edit_changes(&mut instance, &edit_instance);
-        Ok(self.instance_storage.upsert(&instance).await?)
+        self.instance_storage.upsert(&instance).await
     }
 }
 
@@ -80,7 +80,7 @@ fn apply_edit_changes(instance: &mut Instance, edit_instance: &EditInstance) {
     instance.modified = Utc::now();
 }
 
-fn validate_edit(edit: &EditInstance) -> crate::Result<()> {
+fn validate_edit(edit: &EditInstance) -> Result<(), InstanceError> {
     if let Some(name) = &edit.name {
         validate_name(name)?;
     }
@@ -88,9 +88,12 @@ fn validate_edit(edit: &EditInstance) -> crate::Result<()> {
     Ok(())
 }
 
-fn validate_name(name: &str) -> crate::Result<()> {
+fn validate_name(name: &str) -> Result<(), InstanceError> {
     if name.is_empty() {
-        return Err(crate::ErrorKind::OtherError("Name cannot be empty".to_string()).into());
+        return Err(InstanceError::ValidationError {
+            field: "name".to_owned(),
+            reason: "name cannot be empty".to_owned(),
+        });
     }
     Ok(())
 }

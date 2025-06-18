@@ -45,6 +45,18 @@ pub trait EventEmitterExt: EventEmitter {
             .await
     }
 
+    async fn emit_instance_safe(&self, instance_id: String, event: InstanceEventType) {
+        if let Err(e) = self
+            .emit(
+                LauncherEvent::Instance.as_str(),
+                InstanceEvent { instance_id, event },
+            )
+            .await
+        {
+            debug!("Failed to emit instance: {e}")
+        }
+    }
+
     async fn emit_process_safe(
         &self,
         instance_id: String,
