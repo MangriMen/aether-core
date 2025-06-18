@@ -111,12 +111,17 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                 if !asset_path.exists() || force {
                     let asset_resource = fetch_cell.get_or_try_init(|| {
                       self.request_client.fetch_bytes(Request::get(&url))
-                    }).await?;
+                    })
+                    .await
+                    .map_err(|err| IoError::IOError(std::io::Error::new(
+                        std::io::ErrorKind::NetworkUnreachable,
+                        err,
+                    )))?;
 
                     write_async(&asset_path, &asset_resource).await?;
                 }
 
-                Ok::<(), crate::Error>(())
+                Ok::<(), MinecraftError>(())
             },
             // Download legacy asset
             async {
@@ -125,12 +130,17 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                 if with_legacy && !legacy_path.exists() || force {
                     let asset_resource = fetch_cell.get_or_try_init(|| {
                       self.request_client.fetch_bytes(Request::get(&url))
-                    }).await?;
+                    })
+                    .await
+                    .map_err(|err| IoError::IOError(std::io::Error::new(
+                        std::io::ErrorKind::NetworkUnreachable,
+                        err,
+                    )))?;
 
                     write_async(&legacy_path, &asset_resource).await?;
                 }
 
-                Ok::<(), crate::Error>(())
+                Ok::<(), MinecraftError>(())
             }
         };
 
