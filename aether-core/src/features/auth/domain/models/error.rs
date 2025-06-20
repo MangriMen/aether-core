@@ -1,8 +1,9 @@
+use serializable_error_derive::SerializeError;
 use uuid::Uuid;
 
 use crate::shared::IoError;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug, thiserror::Error, SerializeError)]
 pub enum AuthError {
     #[error("Credentials with id: {id} not found")]
     CredentialsNotFound { id: Uuid },

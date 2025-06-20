@@ -33,7 +33,7 @@ pub struct RuntimeConfig {
 
 pub type PathMapping = (String, PathBuf); // (path on disk, plugin path)
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub enum LoadConfigType {
     Extism,
     Native,

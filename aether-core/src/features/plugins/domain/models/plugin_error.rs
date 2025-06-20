@@ -1,3 +1,5 @@
+use serializable_error_derive::SerializeError;
+
 use crate::{
     features::{
         plugins::{LoadConfig, LoadConfigType},
@@ -6,7 +8,7 @@ use crate::{
     shared::IoError,
 };
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, SerializeError)]
 pub enum PluginError {
     #[error("Error when calling function \"{function_name}\" in plugin with id \"{plugin_id}\": {error}")]
     CallError {

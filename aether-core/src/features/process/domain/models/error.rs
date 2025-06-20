@@ -1,6 +1,8 @@
+use serializable_error_derive::SerializeError;
+
 use crate::shared::IoError;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, SerializeError)]
 pub enum ProcessError {
     #[error("Error when killing process with id: {id}")]
     KillError { id: String },

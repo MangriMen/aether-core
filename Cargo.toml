@@ -1,3 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["aether-cli", "aether-core"]
+members = [
+  "aether-cli",
+  "aether-core",
+  "serializable_error",
+  "serializable_error_derive", "serializable_error_tests",
+]

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use serializable_error_derive::SerializeError;
 use uuid::Uuid;
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     shared::IoError,
 };
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, SerializeError)]
 pub enum InstanceError {
     #[error("Storage failure: {0}")]
     StorageFailure(#[from] IoError),
@@ -59,14 +60,18 @@ pub enum InstanceError {
 
     // Features errors
     #[error("Settings load error")]
+    #[serialize_error]
     SettingsLoadError(#[from] SettingsError),
 
     #[error("Failed to get launch command")]
+    #[serialize_error]
     MinecraftError(#[from] MinecraftError),
 
     #[error("Failed to launch instance")]
+    #[serialize_error]
     ProcessError(#[from] ProcessError),
 
-    #[error("Credentials load error")]
+    #[error(transparent)]
+    #[serialize_error]
     CredentialsError(#[from] AuthError),
 }

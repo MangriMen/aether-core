@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
+use serializable_error_derive::SerializeError;
+
 use crate::{libs::request_client::RequestError, shared::IoError};
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug, thiserror::Error, SerializeError)]
 pub enum JavaError {
     #[error("Storage failure: {0}")]
     StorageFailure(#[from] IoError),

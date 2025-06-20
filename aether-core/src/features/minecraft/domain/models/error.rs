@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
+use serializable_error_derive::SerializeError;
+
 use crate::{features::minecraft::LoaderVersionPreference, shared::IoError};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, SerializeError)]
 pub enum MinecraftError {
     #[error("Storage failure: {0}")]
     StorageFailure(#[from] IoError),

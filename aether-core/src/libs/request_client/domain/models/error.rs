@@ -1,6 +1,8 @@
 use std::str::Utf8Error;
 
-#[derive(thiserror::Error, Debug)]
+use serializable_error_derive::SerializeError;
+
+#[derive(thiserror::Error, Debug, SerializeError)]
 pub enum RequestError {
     #[error("Failed to acquire semaphore")]
     AcquireError(#[from] tokio::sync::AcquireError),

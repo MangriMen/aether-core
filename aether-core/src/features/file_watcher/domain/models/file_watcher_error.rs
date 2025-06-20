@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-#[derive(Debug, thiserror::Error)]
+use serializable_error_derive::SerializeError;
+
+#[derive(Debug, thiserror::Error, SerializeError)]
 pub enum FileWatcherError {
     #[error("Path not found: {path}")]
     PathNotFound { path: PathBuf },
