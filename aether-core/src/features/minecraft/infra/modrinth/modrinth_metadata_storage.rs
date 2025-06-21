@@ -7,7 +7,7 @@ use daedalus::{
 };
 
 use crate::{
-    features::minecraft::{MinecraftError, ReadMetadataStorage},
+    features::minecraft::{MinecraftError, ModLoader, ReadMetadataStorage},
     libs::request_client::{Request, RequestClient, RequestClientExt},
     shared::{CachedValue, IoError},
 };
@@ -23,8 +23,8 @@ impl<RC: RequestClient> ModrinthMetadataStorage<RC> {
         Self { request_client }
     }
 
-    fn get_loader_manifest_url(loader: &str) -> String {
-        format!("{META_URL}{loader}/v0/manifest.json")
+    fn get_loader_manifest_url(loader: ModLoader) -> String {
+        format!("{META_URL}{}/v0/manifest.json", loader.as_meta_str())
     }
 }
 
@@ -49,7 +49,7 @@ impl<RC: RequestClient> ReadMetadataStorage for ModrinthMetadataStorage<RC> {
 
     async fn get_loader_version_manifest(
         &self,
-        loader: &str,
+        loader: ModLoader,
     ) -> Result<CachedValue<modded::Manifest>, MinecraftError> {
         Ok(self
             .request_client

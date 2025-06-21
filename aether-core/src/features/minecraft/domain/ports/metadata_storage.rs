@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 
-use crate::{features::minecraft::MinecraftError, shared::CachedValue};
+use crate::{
+    features::minecraft::{MinecraftError, ModLoader},
+    shared::CachedValue,
+};
 
 #[async_trait]
 pub trait ReadMetadataStorage: Send + Sync {
@@ -9,7 +12,7 @@ pub trait ReadMetadataStorage: Send + Sync {
     ) -> Result<CachedValue<daedalus::minecraft::VersionManifest>, MinecraftError>;
     async fn get_loader_version_manifest(
         &self,
-        loader: &str,
+        loader: ModLoader,
     ) -> Result<CachedValue<daedalus::modded::Manifest>, MinecraftError>;
 }
 
@@ -21,7 +24,7 @@ pub trait WriteMetadataStorage: Send + Sync {
     ) -> Result<(), MinecraftError>;
     async fn save_loader_version_manifest(
         &self,
-        loader: &str,
+        loader: ModLoader,
         loader_manifest: &daedalus::modded::Manifest,
     ) -> Result<(), MinecraftError>;
 }

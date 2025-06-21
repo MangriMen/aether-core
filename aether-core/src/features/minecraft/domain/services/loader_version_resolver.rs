@@ -29,7 +29,7 @@ impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
 
         let loader_version_manifest = self
             .metadata_storage
-            .get_loader_version_manifest(loader.as_meta_str())
+            .get_loader_version_manifest(*loader)
             .await?
             .value;
 

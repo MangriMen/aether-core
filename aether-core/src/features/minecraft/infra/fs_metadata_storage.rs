@@ -8,7 +8,7 @@ use daedalus::{
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    features::minecraft::{MinecraftError, ReadMetadataStorage, WriteMetadataStorage},
+    features::minecraft::{MinecraftError, ModLoader, ReadMetadataStorage, WriteMetadataStorage},
     shared::{domain::Cacheable, read_json_async, write_json_async, CachedValue, IoError},
 };
 
@@ -61,10 +61,10 @@ impl FsMetadataStorage {
         self.cache_dir.join("version_manifest.json")
     }
 
-    fn loader_manifest_path(&self, loader: &str) -> PathBuf {
+    fn loader_manifest_path(&self, loader: ModLoader) -> PathBuf {
         self.cache_dir
             .join("mod_loaders")
-            .join(format!("{loader}-manifest.json"))
+            .join(format!("{}-manifest.json", loader.as_meta_str()))
     }
 }
 
@@ -76,7 +76,7 @@ impl ReadMetadataStorage for FsMetadataStorage {
 
     async fn get_loader_version_manifest(
         &self,
-        loader: &str,
+        loader: ModLoader,
     ) -> Result<CachedValue<modded::Manifest>, MinecraftError> {
         self.read(&self.loader_manifest_path(loader)).await
     }
@@ -93,7 +93,7 @@ impl WriteMetadataStorage for FsMetadataStorage {
 
     async fn save_loader_version_manifest(
         &self,
-        loader: &str,
+        loader: ModLoader,
         loader_manifest: &modded::Manifest,
     ) -> Result<(), MinecraftError> {
         self.write(&self.loader_manifest_path(loader), loader_manifest)

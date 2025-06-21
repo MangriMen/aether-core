@@ -125,8 +125,9 @@ impl<
         }?;
 
         // TODO: refactor
-        let client_path = launch_dir
-            .join("versions")
+        let client_path = self
+            .location_info
+            .version_dir(&version_jar)
             .join(format!("{version_jar}.jar"));
 
         let args = version_info.arguments.clone().unwrap_or_default();

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use daedalus::{minecraft::VersionManifest, modded};
 
 use crate::{
-    features::minecraft::{MetadataStorage, MinecraftError, ReadMetadataStorage},
+    features::minecraft::{MetadataStorage, MinecraftError, ModLoader, ReadMetadataStorage},
     shared::CachedValue,
 };
 
@@ -44,7 +44,7 @@ impl<L: MetadataStorage, R: ReadMetadataStorage> ReadMetadataStorage
 
     async fn get_loader_version_manifest(
         &self,
-        loader: &str,
+        loader: ModLoader,
     ) -> Result<CachedValue<modded::Manifest>, MinecraftError> {
         let local_loader_manifest = self.local_storage.get_loader_version_manifest(loader).await;
 
