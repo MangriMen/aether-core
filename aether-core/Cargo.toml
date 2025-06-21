@@ -72,5 +72,6 @@ path-slash = "0.2.1"
 serde_qs = "0.14.0"
 semver = "1.0.26"
 
-serializable_error = { path = "../serializable_error" }
-serializable_error_derive = { path = "../serializable_error_derive" }
+serr = { git = 'https://github.com/MangriMen/serr.git', version = "0.1.0", features = [
+    "derive",
+] }

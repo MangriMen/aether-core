@@ -1,4 +1,4 @@
-use serializable_error_derive::SerializeError;
+use serr::SerializeError;
 use tracing_error::InstrumentError;
 
 use crate::{

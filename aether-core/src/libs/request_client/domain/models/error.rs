@@ -1,6 +1,6 @@
 use std::str::Utf8Error;
 
-use serializable_error_derive::SerializeError;
+use serr::SerializeError;
 
 #[derive(thiserror::Error, Debug, SerializeError)]
 pub enum RequestError {

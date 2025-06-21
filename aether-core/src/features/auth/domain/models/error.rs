@@ -1,4 +1,4 @@
-use serializable_error_derive::SerializeError;
+use serr::SerializeError;
 use uuid::Uuid;
 
 use crate::shared::IoError;

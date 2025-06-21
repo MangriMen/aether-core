@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serializable_error_derive::SerializeError;
+use serr::SerializeError;
 
 use crate::{features::minecraft::LoaderVersionPreference, shared::IoError};
 

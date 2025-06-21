@@ -1,4 +1,4 @@
-use serializable_error_derive::SerializeError;
+use serr::SerializeError;
 use uuid::Uuid;
 
 use super::progress_bar_error::ProgressBarStorageError;
