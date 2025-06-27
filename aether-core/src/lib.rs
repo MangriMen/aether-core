@@ -1,10 +1,7 @@
 pub mod api;
-pub mod config;
-pub mod error;
-pub mod event;
-pub mod jre;
-pub mod launcher;
-pub mod state;
-pub mod utils;
+pub mod core;
+pub mod features;
+pub mod libs;
+pub mod shared;
 
-pub use error::*;
+pub use core::{Error, ErrorKind, Result};
