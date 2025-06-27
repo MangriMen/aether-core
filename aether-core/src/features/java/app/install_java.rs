@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use crate::{
     features::{
         events::ProgressService,
-        java::{infra::AzulJreProvider, Java, JavaInstallationService, JavaStorage},
+        java::{infra::AzulJreProvider, Java, JavaError, JavaInstallationService, JavaStorage},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, RequestClient},
+    libs::request_client::RequestClient,
 };
 
 use super::InstallJreUseCase;
@@ -41,29 +39,17 @@ impl<JS: JavaStorage, JIS: JavaInstallationService, PS: ProgressService, RC: Req
             location_info,
         }
     }
-}
 
-#[async_trait]
-impl<JS: JavaStorage, JIS: JavaInstallationService, PS: ProgressService, RC: RequestClient>
-    AsyncUseCaseWithInputAndError for InstallJavaUseCase<JS, JIS, PS, RC>
-{
-    type Input = u32;
-    type Output = Java;
-    type Error = crate::Error;
-
-    async fn execute(&self, version: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, version: u32) -> Result<Java, JavaError> {
         let installed_jre_path = self
             .install_jre_use_case
-            .execute((version, self.location_info.java_dir()))
+            .execute(version, self.location_info.java_dir())
             .await?;
 
         let java = self
             .java_installation_service
             .locate_java(&installed_jre_path)
-            .await
-            .ok_or_else(|| {
-                crate::ErrorKind::LauncherError(format!("Java {} not found", version)).as_error()
-            })?;
+            .await?;
 
         self.storage.upsert(&java).await?;
 

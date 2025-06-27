@@ -1,4 +1,5 @@
 use std::{
+    io::Cursor,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -9,10 +10,10 @@ use serde::Deserialize;
 
 use crate::{
     features::{
-        events::{ProgressBarId, ProgressEventType, ProgressService},
-        java::ports::JreProvider,
+        events::{ProgressBarId, ProgressEventType, ProgressService, ProgressServiceExt},
+        java::{ports::JreProvider, JavaError},
     },
-    shared::{Request, RequestClient, RequestClientExt},
+    libs::request_client::{Request, RequestClient, RequestClientExt},
 };
 
 use super::JAVA_WINDOW_BIN;
@@ -43,58 +44,65 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
 
     fn build_packages_url(version: u32) -> String {
         format!(
-          "{AZUL_PACKAGES_BASE_API_URL}?arch={}&java_version={}&os={}&{AZUL_PACKAGES_DEFAULT_QUERY_PARAMS}",
-          std::env::consts::ARCH,
-          version,
-          std::env::consts::OS
-      )
+            "{AZUL_PACKAGES_BASE_API_URL}?arch={arch}&java_version={version}&os={os}&{params}",
+            arch = std::env::consts::ARCH,
+            version = version,
+            os = std::env::consts::OS,
+            params = AZUL_PACKAGES_DEFAULT_QUERY_PARAMS
+        )
     }
 
-    async fn fetch_package(&self, version: u32) -> crate::Result<Package> {
+    async fn fetch_package(&self, version: u32) -> Result<Package, JavaError> {
         let packages_url = Self::build_packages_url(version);
         let packages: Vec<Package> = self
             .request_client
             .fetch_json_with_progress(Request::get(packages_url), None)
             .await?;
 
-        packages.first().cloned().ok_or_else(|| {
-            crate::ErrorKind::NoValueFor(format!(
-                "No Java Version found for Java version {}, OS {}, and Architecture {}",
+        packages
+            .first()
+            .cloned()
+            .ok_or_else(|| JavaError::JavaDownloadNotFound {
                 version,
-                std::env::consts::OS,
-                std::env::consts::ARCH,
-            ))
-            .into()
-        })
+                os: std::env::consts::OS.to_owned(),
+                arch: std::env::consts::ARCH.to_owned(),
+            })
     }
 
     async fn download_package(
         &self,
         package: &Package,
-        loading_bar_id: &ProgressBarId,
-    ) -> crate::Result<Bytes> {
+        progress_bar_id: Option<&ProgressBarId>,
+    ) -> Result<Bytes, JavaError> {
         self.request_client
             .fetch_bytes_with_progress(
                 Request::get(&package.download_url),
-                Some((loading_bar_id, 80.0)),
+                progress_bar_id.map(|progress_bar_id| (progress_bar_id, 80.0)),
             )
             .await
+            .map_err(Into::into)
     }
 
     async fn download_jre(
         &self,
         version: u32,
-        loading_bar_id: &ProgressBarId,
-    ) -> crate::Result<(Package, Bytes)> {
-        self.progress_service
-            .emit_progress(loading_bar_id, 0.0, Some("Fetching java version"))
-            .await?;
+        progress_bar_id: Option<&ProgressBarId>,
+    ) -> Result<(Package, Bytes), JavaError> {
+        if let Some(progress_bar_id) = progress_bar_id {
+            self.progress_service
+                .emit_progress_safe(progress_bar_id, 0.0, Some("Fetching java version"))
+                .await;
+        }
+
         let package = self.fetch_package(version).await?;
 
-        self.progress_service
-            .emit_progress(loading_bar_id, 10.0, Some("Downloading java version"))
-            .await?;
-        let file = self.download_package(&package, loading_bar_id).await?;
+        if let Some(progress_bar_id) = progress_bar_id {
+            self.progress_service
+                .emit_progress_safe(progress_bar_id, 10.0, Some("Downloading java version"))
+                .await;
+        }
+
+        let file = self.download_package(&package, progress_bar_id).await?;
 
         Ok((package, file))
     }
@@ -125,43 +133,47 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
         }
     }
 
+    async fn remove_old_jre_installation(path: &Path) -> Result<(), JavaError> {
+        if path.exists() {
+            tokio::fs::remove_dir_all(&path).await.map_err(|_| {
+                JavaError::RemoveOldInstallationError {
+                    path: path.to_path_buf(),
+                }
+            })?;
+        }
+
+        Ok(())
+    }
+
     async fn unpack_jre(
         &self,
         path: &Path,
         file: Bytes,
         package: &Package,
         version: u32,
-        loading_bar_id: &ProgressBarId,
-    ) -> crate::Result<PathBuf> {
-        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(file)).map_err(|_| {
-            crate::Error::from(crate::ErrorKind::InputError(
-                "Failed to read java zip".to_string(),
-            ))
-        })?;
+        progress_bar_id: Option<&ProgressBarId>,
+    ) -> Result<PathBuf, JavaError> {
+        let mut archive = zip::ZipArchive::new(Cursor::new(file))?;
 
-        // Remove the old installation of jre
         if let Some(file) = archive.file_names().next() {
             if let Some(dir) = file.split('/').next() {
-                let path = path.join(dir);
-
-                if path.exists() {
-                    tokio::fs::remove_dir_all(path).await?;
-                }
+                Self::remove_old_jre_installation(&path.join(dir)).await?;
             }
         }
 
-        self.progress_service
-            .emit_progress(loading_bar_id, 0.0, Some("Extracting java"))
-            .await?;
-        archive.extract(path).map_err(|_| {
-            crate::Error::from(crate::ErrorKind::InputError(
-                "Failed to extract java zip".to_string(),
-            ))
-        })?;
+        if let Some(progress_bar_id) = progress_bar_id {
+            self.progress_service
+                .emit_progress_safe(progress_bar_id, 0.0, Some("Extracting java"))
+                .await;
+        }
 
-        self.progress_service
-            .emit_progress(loading_bar_id, 10.0, Some("Done extracting java"))
-            .await?;
+        archive.extract(path)?;
+
+        if let Some(progress_bar_id) = progress_bar_id {
+            self.progress_service
+                .emit_progress_safe(progress_bar_id, 10.0, Some("Done extracting java"))
+                .await;
+        }
 
         Ok(Self::resolve_java_executable_path(path, package, version))
     }
@@ -169,19 +181,25 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
 
 #[async_trait]
 impl<PS: ProgressService, RC: RequestClient> JreProvider for AzulJreProvider<PS, RC> {
-    async fn install(&self, version: u32, install_dir: &Path) -> crate::Result<PathBuf> {
-        let loading_bar_id = self
+    async fn install(&self, version: u32, install_dir: &Path) -> Result<PathBuf, JavaError> {
+        let progress_bar_id = self
             .progress_service
-            .init_progress(
+            .init_progress_safe(
                 ProgressEventType::JavaDownload { version },
                 100.0,
                 "Downloading java version".to_string(),
             )
-            .await?;
+            .await;
 
-        let (package, file) = self.download_jre(version, &loading_bar_id).await?;
+        let (package, file) = self.download_jre(version, progress_bar_id.as_ref()).await?;
 
-        self.unpack_jre(install_dir, file, &package, version, &loading_bar_id)
-            .await
+        self.unpack_jre(
+            install_dir,
+            file,
+            &package,
+            version,
+            progress_bar_id.as_ref(),
+        )
+        .await
     }
 }

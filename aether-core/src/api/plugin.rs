@@ -2,10 +2,9 @@ use crate::{
     core::domain::LazyLocator,
     features::plugins::{
         DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
-        GetPluginManifestUseCase, GetPluginSettingsUseCase, ListPluginsManifestsUseCase,
-        PluginManifest, PluginSettings, SyncPluginsUseCase,
+        GetPluginDtoUseCase, GetPluginSettingsUseCase, ListPluginsDtoUseCase, PluginDto,
+        PluginSettings, SyncPluginsUseCase,
     },
-    shared::domain::{AsyncUseCaseWithError, AsyncUseCaseWithInputAndError},
 };
 
 #[tracing::instrument]
@@ -18,66 +17,62 @@ pub async fn sync() -> crate::Result<()> {
         lazy_locator.get_settings_storage().await,
     );
 
-    SyncPluginsUseCase::new(
+    Ok(SyncPluginsUseCase::new(
         lazy_locator.get_plugin_storage().await,
         lazy_locator.get_plugin_registry().await,
         disable_plugin_use_case,
     )
     .execute()
-    .await
+    .await?)
 }
 
 #[tracing::instrument]
-pub async fn list_manifests() -> crate::Result<Vec<PluginManifest>> {
+pub async fn list() -> crate::Result<Vec<PluginDto>> {
     let lazy_locator = LazyLocator::get().await?;
 
-    ListPluginsManifestsUseCase::new(lazy_locator.get_plugin_registry().await)
-        .execute()
-        .await
+    Ok(
+        ListPluginsDtoUseCase::new(lazy_locator.get_plugin_registry().await)
+            .execute()
+            .await?,
+    )
 }
 
 #[tracing::instrument]
-pub async fn get_manifest(plugin_id: String) -> crate::Result<PluginManifest> {
+pub async fn get(plugin_id: String) -> crate::Result<PluginDto> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetPluginManifestUseCase::new(lazy_locator.get_plugin_registry().await)
-        .execute(plugin_id)
-        .await
-}
-
-#[tracing::instrument]
-pub async fn is_enabled(id: &str) -> crate::Result<bool> {
-    let lazy_locator = LazyLocator::get().await?;
-    let plugin_registry = lazy_locator.get_plugin_registry().await;
-    let plugin = plugin_registry.get(id)?;
-    Ok(plugin.is_loaded())
+    Ok(
+        GetPluginDtoUseCase::new(lazy_locator.get_plugin_registry().await)
+            .execute(plugin_id)
+            .await?,
+    )
 }
 
 #[tracing::instrument]
 pub async fn enable(plugin_id: String) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    EnablePluginUseCase::new(
+    Ok(EnablePluginUseCase::new(
         lazy_locator.get_plugin_registry().await,
         lazy_locator.get_plugin_loader_registry().await,
         lazy_locator.get_plugin_settings_storage().await,
         lazy_locator.get_settings_storage().await,
     )
     .execute(plugin_id)
-    .await
+    .await?)
 }
 
 #[tracing::instrument]
 pub async fn disable(plugin_id: String) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    DisablePluginUseCase::new(
+    Ok(DisablePluginUseCase::new(
         lazy_locator.get_plugin_registry().await,
         lazy_locator.get_plugin_loader_registry().await,
         lazy_locator.get_settings_storage().await,
     )
     .execute(plugin_id)
-    .await
+    .await?)
 }
 
 #[tracing::instrument]
@@ -94,19 +89,26 @@ pub async fn call(plugin_id: String, data: String) -> crate::Result<()> {
 }
 
 #[tracing::instrument]
-pub async fn get_settings(id: String) -> crate::Result<Option<PluginSettings>> {
+pub async fn get_settings(plugin_id: String) -> crate::Result<Option<PluginSettings>> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
-        .execute(id)
-        .await
+    Ok(
+        GetPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
+            .execute(plugin_id)
+            .await?,
+    )
 }
 
 #[tracing::instrument]
-pub async fn edit_settings(id: String, edit_settings: EditPluginSettings) -> crate::Result<()> {
+pub async fn edit_settings(
+    plugin_id: String,
+    edit_settings: EditPluginSettings,
+) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
-    EditPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
-        .execute((id, edit_settings))
-        .await
+    Ok(
+        EditPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
+            .execute(plugin_id, edit_settings)
+            .await?,
+    )
 }

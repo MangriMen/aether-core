@@ -1,45 +1,46 @@
-use tracing_error::InstrumentError;
+use serr::SerializeError;
 
-#[derive(thiserror::Error, Debug)]
-pub enum PluginErrorKind {
-    #[error("Function '{0}' not found")]
-    FunctionNotFound(String),
-    #[error("Error calling plugin function: {0}")]
-    CallError(String),
-}
+use crate::{
+    features::{
+        plugins::{LoadConfig, LoadConfigType},
+        settings::SettingsError,
+    },
+    shared::IoError,
+};
 
-#[derive(Debug)]
-pub struct PluginError {
-    pub raw: std::sync::Arc<PluginErrorKind>,
-    pub source: tracing_error::TracedError<std::sync::Arc<PluginErrorKind>>,
-}
+#[derive(thiserror::Error, Debug, SerializeError)]
+pub enum PluginError {
+    #[error("Error when calling function \"{function_name}\" in plugin with id \"{plugin_id}\": {error}")]
+    CallError {
+        function_name: String,
+        plugin_id: String,
+        error: String,
+    },
 
-impl std::error::Error for PluginError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.source()
-    }
-}
+    #[error("Not found loader for: {load_config_type:?}")]
+    LoaderNotFoundError { load_config_type: LoadConfigType },
 
-impl std::fmt::Display for PluginError {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(fmt, "{}", self.source)
-    }
-}
+    #[error("Invalid load config: {load_config:?}")]
+    InvalidLoadConfigError { load_config: LoadConfig },
 
-impl<E: Into<PluginErrorKind>> From<E> for PluginError {
-    fn from(source: E) -> Self {
-        let error = Into::<PluginErrorKind>::into(source);
-        let boxed_error = std::sync::Arc::new(error);
+    #[error("Plugin with id \"{plugin_id}\" not found")]
+    PluginNotFoundError { plugin_id: String },
 
-        Self {
-            raw: boxed_error.clone(),
-            source: boxed_error.in_current_span(),
-        }
-    }
-}
+    #[error("Error while loading plugin")]
+    PluginLoadError,
 
-impl PluginErrorKind {
-    pub fn as_error(self) -> PluginError {
-        self.into()
-    }
+    #[error("Storage failure: {0}")]
+    StorageFailure(#[from] IoError),
+
+    #[error("Failed to construct hash")]
+    HashConstructError,
+
+    #[error("Error when updating settings: {0}")]
+    SettingsError(#[from] SettingsError),
+
+    #[error("Plugin \"{plugin_id}\" tried to access disallowed path \"{path}\"")]
+    PluginPathAccessViolationError { plugin_id: String, path: String },
+
+    #[error("Host function error: {0}")]
+    HostFunctionError(String),
 }

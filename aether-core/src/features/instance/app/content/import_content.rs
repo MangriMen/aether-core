@@ -3,15 +3,15 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
+use log::debug;
 
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, InstanceEventType},
-        instance::{ContentType, PackFile, PackStorage},
+        instance::{ContentType, InstanceError, PackFile, PackStorage},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, read_async, sha1_async},
+    shared::{read_async, sha1_async, IoError},
 };
 
 pub struct ImportContent {
@@ -66,7 +66,7 @@ impl<E: EventEmitter, PS: PackStorage> ImportContentUseCase<E, PS> {
         instance_id: &str,
         content_type: ContentType,
         source_paths: &[PathBuf],
-    ) -> crate::Result<(Vec<String>, Vec<PackFile>)> {
+    ) -> Result<(Vec<String>, Vec<PackFile>), InstanceError> {
         let mut paths = Vec::with_capacity(source_paths.len());
         let mut metadata_files = Vec::with_capacity(source_paths.len());
 
@@ -87,21 +87,20 @@ impl<E: EventEmitter, PS: PackStorage> ImportContentUseCase<E, PS> {
         instance_id: &str,
         content_type: ContentType,
         path: &Path,
-    ) -> crate::Result<(String, PackFile)> {
+    ) -> Result<(String, PackFile), InstanceError> {
         let content_folder = content_type.get_folder();
 
-        let file_name = path.file_name().and_then(|n| n.to_str()).ok_or_else(|| {
-            crate::ErrorKind::NoValueFor(format!("Can't get file name {:?}", path))
-        })?;
+        let file_name =
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .ok_or(InstanceError::ContentFilename {
+                    path: path.to_path_buf(),
+                })?;
 
         let content_path = Path::new(content_folder)
             .join(file_name)
             .to_string_lossy()
             .to_string();
-
-        let duplicate_error = crate::ErrorKind::ContentImportDuplicateError {
-            content_path: content_path.clone(),
-        };
 
         let absolute_content_path = self
             .location_info
@@ -109,7 +108,9 @@ impl<E: EventEmitter, PS: PackStorage> ImportContentUseCase<E, PS> {
             .join(&content_path);
 
         if absolute_content_path.exists() {
-            return Err(duplicate_error.as_error());
+            return Err(InstanceError::ContentDuplication {
+                content_path: content_path.clone(),
+            });
         }
 
         let pack_file = self
@@ -118,7 +119,9 @@ impl<E: EventEmitter, PS: PackStorage> ImportContentUseCase<E, PS> {
             .await;
 
         if pack_file.is_ok() {
-            return Err(duplicate_error.as_error());
+            return Err(InstanceError::ContentDuplication {
+                content_path: content_path.clone(),
+            });
         }
 
         let pack_file = file_to_pack_file(path, file_name).await?;
@@ -131,30 +134,20 @@ impl<E: EventEmitter, PS: PackStorage> ImportContentUseCase<E, PS> {
         instance_id: &str,
         source_paths: &[PathBuf],
         content_paths: &[String],
-    ) -> crate::Result<()> {
+    ) -> Result<(), InstanceError> {
         let instance_dir = self.location_info.instance_dir(instance_id);
 
         futures::future::try_join_all(source_paths.iter().zip(content_paths).map(|(src, dest)| {
             let dest_path = instance_dir.join(dest);
             tokio::fs::copy(src, dest_path)
         }))
-        .await?;
+        .await
+        .map_err(IoError::from)?;
 
         Ok(())
     }
-}
 
-#[async_trait]
-impl<E, PS> AsyncUseCaseWithInputAndError for ImportContentUseCase<E, PS>
-where
-    E: EventEmitter,
-    PS: PackStorage + Send + Sync,
-{
-    type Input = ImportContent;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, input: ImportContent) -> Result<(), InstanceError> {
         let ImportContent {
             instance_id,
             content_type,
@@ -173,16 +166,19 @@ where
             .await?;
 
         self.event_emitter
-            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)
-            .await?;
+            .emit_instance_safe(instance_id.to_string(), InstanceEventType::Edited)
+            .await;
 
         Ok(())
     }
 }
 
-async fn file_to_pack_file(file_path: &Path, file_name: &str) -> crate::Result<PackFile> {
+async fn file_to_pack_file(file_path: &Path, file_name: &str) -> Result<PackFile, InstanceError> {
     let file_content = read_async(&file_path).await?;
-    let hash = sha1_async(file_content).await?;
+    let hash = sha1_async(file_content).await.map_err(|error| {
+        debug!("Failed to compute sha1: {error}");
+        InstanceError::HashConstructError
+    })?;
 
     Ok(PackFile {
         file_name: file_name.to_string(),

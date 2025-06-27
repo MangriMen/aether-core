@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::shared::{Request, RequestClient, RequestClientExt};
+use crate::{
+    features::instance::InstanceError,
+    libs::request_client::{Request, RequestClient, RequestClientExt},
+};
 
 use super::{
     ListProjectVersionsParams, ListProjectsVersionsResponse, ProjectSearchParams,
@@ -15,10 +18,7 @@ pub struct ModrinthApiClient<RC> {
     request_client: Arc<RC>,
 }
 
-impl<RC> ModrinthApiClient<RC>
-where
-    RC: RequestClient + Send + Sync,
-{
+impl<RC: RequestClient> ModrinthApiClient<RC> {
     pub fn new(
         base_url: String,
         base_headers: Option<reqwest::header::HeaderMap>,
@@ -34,7 +34,7 @@ where
     pub async fn search(
         &self,
         search_params: &ProjectSearchParams,
-    ) -> crate::Result<ProjectSearchResponse> {
+    ) -> Result<ProjectSearchResponse, InstanceError> {
         let query_string = serde_qs::to_string(&search_params).unwrap();
         let url = format!("{}/search?{query_string}", self.base_url);
 
@@ -46,12 +46,13 @@ where
         self.request_client
             .fetch_json_with_progress(request, None)
             .await
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))
     }
 
     pub async fn get_project_version(
         &self,
         project_version: &str,
-    ) -> crate::Result<ProjectVersionResponse> {
+    ) -> Result<ProjectVersionResponse, InstanceError> {
         let url = format!("{}/version/{project_version}", self.base_url);
 
         let mut request = Request::get(&url);
@@ -62,6 +63,7 @@ where
         self.request_client
             .fetch_json_with_progress(request, None)
             .await
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))
     }
 
     pub async fn get_project_version_for_game_version(
@@ -69,7 +71,7 @@ where
         project_id: &str,
         game_version: &str,
         loader: &Option<String>,
-    ) -> crate::Result<ProjectVersionResponse> {
+    ) -> Result<ProjectVersionResponse, InstanceError> {
         let params = ListProjectVersionsParams {
             loaders: loader.as_ref().map(|l| vec![l.clone()]),
             game_versions: vec![game_version.to_string()],
@@ -89,7 +91,8 @@ where
         let response: ListProjectsVersionsResponse = self
             .request_client
             .fetch_json_with_progress(request, None)
-            .await?;
+            .await
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))?;
 
         let version = response
             .iter()
@@ -98,15 +101,13 @@ where
         if let Some(version) = version {
             Ok(version.clone())
         } else {
-            Err(crate::ErrorKind::NoValueFor(format!(
-                "Content for version \"{}\" not found",
-                game_version
-            ))
-            .as_error())
+            Err(InstanceError::ContentForGameVersionNotFound {
+                game_version: game_version.to_owned(),
+            })
         }
     }
 
-    pub async fn get_file(&self, url: &str) -> crate::Result<Bytes> {
+    pub async fn get_file(&self, url: &str) -> Result<Bytes, InstanceError> {
         let mut request = Request::get(url);
         if let Some(base_headers) = self.base_headers.clone() {
             request = request.with_headers(base_headers);
@@ -115,5 +116,6 @@ where
         self.request_client
             .fetch_bytes_with_progress(request, None)
             .await
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))
     }
 }

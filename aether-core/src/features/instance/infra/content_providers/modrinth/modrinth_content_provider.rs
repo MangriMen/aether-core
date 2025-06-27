@@ -10,12 +10,13 @@ use path_slash::PathBufExt;
 use crate::{
     features::{
         instance::{
-            ContentInstallParams, ContentProvider, ContentSearchParams, ContentSearchResult,
-            InstanceFile,
+            modrinth::ProjectSearchParams, ContentInstallParams, ContentProvider,
+            ContentSearchParams, ContentSearchResult, InstanceError, InstanceFile,
         },
         settings::LocationInfo,
     },
-    shared::{write_async, RequestClient},
+    libs::request_client::RequestClient,
+    shared::write_async,
 };
 
 use super::{
@@ -42,22 +43,25 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
 
     fn parse_provider_data(
         install_params: &ContentInstallParams,
-    ) -> crate::Result<ModrinthProviderData> {
+    ) -> Result<ModrinthProviderData, InstanceError> {
         install_params
             .provider_data
             .as_ref()
             .map(|data| serde_json::from_value(data.clone()))
-            .transpose()?
-            .ok_or_else(|| {
-                crate::ErrorKind::NoValueFor("Provider data not found".to_string()).as_error()
-            })
+            .transpose()
+            .map_err(|_| {
+                InstanceError::ContentDownloadError("Failed to parse provider data".to_owned())
+            })?
+            .ok_or(InstanceError::ContentDownloadError(
+                "Provider data not found".to_owned(),
+            ))
     }
 
     async fn resolve_project_version(
         &self,
         install_params: &ContentInstallParams,
         provider_data: &ModrinthProviderData,
-    ) -> crate::Result<ProjectVersionResponse> {
+    ) -> Result<ProjectVersionResponse, InstanceError> {
         match &install_params.content_version {
             Some(version) => self.api.get_project_version(version).await,
             None => {
@@ -75,17 +79,19 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
     fn get_project_file(
         project_version: &ProjectVersionResponse,
         install_params: &ContentInstallParams,
-    ) -> crate::Result<File> {
-        get_first_file_from_project_version(project_version).ok_or_else(|| {
-            crate::ErrorKind::NoValueFor(format!(
-                "Content for version \"{}\" not found",
-                install_params.game_version
-            ))
-            .as_error()
-        })
+    ) -> Result<File, InstanceError> {
+        get_first_file_from_project_version(project_version).ok_or(
+            InstanceError::ContentForGameVersionNotFound {
+                game_version: install_params.game_version.to_owned(),
+            },
+        )
     }
 
-    async fn download_and_save_file(&self, file_url: &str, file_path: &Path) -> crate::Result<()> {
+    async fn download_and_save_file(
+        &self,
+        file_url: &str,
+        file_path: &Path,
+    ) -> Result<(), InstanceError> {
         let file_bytes = self.api.get_file(file_url).await?;
         Ok(write_async(file_path, &file_bytes).await?)
     }
@@ -96,10 +102,13 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
         install_params: &ContentInstallParams,
         relative_path: &PathBuf,
         provider_data: &ModrinthProviderData,
-    ) -> crate::Result<InstanceFile> {
+    ) -> Result<InstanceFile, InstanceError> {
         let update_data = toml::Value::try_from(&ModrinthUpdateData {
             project_id: provider_data.project_id.clone(),
             version: version.id.clone(),
+        })
+        .map_err(|_| {
+            InstanceError::ContentDownloadError("Failed to parse update data".to_owned())
         })?;
 
         Ok(InstanceFile {
@@ -129,16 +138,16 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
 }
 
 #[async_trait]
-impl<RC> ContentProvider for ModrinthContentProvider<RC>
-where
-    RC: RequestClient + Send + Sync,
-{
+impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
     async fn search(
         &self,
         search_params: &ContentSearchParams,
-    ) -> crate::Result<ContentSearchResult> {
-        let project_search_params = search_params.clone().try_into()?;
+    ) -> Result<ContentSearchResult, InstanceError> {
+        let project_search_params = ProjectSearchParams::try_from(search_params.clone())
+            .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))?;
+
         let project_search_response = self.api.search(&project_search_params).await?;
+
         Ok(modrinth_to_content_response(
             search_params,
             &project_search_response,
@@ -149,7 +158,7 @@ where
         &self,
         instance_id: &str,
         install_params: &ContentInstallParams,
-    ) -> crate::Result<InstanceFile> {
+    ) -> Result<InstanceFile, InstanceError> {
         let provider_data = Self::parse_provider_data(install_params)?;
 
         let project_version = self

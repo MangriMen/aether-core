@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 
 use crate::{
-    features::settings::{Settings, SettingsStorage},
+    features::settings::{Settings, SettingsError, SettingsStorage},
     shared::{read_json_async, write_json_async},
 };
 
@@ -18,24 +18,23 @@ impl FsSettingsStorage {
         }
     }
 
-    async fn read(&self) -> crate::Result<Settings> {
-        read_json_async(&self.settings_file).await
+    async fn read(&self) -> Result<Settings, SettingsError> {
+        Ok(read_json_async(&self.settings_file).await?)
     }
 
-    async fn write(&self, data: &Settings) -> crate::Result<()> {
-        write_json_async(&self.settings_file, &data).await
+    async fn write(&self, data: &Settings) -> Result<(), SettingsError> {
+        Ok(write_json_async(&self.settings_file, &data).await?)
     }
 }
 
 #[async_trait]
 impl SettingsStorage for FsSettingsStorage {
-    async fn get(&self) -> crate::Result<Settings> {
-        self.read()
-            .await
-            .map_err(|_| crate::ErrorKind::NoValueFor("Settings".to_owned()).as_error())
+    async fn get(&self) -> Result<Settings, SettingsError> {
+        self.read().await
     }
 
-    async fn upsert(&self, settings: &Settings) -> crate::Result<()> {
-        self.write(settings).await
+    async fn upsert(&self, settings: Settings) -> Result<Settings, SettingsError> {
+        self.write(&settings).await?;
+        Ok(settings)
     }
 }

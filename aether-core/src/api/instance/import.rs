@@ -1,4 +1,7 @@
-use crate::{core::domain::LazyLocator, features::instance::ImportConfig};
+use crate::{
+    core::domain::LazyLocator,
+    features::instance::{ImportConfig, InstanceError},
+};
 
 pub async fn get_import_configs() -> crate::Result<Vec<ImportConfig>> {
     let lazy_locator = LazyLocator::get().await?;
@@ -28,15 +31,14 @@ pub async fn import(pack_type: &str, path_or_url: &str) -> crate::Result<()> {
     if let Ok(plugin) = plugin {
         if let Some(plugin) = &plugin.instance {
             plugin.lock().await.import(path_or_url).map_err(|_| {
-                crate::ErrorKind::InstanceImportError(format!(
+                InstanceError::InstanceImportError(format!(
                     "Failed to import instance from plugin {pack_type}"
                 ))
-                .as_error()
             })?;
         }
 
         Ok(())
     } else {
-        Err(crate::ErrorKind::InstanceImportError("Unsupported pack type".to_owned()).as_error())
+        Err(InstanceError::InstanceImportError("Unsupported pack type".to_owned()).into())
     }
 }

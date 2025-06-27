@@ -3,16 +3,16 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
 use dashmap::DashMap;
+use log::debug;
 use path_slash::PathBufExt;
 
 use crate::{
     features::{
-        instance::{ContentType, InstanceFile, PackEntry, PackFile, PackStorage},
+        instance::{ContentType, InstanceError, InstanceFile, PackEntry, PackFile, PackStorage},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, read_async, sha1_async, IOError},
+    shared::{read_async, sha1_async, IoError},
 };
 
 pub struct ListContentUseCase<PS: PackStorage> {
@@ -31,7 +31,7 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
     async fn get_entries_by_path(
         &self,
         instance_id: &str,
-    ) -> crate::Result<DashMap<String, PackEntry>> {
+    ) -> Result<DashMap<String, PackEntry>, InstanceError> {
         let metadata = self.pack_storage.get_pack(instance_id).await?;
 
         Ok(metadata
@@ -48,7 +48,7 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         content_type: ContentType,
         entries_by_path: &DashMap<String, PackEntry>,
         files: &mut DashMap<String, InstanceFile>,
-    ) -> crate::Result<()> {
+    ) -> Result<(), InstanceError> {
         let content_dir = instance_dir.join(content_type.get_folder());
 
         if !content_dir.exists() {
@@ -56,9 +56,9 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         }
 
         for entry in
-            std::fs::read_dir(&content_dir).map_err(|e| IOError::with_path(e, &content_dir))?
+            std::fs::read_dir(&content_dir).map_err(|e| IoError::with_path(e, &content_dir))?
         {
-            let entry_path = entry.map_err(IOError::from)?.path();
+            let entry_path = entry.map_err(IoError::from)?.path();
 
             if !entry_path.is_file() {
                 continue;
@@ -81,13 +81,13 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         file_path: &Path,
         content_type: ContentType,
         entries_by_path: &DashMap<String, PackEntry>,
-    ) -> crate::Result<Option<InstanceFile>> {
+    ) -> Result<Option<InstanceFile>, InstanceError> {
         let file_name = match file_path.file_name().and_then(|n| n.to_str()) {
             Some(name) => name,
             None => return Ok(None),
         };
 
-        let file_size = file_path.metadata().map_err(IOError::from)?.len();
+        let file_size = file_path.metadata().map_err(IoError::from)?.len();
 
         let original_path = PathBuf::from(content_type.get_folder())
             .join(file_name)
@@ -122,18 +122,11 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
             update: pack_file.update,
         }))
     }
-}
 
-#[async_trait]
-impl<PS> AsyncUseCaseWithInputAndError for ListContentUseCase<PS>
-where
-    PS: PackStorage + Send + Sync,
-{
-    type Input = String;
-    type Output = DashMap<String, InstanceFile>;
-    type Error = crate::Error;
-
-    async fn execute(&self, instance_id: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(
+        &self,
+        instance_id: String,
+    ) -> Result<DashMap<String, InstanceFile>, InstanceError> {
         let instance_dir = self.location_info.instance_dir(&instance_id);
 
         let entries_by_path = self.get_entries_by_path(&instance_id).await?;
@@ -154,9 +147,12 @@ where
     }
 }
 
-async fn file_to_pack_file(file_path: &Path, file_name: &str) -> crate::Result<PackFile> {
+async fn file_to_pack_file(file_path: &Path, file_name: &str) -> Result<PackFile, InstanceError> {
     let file_content = read_async(&file_path).await?;
-    let hash = sha1_async(file_content).await?;
+    let hash = sha1_async(file_content).await.map_err(|error| {
+        debug!("Failed to compute sha1: {error}");
+        InstanceError::HashConstructError
+    })?;
 
     Ok(PackFile {
         file_name: file_name.to_string(),

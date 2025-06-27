@@ -1,13 +1,12 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::java::{
-        self, get_java_from_path,
+        self,
         infra::{AzulJreProvider, FsJavaInstallationService},
         GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
 };
 
 #[tracing::instrument]
@@ -22,29 +21,24 @@ pub async fn install(version: u32) -> crate::Result<java::Java> {
 
     let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
 
-    InstallJavaUseCase::new(
+    let install_java_use_case = InstallJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
         install_jre_use_case,
         state.location_info.clone(),
-    )
-    .execute(version)
-    .await
+    );
+
+    Ok(install_java_use_case.execute(version).await?)
 }
 
 #[tracing::instrument]
 pub async fn get(version: u32) -> crate::Result<java::Java> {
     let lazy_locator = LazyLocator::get().await?;
 
-    GetJavaUseCase::new(
+    let get_java_use_case = GetJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
-    )
-    .execute(version)
-    .await
-}
+    );
 
-#[tracing::instrument]
-pub async fn get_from_path(path: &Path) -> crate::Result<java::Java> {
-    get_java_from_path(path).await
+    Ok(get_java_use_case.execute(version).await?)
 }

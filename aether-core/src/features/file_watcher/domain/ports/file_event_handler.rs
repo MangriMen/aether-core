@@ -6,6 +6,6 @@ use crate::features::file_watcher::{FileEvent, FileWatcherError};
 pub trait FileEventHandler: Send + Sync {
     async fn handle_events(
         &self,
-        events: crate::Result<Vec<FileEvent>>,
+        events: Result<Vec<FileEvent>, FileWatcherError>,
     ) -> Result<(), FileWatcherError>;
 }

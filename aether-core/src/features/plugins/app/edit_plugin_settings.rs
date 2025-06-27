@@ -1,12 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    features::plugins::{PathMapping, PluginSettings, PluginSettingsStorage},
-    shared::domain::AsyncUseCaseWithInputAndError,
-};
+use crate::features::plugins::{PathMapping, PluginError, PluginSettings, PluginSettingsStorage};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EditPluginSettings {
@@ -24,27 +20,22 @@ impl<PSS: PluginSettingsStorage> EditPluginSettingsUseCase<PSS> {
             plugin_settings_storage,
         }
     }
-}
 
-#[async_trait]
-impl<PSS: PluginSettingsStorage> AsyncUseCaseWithInputAndError for EditPluginSettingsUseCase<PSS> {
-    type Input = (String, EditPluginSettings);
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let (plugin_id, edit_settings) = input;
-
+    pub async fn execute(
+        &self,
+        plugin_id: String,
+        edit_settings: EditPluginSettings,
+    ) -> Result<(), PluginError> {
         let current = self
             .plugin_settings_storage
             .get(&plugin_id)
             .await?
             .unwrap_or_default();
         let merged = apply_edit_changes(current, &edit_settings);
-        Ok(self
-            .plugin_settings_storage
+
+        self.plugin_settings_storage
             .upsert(&plugin_id, &merged)
-            .await?)
+            .await
     }
 }
 

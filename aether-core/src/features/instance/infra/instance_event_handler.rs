@@ -74,7 +74,7 @@ impl<E: EventEmitter + 'static> InstanceEventHandler<E> {
 impl<E: EventEmitter + 'static> FileEventHandler for InstanceEventHandler<E> {
     async fn handle_events(
         &self,
-        events: crate::Result<Vec<FileEvent>>,
+        events: Result<Vec<FileEvent>, FileWatcherError>,
     ) -> Result<(), FileWatcherError> {
         match events {
             Ok(events) => {

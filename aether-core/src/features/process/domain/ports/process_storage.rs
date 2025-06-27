@@ -3,7 +3,7 @@ use std::process::ExitStatus;
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::features::process::{MinecraftProcess, MinecraftProcessMetadata};
+use crate::features::process::{MinecraftProcess, MinecraftProcessMetadata, ProcessError};
 
 #[async_trait]
 pub trait ProcessStorage: Send + Sync {
@@ -13,7 +13,7 @@ pub trait ProcessStorage: Send + Sync {
     async fn list_metadata(&self) -> Vec<MinecraftProcessMetadata>;
     async fn get_metadata(&self, id: Uuid) -> Option<MinecraftProcessMetadata>;
 
-    async fn try_wait(&self, id: Uuid) -> crate::Result<Option<Option<ExitStatus>>>;
-    async fn wait_for(&self, id: Uuid) -> crate::Result<()>;
-    async fn kill(&self, id: Uuid) -> crate::Result<()>;
+    async fn try_wait(&self, id: Uuid) -> Result<Option<Option<ExitStatus>>, ProcessError>;
+    async fn wait_for(&self, id: Uuid) -> Result<(), ProcessError>;
+    async fn kill(&self, id: Uuid) -> Result<(), ProcessError>;
 }

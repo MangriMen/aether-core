@@ -1,96 +1,71 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use tokio::process::Command;
-use uuid::Uuid;
 
 use crate::{
-    core::{domain::LazyLocator, LauncherState},
     features::{
         events::{EventEmitter, EventEmitterExt, ProcessEventType},
-        process::{MinecraftProcess, MinecraftProcessMetadata, ProcessStorage},
+        process::{MinecraftProcess, MinecraftProcessMetadata, ProcessError, ProcessStorage},
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, IOError},
+    shared::IoError,
 };
 
-use super::{ManageProcessParams, ManageProcessUseCase, TrackProcessUseCase};
+use super::{ManageProcessParams, ManageProcessUseCase};
 
 pub struct StartProcessUseCase<E: EventEmitter, PS: ProcessStorage> {
     event_emitter: Arc<E>,
     process_storage: Arc<PS>,
+    manage_process_use_case: Arc<ManageProcessUseCase<E, PS>>,
 }
 
-impl<E: EventEmitter, PS: ProcessStorage> StartProcessUseCase<E, PS> {
-    pub fn new(event_emitter: Arc<E>, process_storage: Arc<PS>) -> Self {
+impl<E: EventEmitter + 'static, PS: ProcessStorage + 'static> StartProcessUseCase<E, PS> {
+    pub fn new(
+        event_emitter: Arc<E>,
+        process_storage: Arc<PS>,
+        manage_process_use_case: Arc<ManageProcessUseCase<E, PS>>,
+    ) -> Self {
         Self {
             event_emitter,
             process_storage,
+            manage_process_use_case,
         }
     }
-}
 
-#[async_trait]
-impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
-    for StartProcessUseCase<E, PS>
-{
-    type Input = (String, Command, Option<String>);
-    type Output = MinecraftProcessMetadata;
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let (instance_id, mut command, post_exit_command) = input;
-
-        let minecraft_process = command.spawn().map_err(IOError::from)?;
+    pub async fn execute(
+        &self,
+        instance_id: String,
+        mut command: Command,
+        post_exit_command: Option<String>,
+    ) -> Result<MinecraftProcessMetadata, ProcessError> {
+        let minecraft_process = command.spawn().map_err(IoError::from)?;
         let process = MinecraftProcess::from_child(instance_id.clone(), minecraft_process);
 
         let metadata = process.metadata.clone();
 
-        tokio::spawn(manage_process(
-            metadata.uuid,
-            instance_id.clone(),
-            post_exit_command,
-        ));
+        let manage_process_use_case = self.manage_process_use_case.clone();
+        let instance_id_clone = instance_id.clone();
+
+        tokio::spawn(async move {
+            let _ = manage_process_use_case
+                .execute(ManageProcessParams {
+                    process_uuid: metadata.uuid,
+                    instance_id: instance_id_clone,
+                    post_exit_command,
+                })
+                .await;
+        });
 
         self.process_storage.insert(process).await;
 
         self.event_emitter
-            .emit_process(
+            .emit_process_safe(
                 instance_id.clone(),
                 metadata.uuid,
                 "Launched Minecraft".to_string(),
                 ProcessEventType::Launched,
             )
-            .await?;
+            .await;
 
         Ok(metadata)
     }
-}
-
-async fn manage_process(
-    process_uuid: Uuid,
-    instance_id: String,
-    post_exit_command: Option<String>,
-) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let lazy_locator = LazyLocator::get().await?;
-
-    let track_process_use_case = Arc::new(TrackProcessUseCase::new(
-        lazy_locator.get_process_storage().await,
-        lazy_locator.get_instance_storage().await,
-    ));
-
-    let manage_process_use_case = ManageProcessUseCase::new(
-        lazy_locator.get_event_emitter().await,
-        lazy_locator.get_process_storage().await,
-        track_process_use_case,
-        state.location_info.clone(),
-    );
-
-    manage_process_use_case
-        .execute(ManageProcessParams {
-            process_uuid,
-            instance_id,
-            post_exit_command,
-        })
-        .await
 }

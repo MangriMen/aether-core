@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use crate::{
     features::{
-        events::{ProgressBarId, ProgressService},
+        events::{ProgressBarId, ProgressService, ProgressServiceExt},
+        minecraft::MinecraftError,
         settings::LocationInfo,
     },
-    shared::{write_async, Request, RequestClient},
+    libs::request_client::{Request, RequestClient},
+    shared::{write_async, IoError},
 };
 
 pub struct ClientService<RC: RequestClient, PS: ProgressService> {
@@ -32,19 +34,16 @@ impl<RC: RequestClient, PS: ProgressService> ClientService<RC, PS> {
         version_info: &daedalus::minecraft::VersionInfo,
         force: bool,
         loading_bar: Option<&ProgressBarId>,
-    ) -> crate::Result<()> {
+    ) -> Result<(), MinecraftError> {
         log::info!("Downloading client {}", version_info.id);
         let version_id = &version_info.id;
 
         let client_download_url = version_info
             .downloads
             .get(&daedalus::minecraft::DownloadType::Client)
-            .ok_or(
-                crate::ErrorKind::LauncherError(format!(
-                    "No client downloads exist for version {version_id}"
-                ))
-                .as_error(),
-            )?;
+            .ok_or(MinecraftError::VersionNotFoundError {
+                version: version_id.to_owned(),
+            })?;
 
         let path = self
             .location_info
@@ -55,14 +54,20 @@ impl<RC: RequestClient, PS: ProgressService> ClientService<RC, PS> {
             let bytes = self
                 .request_client
                 .fetch_bytes(Request::get(&client_download_url.url))
-                .await?;
+                .await
+                .map_err(|err| {
+                    IoError::IOError(std::io::Error::new(
+                        std::io::ErrorKind::NetworkUnreachable,
+                        err,
+                    ))
+                })?;
             write_async(&path, &bytes).await?;
         }
 
         if let Some(loading_bar) = loading_bar {
             self.progress_service
-                .emit_progress(loading_bar, 9.0, None)
-                .await?;
+                .emit_progress_safe(loading_bar, 9.0, None)
+                .await;
         }
 
         log::info!("Downloaded client {} successfully", version_info.id);

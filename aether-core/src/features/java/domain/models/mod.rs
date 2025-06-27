@@ -1,5 +1,5 @@
+pub mod error;
 pub mod java;
-pub mod java_error;
 
+pub use error::*;
 pub use java::*;
-pub use java_error::*;

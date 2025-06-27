@@ -1,10 +1,16 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{self, Duration},
+};
 
+use reqwest_middleware::ClientWithMiddleware;
+use reqwest_retry::policies::ExponentialBackoff;
 use tokio::sync::OnceCell;
 
 use crate::{
     features::{
-        auth::FsCredentialsStorage,
+        auth::{CredentialsServiceImpl, FsCredentialsStorage},
         events::{InMemoryProgressBarStorage, ProgressServiceImpl, TauriEventEmitter},
         file_watcher::NotifyFileWatcher,
         instance::{
@@ -21,7 +27,7 @@ use crate::{
         process::InMemoryProcessStorage,
         settings::FsSettingsStorage,
     },
-    shared::{ReqwestClient, REQWEST_CLIENT},
+    libs::request_client::ReqwestClient,
 };
 
 use super::{ErrorKind, LauncherState};
@@ -30,14 +36,16 @@ static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 
 const CACHE_TTL: Duration = Duration::from_secs(120);
 
-type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgressBarStorage>;
+pub type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgressBarStorage>;
 
 pub struct LazyLocator {
     state: Arc<LauncherState>,
     app_handle: tauri::AppHandle,
+    reqwest_client: Arc<ClientWithMiddleware>,
     request_client: OnceCell<Arc<ReqwestClient<ProgressServiceType>>>,
     api_client: OnceCell<Arc<ReqwestClient<ProgressServiceType>>>,
     credentials_storage: OnceCell<Arc<FsCredentialsStorage>>,
+    credentials_service: OnceCell<Arc<CredentialsServiceImpl<FsCredentialsStorage>>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
     process_storage: OnceCell<Arc<InMemoryProcessStorage>>,
     instance_storage:
@@ -67,6 +75,24 @@ pub struct LazyLocator {
     >,
 }
 
+fn get_reqwest_client() -> Arc<ClientWithMiddleware> {
+    const FETCH_ATTEMPTS: u32 = 5;
+
+    let client = reqwest::Client::builder()
+        .tcp_keepalive(Some(time::Duration::from_secs(10)))
+        .build()
+        .expect("Failed to build reqwest client");
+
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(FETCH_ATTEMPTS);
+    let retry_middleware = reqwest_retry::RetryTransientMiddleware::new_with_policy(retry_policy);
+
+    let client_with_middlewares = reqwest_middleware::ClientBuilder::new(client)
+        .with(retry_middleware)
+        .build();
+
+    Arc::new(client_with_middlewares)
+}
+
 impl LazyLocator {
     pub async fn init(
         state: Arc<LauncherState>,
@@ -77,9 +103,11 @@ impl LazyLocator {
                 Arc::new(Self {
                     state,
                     app_handle,
+                    reqwest_client: get_reqwest_client(),
                     request_client: OnceCell::new(),
                     api_client: OnceCell::new(),
                     credentials_storage: OnceCell::new(),
+                    credentials_service: OnceCell::new(),
                     settings_storage: OnceCell::new(),
                     process_storage: OnceCell::new(),
                     instance_storage: OnceCell::new(),
@@ -105,15 +133,15 @@ impl LazyLocator {
     pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAZY_LOCATOR.initialized() {
             tracing::error!(
-                "Attempted to get LazyLocator before it is initialized - this should never happen!\n{:?}",
-                std::backtrace::Backtrace::capture()
+                "Attempted to get LazyLocator before it is initialized - this should never happen!",
             );
+            tracing::error!("{}", std::backtrace::Backtrace::capture());
 
             Self::wait_for_initialization().await?;
         }
 
         LAZY_LOCATOR.get().map(Arc::clone).ok_or_else(|| {
-            ErrorKind::LauncherError("LazyLocator is not initialized!".to_string()).as_error()
+            ErrorKind::CoreError("LazyLocator is not initialized!".to_string()).as_error()
         })
     }
 
@@ -125,10 +153,10 @@ impl LazyLocator {
 
         while !LAZY_LOCATOR.initialized() {
             if start.elapsed() > INIT_TIMEOUT {
-                return Err(ErrorKind::LauncherError(
-                    "LazyLocator initialization timeout".to_string(),
-                )
-                .as_error());
+                return Err(
+                    ErrorKind::CoreError("LazyLocator initialization timeout".to_string())
+                        .as_error(),
+                );
             }
             tokio::time::sleep(POLL_INTERVAL).await;
         }
@@ -141,7 +169,7 @@ impl LazyLocator {
             .get_or_init(|| async {
                 Arc::new(ReqwestClient::new(
                     self.get_progress_service().await,
-                    (*REQWEST_CLIENT).clone(),
+                    self.reqwest_client.clone(),
                     self.state.fetch_semaphore.clone(),
                 ))
             })
@@ -154,7 +182,7 @@ impl LazyLocator {
             .get_or_init(|| async {
                 Arc::new(ReqwestClient::new(
                     self.get_progress_service().await,
-                    (*REQWEST_CLIENT).clone(),
+                    self.reqwest_client.clone(),
                     self.state.api_semaphore.clone(),
                 ))
             })
@@ -167,6 +195,19 @@ impl LazyLocator {
             .get_or_init(|| async {
                 Arc::new(FsCredentialsStorage::new(
                     &self.state.location_info.settings_dir,
+                ))
+            })
+            .await
+            .clone()
+    }
+
+    pub async fn get_credentials_service(
+        &self,
+    ) -> Arc<CredentialsServiceImpl<FsCredentialsStorage>> {
+        self.credentials_service
+            .get_or_init(|| async {
+                Arc::new(CredentialsServiceImpl::new(
+                    self.get_credentials_storage().await,
                 ))
             })
             .await

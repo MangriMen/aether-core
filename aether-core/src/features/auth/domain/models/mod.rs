@@ -1,5 +1,7 @@
-pub mod account;
-pub mod credentials;
+mod credentials;
+mod error;
+mod username;
 
-pub use account::*;
 pub use credentials::*;
+pub use error::*;
+pub use username::*;

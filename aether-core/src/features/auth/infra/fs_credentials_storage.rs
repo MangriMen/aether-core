@@ -4,9 +4,8 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::{
-    features::auth::{Credentials, CredentialsStorage},
-    shared::{read_json_async, write_json_async},
-    ErrorKind,
+    features::auth::{AuthError, Credentials, CredentialsStorage},
+    shared::{ensure_read_json_async, write_json_async},
 };
 
 pub struct FsCredentialsStorage {
@@ -20,109 +19,85 @@ impl FsCredentialsStorage {
         }
     }
 
-    async fn ensure_read(&self) -> crate::Result<Vec<Credentials>> {
-        if !self.credentials_file.exists() {
-            let default = Vec::<Credentials>::default();
-            write_json_async(&self.credentials_file, &default).await?;
-            return Ok(default);
-        }
-
-        read_json_async(&self.credentials_file).await
+    async fn ensure_read(&self) -> Result<Vec<Credentials>, AuthError> {
+        Ok(ensure_read_json_async(&self.credentials_file).await?)
     }
 
-    async fn write(&self, data: &Vec<Credentials>) -> crate::Result<()> {
-        write_json_async(&self.credentials_file, &data).await
-    }
-
-    async fn update_active(credentials_list: &mut [Credentials], id: &Uuid) -> crate::Result<()> {
-        if credentials_list.is_empty() {
-            return Err(ErrorKind::NoCredentialsError.as_error());
-        }
-
-        let mut new_active_found = false;
-        for credential in credentials_list.iter_mut() {
-            if credential.id == *id {
-                credential.active = true;
-                new_active_found = true;
-            } else if credential.active {
-                credential.active = false;
-            }
-        }
-
-        if !new_active_found {
-            return Err(ErrorKind::NoCredentialsError.as_error());
-        }
-
-        Ok(())
+    async fn write(&self, data: &[Credentials]) -> Result<(), AuthError> {
+        Ok(write_json_async(&self.credentials_file, data).await?)
     }
 }
 
 #[async_trait]
 impl CredentialsStorage for FsCredentialsStorage {
-    async fn list(&self) -> crate::Result<Vec<Credentials>> {
+    async fn list(&self) -> Result<Vec<Credentials>, AuthError> {
         self.ensure_read().await
     }
 
-    async fn get(&self, id: &Uuid) -> crate::Result<Credentials> {
+    async fn get(&self, id: Uuid) -> Result<Credentials, AuthError> {
         self.ensure_read()
             .await?
             .iter()
-            .find(|x| x.id == *id)
+            .find(|x| x.id == id)
             .cloned()
-            .ok_or_else(|| ErrorKind::NoCredentialsError.as_error())
+            .ok_or(AuthError::CredentialsNotFound { id })
     }
 
-    async fn upsert(&self, credentials: &Credentials) -> crate::Result<Uuid> {
+    async fn upsert(&self, credentials: Credentials) -> Result<Credentials, AuthError> {
         let mut credentials_list = self.ensure_read().await?;
-        let index = credentials_list.iter().position(|x| x.id == credentials.id);
 
-        if let Some(index) = index {
-            if credentials.active {
-                credentials_list[index] = Credentials {
-                    active: false,
-                    ..credentials.clone()
-                };
-                Self::update_active(&mut credentials_list, &credentials.id).await?
-            } else {
-                credentials_list[index] = credentials.clone();
-            }
+        if let Some(index) = credentials_list.iter().position(|c| c.id == credentials.id) {
+            credentials_list[index] = credentials.clone();
         } else {
             credentials_list.push(credentials.clone());
         }
 
         self.write(&credentials_list).await?;
-        Ok(credentials.id)
+        Ok(credentials)
     }
 
-    async fn remove(&self, id: &Uuid) -> crate::Result<()> {
+    async fn remove(&self, id: Uuid) -> Result<(), AuthError> {
         let mut credentials_list = self.ensure_read().await?;
+        let original_len = credentials_list.len();
 
-        let mut need_to_set_active = false;
-        credentials_list.retain(|x| {
-            if x.id == *id && x.active {
-                need_to_set_active = true;
-                return false;
-            }
+        credentials_list.retain(|c| c.id != id);
 
-            true
-        });
-
-        if need_to_set_active {
-            if let Some(first) = credentials_list.first_mut() {
-                first.active = true;
-            };
+        if credentials_list.len() == original_len {
+            return Err(AuthError::CredentialsNotFound { id });
         }
 
         self.write(&credentials_list).await
     }
 
-    async fn get_active(&self) -> crate::Result<Option<Credentials>> {
-        Ok(self.ensure_read().await?.iter().find(|x| x.active).cloned())
+    async fn get_active(&self) -> Result<Credentials, AuthError> {
+        self.ensure_read()
+            .await?
+            .iter()
+            .find(|x| x.active)
+            .cloned()
+            .ok_or(AuthError::NoActiveCredentials)
     }
 
-    async fn set_active(&self, id: &Uuid) -> crate::Result<()> {
+    async fn set_active(&self, id: Uuid) -> Result<Credentials, AuthError> {
         let mut credentials_list = self.ensure_read().await?;
-        Self::update_active(&mut credentials_list, id).await?;
+
+        if let Some(cred) = credentials_list.iter_mut().find(|c| c.id == id) {
+            cred.active = true;
+            let cloned = cred.clone();
+            self.write(&credentials_list).await?;
+            Ok(cloned)
+        } else {
+            Err(AuthError::CredentialsNotFound { id })
+        }
+    }
+
+    async fn deactivate_all(&self) -> Result<(), AuthError> {
+        let mut credentials_list = self.ensure_read().await?;
+
+        for cred in credentials_list.iter_mut() {
+            cred.active = false;
+        }
+
         self.write(&credentials_list).await
     }
 }

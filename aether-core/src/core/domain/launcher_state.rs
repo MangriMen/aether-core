@@ -97,9 +97,7 @@ impl LauncherState {
                 enabled_plugins: HashSet::default(),
             };
 
-            settings_storage.upsert(&settings).await?;
-
-            settings
+            settings_storage.upsert(settings).await?
         };
 
         log::info!("Initialize locations");

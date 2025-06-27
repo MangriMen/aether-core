@@ -1,19 +1,15 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProcessEventType},
         instance::{EventEmittingInstanceStorage, FsInstanceStorage},
-        process::ProcessStorage,
+        process::{ProcessError, ProcessStorage},
         settings::LocationInfo,
     },
-    shared::{
-        domain::{AsyncUseCaseWithInput, AsyncUseCaseWithInputAndError, SerializableCommand},
-        IOError,
-    },
+    shared::{IoError, SerializableCommand},
 };
 
 use super::{TrackProcessParams, TrackProcessUseCase};
@@ -48,17 +44,7 @@ impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
             location_info,
         }
     }
-}
-
-#[async_trait]
-impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
-    for ManageProcessUseCase<E, PS>
-{
-    type Input = ManageProcessParams;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, params: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, params: ManageProcessParams) -> Result<(), ProcessError> {
         let ManageProcessParams {
             process_uuid,
             instance_id,
@@ -76,13 +62,13 @@ impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
         self.process_storage.remove(process_uuid).await;
 
         self.event_emitter
-            .emit_process(
+            .emit_process_safe(
                 instance_id.clone(),
                 process_uuid,
                 "Exited process".to_string(),
                 ProcessEventType::Finished,
             )
-            .await?;
+            .await;
 
         if mc_exit_status.success() {
             if let Some(command) = post_exit_command {
@@ -90,7 +76,7 @@ impl<E: EventEmitter, PS: ProcessStorage> AsyncUseCaseWithInputAndError
                 if let Ok(cmd) = SerializableCommand::from_string(&command, Some(&instance_dir)) {
                     cmd.to_tokio_command()
                         .spawn()
-                        .map_err(|e| IOError::with_path(e, instance_dir))?;
+                        .map_err(|e| IoError::with_path(e, instance_dir))?;
                 }
             }
         }

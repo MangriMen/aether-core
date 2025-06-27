@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
 use chrono::Utc;
 use extism::{FromBytes, ToBytes};
 use extism_convert::{encoding, Json};
@@ -14,15 +13,18 @@ use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProgressService},
         instance::{
-            Instance, InstanceInstallStage, InstanceStorage, InstanceWatcherService, PackInfo,
+            InstallInstanceUseCase, Instance, InstanceError, InstanceInstallStage, InstanceStorage,
+            InstanceWatcherService, PackInfo,
         },
+        java::{JavaInstallationService, JavaStorage},
         minecraft::{
-            InstallMinecraftUseCase, LoaderVersionResolver, MinecraftDownloader, ModLoader,
+            LoaderVersionPreference, LoaderVersionResolver, MinecraftDownloader, ModLoader,
             ReadMetadataStorage,
         },
         settings::{Hooks, LocationInfo},
     },
-    shared::domain::AsyncUseCaseWithInputAndError,
+    libs::request_client::RequestClient,
+    shared::create_dir_all,
 };
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -32,7 +34,7 @@ pub struct NewInstance {
     pub name: String,
     pub game_version: String,
     pub mod_loader: ModLoader,
-    pub loader_version: Option<String>,
+    pub loader_version: Option<LoaderVersionPreference>,
     pub icon_path: Option<String>,
     pub skip_install_instance: Option<bool>,
     pub pack_info: Option<PackInfo>,
@@ -45,10 +47,13 @@ pub struct CreateInstanceUseCase<
     MD: MinecraftDownloader,
     PS: ProgressService,
     IWS: InstanceWatcherService,
+    JIS: JavaInstallationService,
+    JS: JavaStorage,
+    RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
+    install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
     location_info: Arc<LocationInfo>,
     event_emitter: Arc<E>,
     instance_watcher_service: Arc<IWS>,
@@ -61,12 +66,15 @@ impl<
         MD: MinecraftDownloader,
         PS: ProgressService,
         IWS: InstanceWatcherService,
-    > CreateInstanceUseCase<IS, MS, E, MD, PS, IWS>
+        JIS: JavaInstallationService,
+        JS: JavaStorage,
+        RC: RequestClient,
+    > CreateInstanceUseCase<IS, MS, E, MD, PS, IWS, JIS, JS, RC>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<IS, MS, MD, PS>>,
+        install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
         location_info: Arc<LocationInfo>,
         event_emitter: Arc<E>,
         instance_watcher_service: Arc<IWS>,
@@ -74,7 +82,7 @@ impl<
         Self {
             instance_storage,
             loader_version_resolver,
-            install_minecraft_use_case,
+            install_instance_use_case,
             location_info,
             event_emitter,
             instance_watcher_service,
@@ -84,7 +92,7 @@ impl<
         &self,
         instance: &Instance,
         skip_install_instance: Option<bool>,
-    ) -> crate::Result<String> {
+    ) -> Result<String, InstanceError> {
         self.instance_storage.upsert(instance).await?;
 
         self.instance_watcher_service
@@ -92,30 +100,15 @@ impl<
             .await?;
 
         if !skip_install_instance.unwrap_or(false) {
-            self.install_minecraft_use_case
-                .execute((instance.id.clone(), None, false))
+            self.install_instance_use_case
+                .execute(instance.id.clone(), false)
                 .await?;
         }
 
         Ok(instance.id.clone())
     }
-}
 
-#[async_trait]
-impl<
-        IS: InstanceStorage,
-        MS: ReadMetadataStorage,
-        E: EventEmitter,
-        MD: MinecraftDownloader,
-        PS: ProgressService,
-        IWS: InstanceWatcherService,
-    > AsyncUseCaseWithInputAndError for CreateInstanceUseCase<IS, MS, E, MD, PS, IWS>
-{
-    type Input = NewInstance;
-    type Output = String;
-    type Error = crate::Error;
-
-    async fn execute(&self, new_instance: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, new_instance: NewInstance) -> Result<String, InstanceError> {
         let NewInstance {
             name,
             game_version,
@@ -136,7 +129,7 @@ impl<
 
         let loader_version = self
             .loader_version_resolver
-            .resolve(&game_version, &mod_loader, &loader_version)
+            .resolve(&game_version, &mod_loader, loader_version.as_ref())
             .await?;
 
         let instance = build_instance(
@@ -195,7 +188,7 @@ fn build_instance(
         install_stage: InstanceInstallStage::NotInstalled,
         game_version: game_version.to_owned(),
         loader: mod_loader,
-        loader_version: loader_version.map(|v| v.id.clone()),
+        loader_version: loader_version.map(|v| LoaderVersionPreference::Exact(v.id.clone())),
         java_path: None,
         extra_launch_args: None,
         custom_env_vars: None,
@@ -215,9 +208,9 @@ fn build_instance(
 async fn create_unique_instance_dir(
     name: &str,
     base_dir: &Path,
-) -> crate::Result<(PathBuf, String)> {
+) -> Result<(PathBuf, String), InstanceError> {
     let (instance_path, sanitized_name) = create_unique_instance_path(name, base_dir);
-    tokio::fs::create_dir_all(&instance_path).await?;
+    create_dir_all(&instance_path).await?;
     Ok((instance_path, sanitized_name))
 }
 

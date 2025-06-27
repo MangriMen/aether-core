@@ -1,138 +1,55 @@
+use serr::SerializeError;
 use tracing_error::InstrumentError;
 
-use crate::features::events::EventError;
+use crate::{
+    features::{auth, events, file_watcher, instance, java, minecraft, plugins, process, settings},
+    libs::request_client,
+};
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, SerializeError)]
 pub enum ErrorKind {
-    #[error("Filesystem error: {0}")]
-    FSError(String),
+    #[error(transparent)]
+    #[serialize_error]
+    AuthError(#[from] auth::AuthError),
 
-    #[error("Serialization error (INI): {0}")]
-    INIError(#[from] serde_ini::de::Error),
+    #[error(transparent)]
+    #[serialize_error]
+    EventError(#[from] events::EventError),
 
-    #[error("Serialization error (JSON): {0}")]
-    JSONError(#[from] serde_json::Error),
+    #[error(transparent)]
+    #[serialize_error]
+    FileWatcherError(#[from] file_watcher::FileWatcherError),
 
-    #[error("Error parsing UUID: {0}")]
-    UUIDError(#[from] uuid::Error),
+    #[error(transparent)]
+    #[serialize_error]
+    InstanceError(#[from] instance::InstanceError),
 
-    #[error("Error parsing URL: {0}")]
-    URLError(#[from] url::ParseError),
+    #[error(transparent)]
+    #[serialize_error]
+    JavaError(#[from] java::JavaError),
 
-    #[error("Unable to read {0} from any source")]
-    NoValueFor(String),
+    #[error(transparent)]
+    #[serialize_error]
+    MinecraftError(#[from] minecraft::MinecraftError),
 
-    #[error("Metadata error: {0}")]
-    MetadataError(#[from] daedalus::Error),
+    #[error(transparent)]
+    #[serialize_error]
+    PluginError(#[from] plugins::PluginError),
 
-    // #[error("Minecraft authentication error: {0}")]
-    // MinecraftAuthenticationError(#[from] crate::state::MinecraftAuthenticationError),
-    #[error("I/O error: {0}")]
-    IOError(#[from] crate::shared::IOError),
+    #[error(transparent)]
+    #[serialize_error]
+    ProcessError(#[from] process::ProcessError),
 
-    #[error("I/O (std) error: {0}")]
-    StdIOError(#[from] std::io::Error),
+    #[error(transparent)]
+    #[serialize_error]
+    SettingsError(#[from] settings::SettingsError),
 
-    #[error("Error launching Minecraft: {0}")]
-    LauncherError(String),
+    #[error(transparent)]
+    #[serialize_error]
+    RequestError(#[from] request_client::RequestError),
 
-    #[error("Error fetching URL: {0}")]
-    FetchError(#[from] reqwest::Error),
-
-    #[error("Websocket closed before {0} could be received!")]
-    WSClosedError(String),
-
-    #[error("Incorrect Sha1 hash for download: {0} != {1}")]
-    HashError(String, String),
-
-    #[error("Regex error: {0}")]
-    RegexError(#[from] regex::Error),
-
-    #[error("Paths stored in the database need to be valid UTF-8: {0}")]
-    UTFError(std::path::PathBuf),
-
-    #[error("Invalid input: {0}")]
-    InputError(String),
-
-    #[error("Join handle error: {0}")]
-    JoinError(#[from] tokio::task::JoinError),
-
-    #[error("Recv error: {0}")]
-    RecvError(#[from] tokio::sync::oneshot::error::RecvError),
-
-    #[error("Error acquiring semaphore: {0}")]
-    AcquireError(#[from] tokio::sync::AcquireError),
-
-    #[error("Instance {0} is not managed by the app!")]
-    UnmanagedProfileError(String),
-
-    #[error("Instance import error: {0}")]
-    InstanceImportError(String),
-
-    #[error("Instance update error: {0}")]
-    InstanceUpdateError(String),
-
-    // #[error("Could not create profile: {0}")]
-    // ProfileCreationError(#[from] instance::create::ProfileCreationError),
-    #[error("User is not logged in, no credentials available!")]
-    NoCredentialsError,
-
-    #[error("JRE error: {0}")]
-    JREError(#[from] crate::features::java::JavaError),
-
-    #[error("Error parsing date: {0}")]
-    ChronoParseError(#[from] chrono::ParseError),
-
-    #[error("Event error: {0}")]
-    EventError(#[from] EventError),
-
-    #[error("Zip error: {0}")]
-    ZipError(#[from] async_zip::error::ZipError),
-
-    #[error("File watching error: {0}")]
-    NotifyError(#[from] notify::Error),
-
-    #[error("Error stripping prefix: {0}")]
-    StripPrefixError(#[from] std::path::StripPrefixError),
-
-    #[error("Error: {0}")]
-    OtherError(String),
-
-    #[error("Move directory error: {0}")]
-    DirectoryMoveError(String),
-
-    #[error("Plugin not found error: {0}")]
-    PluginNotFoundError(String),
-
-    #[error("Plugin load error: {0}")]
-    PluginLoadError(String),
-
-    #[error("Plugin error ({0}): {1}")]
-    PluginError(String, String),
-
-    #[error("Plugin call error ({0}): {1}")]
-    PluginCallError(String, crate::features::plugins::PluginError),
-
-    #[error("Plugin {0} tried to access disallowed path {1}")]
-    PluginNotAllowedPathError(String, String),
-
-    #[error("Serialization error (TOML): {0}")]
-    TomlSerializationError(#[from] toml::ser::Error),
-
-    #[error("Deserialization error (TOML): {0}")]
-    TomlDeserializationError(#[from] toml::de::Error),
-
-    #[error("Content provider not found: {provider}")]
-    ContentProviderNotFound { provider: String },
-
-    #[error("Content import duplicate error: {content_path}")]
-    ContentImportDuplicateError { content_path: String },
-
-    #[error("Storage error: {0}")]
-    StorageError(#[from] crate::shared::infra::StorageError),
-
-    #[error("File watcher error: {0}")]
-    FileWatcherError(#[from] crate::features::file_watcher::FileWatcherError),
+    #[error("Core error: {0}")]
+    CoreError(String),
 }
 
 #[derive(Debug)]

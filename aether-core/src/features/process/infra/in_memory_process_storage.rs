@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use uuid::Uuid;
 
-use crate::features::process::{MinecraftProcess, MinecraftProcessMetadata, ProcessStorage};
+use crate::features::process::{
+    MinecraftProcess, MinecraftProcessMetadata, ProcessError, ProcessStorage,
+};
 
 #[derive(Debug, Default)]
 pub struct InMemoryProcessStorage {
@@ -29,23 +31,33 @@ impl ProcessStorage for InMemoryProcessStorage {
         self.processes.get(&id).map(|x| x.metadata.clone())
     }
 
-    async fn try_wait(&self, id: Uuid) -> crate::Result<Option<Option<ExitStatus>>> {
+    async fn try_wait(&self, id: Uuid) -> Result<Option<Option<ExitStatus>>, ProcessError> {
         if let Some(mut process) = self.processes.get_mut(&id) {
-            return Ok(Some(process.try_wait()?));
+            return Ok(Some(
+                process
+                    .try_wait()
+                    .map_err(|_| ProcessError::WaitError { id: id.to_string() })?,
+            ));
         }
         Ok(None)
     }
 
-    async fn wait_for(&self, id: Uuid) -> crate::Result<()> {
+    async fn wait_for(&self, id: Uuid) -> Result<(), ProcessError> {
         if let Some(mut process) = self.processes.get_mut(&id) {
-            process.wait().await?;
+            process
+                .wait()
+                .await
+                .map_err(|_| ProcessError::WaitError { id: id.to_string() })?;
         }
         Ok(())
     }
 
-    async fn kill(&self, id: Uuid) -> crate::Result<()> {
+    async fn kill(&self, id: Uuid) -> Result<(), ProcessError> {
         if let Some(mut process) = self.processes.get_mut(&id) {
-            process.kill().await?;
+            process
+                .kill()
+                .await
+                .map_err(|_| ProcessError::KillError { id: id.to_string() })?;
         }
         Ok(())
     }

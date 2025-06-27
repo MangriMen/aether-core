@@ -1,15 +1,15 @@
 use daedalus::minecraft;
 
-use crate::features::minecraft::{parse_rules, TEMPORARY_REPLACE_CHAR};
+use crate::features::minecraft::{parse_rules, MinecraftError, TEMPORARY_REPLACE_CHAR};
 
 pub fn parse_arguments<F>(
     arguments: &[minecraft::Argument],
     parsed_arguments: &mut Vec<String>,
     parse_function: F,
     java_arch: &str,
-) -> crate::Result<()>
+) -> Result<(), MinecraftError>
 where
-    F: Fn(&str) -> crate::Result<String>,
+    F: Fn(&str) -> Result<String, MinecraftError>,
 {
     for argument in arguments {
         match argument {

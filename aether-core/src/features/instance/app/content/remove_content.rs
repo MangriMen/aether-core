@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, InstanceEventType},
-        instance::PackStorage,
+        instance::{InstanceError, PackStorage},
         settings::LocationInfo,
     },
-    shared::{domain::AsyncUseCaseWithInputAndError, remove_file},
+    shared::remove_file,
 };
 
 pub struct RemoveContent {
@@ -50,18 +48,8 @@ impl<E: EventEmitter, PS: PackStorage> RemoveContentUseCase<E, PS> {
             location_info,
         }
     }
-}
 
-#[async_trait]
-impl<E: EventEmitter, PS> AsyncUseCaseWithInputAndError for RemoveContentUseCase<E, PS>
-where
-    PS: PackStorage + Send + Sync,
-{
-    type Input = RemoveContent;
-    type Output = ();
-    type Error = crate::Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
+    pub async fn execute(&self, input: RemoveContent) -> Result<(), InstanceError> {
         let RemoveContent {
             instance_id,
             content_paths,
@@ -78,8 +66,8 @@ where
             .await?;
 
         self.event_emitter
-            .emit_instance(instance_id.to_string(), InstanceEventType::Edited)
-            .await?;
+            .emit_instance_safe(instance_id.to_string(), InstanceEventType::Edited)
+            .await;
 
         Ok(())
     }
