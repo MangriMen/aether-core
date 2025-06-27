@@ -3,13 +3,13 @@ use uuid::Uuid;
 use crate::{
     core::domain::LazyLocator,
     features::auth::{
-        AccountDto, CreateOfflineAccountUseCase, GetAccountsUseCase, LogoutUseCase,
+        AccountOutput, CreateOfflineAccountUseCase, GetAccountsUseCase, LogoutUseCase,
         SetActiveAccountUseCase,
     },
 };
 
 #[tracing::instrument]
-pub async fn create_offline_account(username: String) -> crate::Result<AccountDto> {
+pub async fn create_offline_account(username: String) -> crate::Result<AccountOutput> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
@@ -20,7 +20,7 @@ pub async fn create_offline_account(username: String) -> crate::Result<AccountDt
 }
 
 #[tracing::instrument]
-pub async fn get_accounts() -> crate::Result<Vec<AccountDto>> {
+pub async fn get_accounts() -> crate::Result<Vec<AccountOutput>> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
@@ -31,7 +31,7 @@ pub async fn get_accounts() -> crate::Result<Vec<AccountDto>> {
 }
 
 #[tracing::instrument]
-pub async fn change_account(account_id: Uuid) -> crate::Result<AccountDto> {
+pub async fn change_account(account_id: Uuid) -> crate::Result<AccountOutput> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(

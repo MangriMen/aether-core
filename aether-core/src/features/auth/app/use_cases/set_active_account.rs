@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::features::auth::{AccountDto, AuthError, CredentialsService};
+use crate::features::auth::{AccountOutput, AuthError, CredentialsService};
 
 pub struct SetActiveAccountUseCase<CS: CredentialsService> {
     credentials_service: Arc<CS>,
@@ -15,10 +15,10 @@ impl<CS: CredentialsService> SetActiveAccountUseCase<CS> {
         }
     }
 
-    pub async fn execute(&self, account_id: Uuid) -> Result<AccountDto, AuthError> {
+    pub async fn execute(&self, account_id: Uuid) -> Result<AccountOutput, AuthError> {
         self.credentials_service
             .set_active(account_id)
             .await
-            .map(AccountDto::from)
+            .map(AccountOutput::from)
     }
 }

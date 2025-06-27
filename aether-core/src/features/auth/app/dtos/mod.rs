@@ -1,3 +1,3 @@
-pub mod account_dto;
+mod output;
 
-pub use account_dto::*;
+pub use output::*;

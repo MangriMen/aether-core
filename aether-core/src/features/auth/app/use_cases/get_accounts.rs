@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::features::auth::{AccountDto, AuthError, CredentialsService};
+use crate::features::auth::{AccountOutput, AuthError, CredentialsService};
 
 pub struct GetAccountsUseCase<CS: CredentialsService> {
     credentials_service: Arc<CS>,
@@ -13,8 +13,8 @@ impl<CS: CredentialsService> GetAccountsUseCase<CS> {
         }
     }
 
-    pub async fn execute(&self) -> Result<Vec<AccountDto>, AuthError> {
+    pub async fn execute(&self) -> Result<Vec<AccountOutput>, AuthError> {
         let credentials = self.credentials_service.list().await?;
-        Ok(credentials.into_iter().map(AccountDto::from).collect())
+        Ok(credentials.iter().map(AccountOutput::from).collect())
     }
 }
