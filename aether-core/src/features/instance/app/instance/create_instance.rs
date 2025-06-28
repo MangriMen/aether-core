@@ -127,10 +127,20 @@ impl<
             &name, &instance_dir
         );
 
-        let loader_version = self
-            .loader_version_resolver
-            .resolve(&game_version, &mod_loader, loader_version.as_ref())
-            .await?;
+        // Check that loader version is valid
+        let loader_version = if mod_loader != ModLoader::Vanilla && loader_version.is_some() {
+            self.loader_version_resolver
+                .resolve(&game_version, &mod_loader, loader_version.as_ref())
+                .await?;
+
+            loader_version
+        } else if mod_loader != ModLoader::Vanilla && loader_version.is_none() {
+            self.loader_version_resolver
+                .try_get_default(&game_version, &mod_loader)
+                .await?
+        } else {
+            None
+        };
 
         let instance = build_instance(
             &name,
@@ -177,7 +187,7 @@ fn build_instance(
     sanitized_name: &str,
     game_version: &str,
     mod_loader: ModLoader,
-    loader_version: Option<&daedalus::modded::LoaderVersion>,
+    loader_version: Option<&LoaderVersionPreference>,
     icon_path: &Option<String>,
     pack_info: &Option<PackInfo>,
 ) -> Instance {
@@ -188,7 +198,7 @@ fn build_instance(
         install_stage: InstanceInstallStage::NotInstalled,
         game_version: game_version.to_owned(),
         loader: mod_loader,
-        loader_version: loader_version.map(|v| LoaderVersionPreference::Exact(v.id.clone())),
+        loader_version: loader_version.cloned(),
         java_path: None,
         extra_launch_args: None,
         custom_env_vars: None,

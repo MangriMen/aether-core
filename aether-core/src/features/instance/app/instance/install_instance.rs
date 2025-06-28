@@ -6,8 +6,8 @@ use crate::{
         instance::{Instance, InstanceError, InstanceInstallStage, InstanceStorage},
         java::{JavaInstallationService, JavaStorage},
         minecraft::{
-            InstallMinecraftParams, InstallMinecraftUseCase, LoaderVersionPreference,
-            MinecraftDownloader, ModLoader, ReadMetadataStorage,
+            InstallMinecraftParams, InstallMinecraftUseCase, MinecraftDownloader,
+            ReadMetadataStorage,
         },
         settings::LocationInfo,
     },
@@ -83,10 +83,6 @@ impl<
 
     pub async fn execute(&self, instance_id: String, force: bool) -> Result<(), InstanceError> {
         let mut instance = self.instance_storage.get(&instance_id).await?;
-
-        if instance.loader != ModLoader::Vanilla && instance.loader_version.is_none() {
-            instance.loader_version = Some(LoaderVersionPreference::default());
-        };
 
         instance.install_stage = InstanceInstallStage::Installing;
         self.instance_storage.upsert(&instance).await?;

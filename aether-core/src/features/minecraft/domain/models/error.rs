@@ -28,6 +28,9 @@ pub enum MinecraftError {
     )]
     LoaderVersionNotSpecified,
 
+    #[error("Stable or latest loader version not found")]
+    DefaultLoaderVersionNotFound,
+
     #[error("Path not found: {path:?}")]
     PathNotFoundError { path: PathBuf, entity_type: String },
 
