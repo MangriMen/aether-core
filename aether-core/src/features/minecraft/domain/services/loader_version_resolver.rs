@@ -41,6 +41,38 @@ impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
         )
         .await
     }
+
+    pub async fn try_get_default(
+        &self,
+        game_version: &str,
+        loader: &ModLoader,
+    ) -> Result<Option<LoaderVersionPreference>, MinecraftError> {
+        if matches!(loader, ModLoader::Vanilla) {
+            return Ok(None);
+        }
+
+        let loader_version_manifest = self
+            .metadata_storage
+            .get_loader_version_manifest(*loader)
+            .await?
+            .value;
+
+        let default_preferences = [
+            LoaderVersionPreference::Stable,
+            LoaderVersionPreference::Latest,
+        ];
+
+        for preference in default_preferences {
+            if resolve_loader_version(game_version, loader, &preference, &loader_version_manifest)
+                .await
+                .is_ok()
+            {
+                return Ok(Some(preference));
+            }
+        }
+
+        Err(MinecraftError::DefaultLoaderVersionNotFound)
+    }
 }
 
 pub async fn resolve_loader_version(
