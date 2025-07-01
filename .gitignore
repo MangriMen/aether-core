@@ -19,4 +19,4 @@ target/
 /target
 
 # Ide settings
-.vscode/settings.json
+.vscode
