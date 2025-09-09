@@ -6,7 +6,7 @@ use extism_convert::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
-    instance::{Instance, InstanceError, InstanceStorage},
+    instance::{Instance, InstanceError, InstanceStorage, InstanceStorageExt},
     settings::{MemorySettings, WindowSize},
 };
 
@@ -62,9 +62,13 @@ impl<IS: InstanceStorage> EditInstanceUseCase<IS> {
         edit_instance: EditInstance,
     ) -> Result<(), InstanceError> {
         validate_edit(&edit_instance)?;
-        let mut instance = self.instance_storage.get(&instance_id).await?;
-        apply_edit_changes(&mut instance, &edit_instance);
-        self.instance_storage.upsert(&instance).await
+
+        self.instance_storage
+            .upsert_with(&instance_id, |instance| {
+                apply_edit_changes(instance, &edit_instance);
+                Ok(())
+            })
+            .await
     }
 }
 

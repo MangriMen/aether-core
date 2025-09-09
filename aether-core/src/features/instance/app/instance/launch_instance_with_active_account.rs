@@ -8,7 +8,7 @@ use crate::{
         java::{JavaInstallationService, JavaStorage},
         minecraft::{MinecraftDownloader, ReadMetadataStorage},
         process::{MinecraftProcessMetadata, ProcessStorage},
-        settings::SettingsStorage,
+        settings::GlobalInstanceSettingsStorage,
     },
     libs::request_client::RequestClient,
 };
@@ -18,7 +18,7 @@ pub struct LaunchInstanceWithActiveAccountUseCase<
     MS: ReadMetadataStorage,
     PS: ProcessStorage,
     CS: CredentialsStorage,
-    SS: SettingsStorage,
+    GISS: GlobalInstanceSettingsStorage,
     E: EventEmitter,
     MD: MinecraftDownloader,
     PGS: ProgressService,
@@ -27,7 +27,7 @@ pub struct LaunchInstanceWithActiveAccountUseCase<
     RC: RequestClient,
 > {
     credentials_storage: Arc<CS>,
-    launch_instance_use_case: LaunchInstanceUseCase<IS, MS, PS, SS, E, MD, PGS, JIS, JS, RC>,
+    launch_instance_use_case: LaunchInstanceUseCase<IS, MS, PS, GISS, E, MD, PGS, JIS, JS, RC>,
 }
 
 impl<
@@ -35,14 +35,14 @@ impl<
         MS: ReadMetadataStorage,
         PS: ProcessStorage + 'static,
         CS: CredentialsStorage,
-        SS: SettingsStorage,
+        GISS: GlobalInstanceSettingsStorage,
         E: EventEmitter + 'static,
         MD: MinecraftDownloader,
         PGS: ProgressService,
         JIS: JavaInstallationService,
         JS: JavaStorage,
         RC: RequestClient,
-    > LaunchInstanceWithActiveAccountUseCase<IS, MS, PS, CS, SS, E, MD, PGS, JIS, JS, RC>
+    > LaunchInstanceWithActiveAccountUseCase<IS, MS, PS, CS, GISS, E, MD, PGS, JIS, JS, RC>
 {
     pub fn new(
         credentials_storage: Arc<CS>,
@@ -50,7 +50,7 @@ impl<
             IS,
             MS,
             PS,
-            SS,
+            GISS,
             E,
             MD,
             PGS,
