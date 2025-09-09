@@ -26,7 +26,7 @@ use crate::{
             GetProcessMetadataByInstanceIdUseCase, InMemoryProcessStorage, ManageProcessUseCase,
             MinecraftProcessMetadata, StartProcessUseCase, TrackProcessUseCase,
         },
-        settings::FsSettingsStorage,
+        settings::FsGlobalInstanceSettingsStorage,
     },
     libs::request_client::ReqwestClient,
 };
@@ -41,7 +41,7 @@ async fn get_launch_instance_use_case(
         ModrinthMetadataStorage<ReqwestClient<ProgressServiceType>>,
     >,
     InMemoryProcessStorage,
-    FsSettingsStorage,
+    FsGlobalInstanceSettingsStorage,
     TauriEventEmitter,
     MinecraftDownloadService<ReqwestClient<ProgressServiceType>, ProgressServiceType>,
     ProgressServiceType,
@@ -179,7 +179,7 @@ async fn get_launch_instance_use_case(
 
     LaunchInstanceUseCase::new(
         lazy_locator.get_instance_storage().await,
-        lazy_locator.get_settings_storage().await,
+        lazy_locator.get_global_instance_settings_storage().await,
         state.location_info.clone(),
         get_process_by_instance_id_use_case,
         install_instance_use_case,
