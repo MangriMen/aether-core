@@ -25,7 +25,7 @@ use crate::{
             PluginLoaderRegistry, PluginRegistry,
         },
         process::InMemoryProcessStorage,
-        settings::{FsGlobalInstanceSettingsStorage, FsSettingsStorage},
+        settings::{FsDefaultInstanceSettingsStorage, FsSettingsStorage},
     },
     libs::request_client::ReqwestClient,
 };
@@ -73,7 +73,7 @@ pub struct LazyLocator {
     instance_watcher_service: OnceCell<
         Arc<InstanceWatcherServiceImpl<NotifyFileWatcher<InstanceEventHandler<TauriEventEmitter>>>>,
     >,
-    global_instance_settings_storage: OnceCell<Arc<FsGlobalInstanceSettingsStorage>>,
+    default_instance_settings_storage: OnceCell<Arc<FsDefaultInstanceSettingsStorage>>,
 }
 
 fn get_reqwest_client() -> Arc<ClientWithMiddleware> {
@@ -124,7 +124,7 @@ impl LazyLocator {
                     progress_bar_storage: OnceCell::new(),
                     progress_service: OnceCell::new(),
                     instance_watcher_service: OnceCell::new(),
-                    global_instance_settings_storage: OnceCell::new(),
+                    default_instance_settings_storage: OnceCell::new(),
                 })
             })
             .await;
@@ -397,12 +397,12 @@ impl LazyLocator {
             .cloned()
     }
 
-    pub async fn get_global_instance_settings_storage(
+    pub async fn get_default_instance_settings_storage(
         &self,
-    ) -> Arc<FsGlobalInstanceSettingsStorage> {
-        self.global_instance_settings_storage
+    ) -> Arc<FsDefaultInstanceSettingsStorage> {
+        self.default_instance_settings_storage
             .get_or_init(|| async {
-                Arc::new(FsGlobalInstanceSettingsStorage::new(
+                Arc::new(FsDefaultInstanceSettingsStorage::new(
                     &self.state.location_info.settings_dir,
                 ))
             })

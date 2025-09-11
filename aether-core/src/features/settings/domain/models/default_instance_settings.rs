@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct GlobalInstanceSettings {
+pub struct DefaultInstanceSettings {
     pub extra_launch_args: Vec<String>,
     pub custom_env_vars: Vec<(String, String)>,
 
