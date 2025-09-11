@@ -6,8 +6,8 @@ use extism_convert::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
-    instance::{Instance, InstanceError, InstanceStorage, InstanceStorageExt},
-    settings::{MemorySettings, WindowSize},
+    instance::{Instance, InstanceError, InstanceStorage},
+    settings::{EditHooks, MemorySettings, WindowSize},
 };
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -45,6 +45,7 @@ pub struct EditInstance {
         with = "::serde_with::rust::double_option"
     )]
     pub game_resolution: Option<Option<WindowSize>>,
+    pub hooks: Option<EditHooks>,
 }
 
 pub struct EditInstanceUseCase<IS> {
@@ -60,15 +61,13 @@ impl<IS: InstanceStorage> EditInstanceUseCase<IS> {
         &self,
         instance_id: String,
         edit_instance: EditInstance,
-    ) -> Result<(), InstanceError> {
+    ) -> Result<Instance, InstanceError> {
         validate_edit(&edit_instance)?;
 
-        self.instance_storage
-            .upsert_with(&instance_id, |instance| {
-                apply_edit_changes(instance, &edit_instance);
-                Ok(())
-            })
-            .await
+        let mut instance = self.instance_storage.get(&instance_id).await?;
+        apply_edit_changes(&mut instance, &edit_instance);
+        self.instance_storage.upsert(&instance).await?;
+        Ok(instance)
     }
 }
 
@@ -80,6 +79,7 @@ fn apply_edit_changes(instance: &mut Instance, edit_instance: &EditInstance) {
         custom_env_vars,
         memory,
         game_resolution,
+        hooks,
     } = edit_instance;
 
     if let Some(name) = name {
@@ -104,6 +104,20 @@ fn apply_edit_changes(instance: &mut Instance, edit_instance: &EditInstance) {
 
     if let Some(res) = game_resolution {
         instance.game_resolution = *res;
+    }
+
+    if let Some(hooks) = hooks {
+        if let Some(pre_launch) = &hooks.pre_launch {
+            instance.hooks.pre_launch = pre_launch.clone();
+        }
+
+        if let Some(wrapper) = &hooks.wrapper {
+            instance.hooks.wrapper = wrapper.clone();
+        }
+
+        if let Some(post_exit) = &hooks.post_exit {
+            instance.hooks.post_exit = post_exit.clone();
+        }
     }
 
     instance.modified = Utc::now();
