@@ -5,8 +5,8 @@ use extism_convert::{encoding, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::features::settings::{
-    DefaultInstanceSettings, DefaultInstanceSettingsStorage, MemorySettings, SettingsError,
-    WindowSize,
+    DefaultInstanceSettings, DefaultInstanceSettingsStorage, EditHooks, MemorySettings,
+    SettingsError, WindowSize,
 };
 
 pub struct EditDefaultInstanceSettingsUseCase<SS: DefaultInstanceSettingsStorage> {
@@ -39,6 +39,7 @@ fn apply_edit_changes(
         custom_env_vars,
         memory,
         game_resolution,
+        hooks,
     } = edit_settings;
 
     if let Some(extra_launch_args) = extra_launch_args {
@@ -56,6 +57,20 @@ fn apply_edit_changes(
     if let Some(game_resolution) = game_resolution {
         settings.game_resolution = *game_resolution;
     }
+
+    if let Some(hooks) = hooks {
+        if let Some(pre_launch) = &hooks.pre_launch {
+            settings.hooks.pre_launch = pre_launch.clone();
+        }
+
+        if let Some(wrapper) = &hooks.wrapper {
+            settings.hooks.wrapper = wrapper.clone();
+        }
+
+        if let Some(post_exit) = &hooks.post_exit {
+            settings.hooks.post_exit = post_exit.clone();
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
@@ -66,4 +81,5 @@ pub struct EditDefaultInstanceSettings {
     pub custom_env_vars: Option<Vec<(String, String)>>,
     pub memory: Option<MemorySettings>,
     pub game_resolution: Option<WindowSize>,
+    pub hooks: Option<EditHooks>,
 }

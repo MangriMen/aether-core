@@ -17,6 +17,7 @@ pub struct DefaultInstanceSettings {
 /// Used to define the maximum amount of memory that can be allocated
 /// to the JVM when launching a game.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
 pub struct MemorySettings {
     /// Maximum amount of RAM in megabytes.
     ///
@@ -53,8 +54,32 @@ impl Default for WindowSize {
 /// - `post_exit`: An optional string representing a command or script to be executed
 ///   after the game exits.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Hooks {
     pub pre_launch: Option<String>,
     pub wrapper: Option<String>,
     pub post_exit: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditHooks {
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "::serde_with::rust::double_option"
+    )]
+    pub pre_launch: Option<Option<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "::serde_with::rust::double_option"
+    )]
+    pub wrapper: Option<Option<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "::serde_with::rust::double_option"
+    )]
+    pub post_exit: Option<Option<String>>,
 }
