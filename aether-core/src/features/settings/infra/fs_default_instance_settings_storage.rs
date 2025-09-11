@@ -3,15 +3,15 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 
 use crate::{
-    features::settings::{GlobalInstanceSettings, GlobalInstanceSettingsStorage, SettingsError},
+    features::settings::{DefaultInstanceSettings, DefaultInstanceSettingsStorage, SettingsError},
     shared::{ensure_read_json_async, write_json_async},
 };
 
-pub struct FsGlobalInstanceSettingsStorage {
+pub struct FsDefaultInstanceSettingsStorage {
     settings_file: PathBuf,
 }
 
-impl FsGlobalInstanceSettingsStorage {
+impl FsDefaultInstanceSettingsStorage {
     pub fn new(settings_dir: &Path) -> Self {
         Self {
             settings_file: settings_dir.join("instance_settings.json"),
@@ -20,15 +20,15 @@ impl FsGlobalInstanceSettingsStorage {
 }
 
 #[async_trait]
-impl GlobalInstanceSettingsStorage for FsGlobalInstanceSettingsStorage {
-    async fn get(&self) -> Result<GlobalInstanceSettings, SettingsError> {
+impl DefaultInstanceSettingsStorage for FsDefaultInstanceSettingsStorage {
+    async fn get(&self) -> Result<DefaultInstanceSettings, SettingsError> {
         Ok(ensure_read_json_async(&self.settings_file).await?)
     }
 
     async fn upsert(
         &self,
-        settings: GlobalInstanceSettings,
-    ) -> Result<GlobalInstanceSettings, SettingsError> {
+        settings: DefaultInstanceSettings,
+    ) -> Result<DefaultInstanceSettings, SettingsError> {
         write_json_async(&self.settings_file, &settings).await?;
         Ok(settings)
     }

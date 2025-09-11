@@ -17,7 +17,7 @@ use crate::{
             GetProcessMetadataByInstanceIdUseCase, MinecraftProcessMetadata, ProcessStorage,
             StartProcessUseCase,
         },
-        settings::{GlobalInstanceSettings, GlobalInstanceSettingsStorage, Hooks, LocationInfo},
+        settings::{DefaultInstanceSettings, DefaultInstanceSettingsStorage, Hooks, LocationInfo},
     },
     libs::request_client::RequestClient,
     shared::{IoError, SerializableCommand},
@@ -27,7 +27,7 @@ pub struct LaunchInstanceUseCase<
     IS: InstanceStorage,
     MS: ReadMetadataStorage,
     PS: ProcessStorage,
-    GISS: GlobalInstanceSettingsStorage,
+    GISS: DefaultInstanceSettingsStorage,
     E: EventEmitter,
     MD: MinecraftDownloader,
     PGS: ProgressService,
@@ -36,7 +36,7 @@ pub struct LaunchInstanceUseCase<
     RC: RequestClient,
 > {
     instance_storage: Arc<IS>,
-    global_instance_settings_storage: Arc<GISS>,
+    default_instance_settings_storage: Arc<GISS>,
     location_info: Arc<LocationInfo>,
     get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
     install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, RC>>,
@@ -48,7 +48,7 @@ impl<
         IS: InstanceStorage,
         MS: ReadMetadataStorage,
         PS: ProcessStorage + 'static,
-        GISS: GlobalInstanceSettingsStorage,
+        GISS: DefaultInstanceSettingsStorage,
         E: EventEmitter + 'static,
         MD: MinecraftDownloader,
         PGS: ProgressService,
@@ -59,7 +59,7 @@ impl<
 {
     pub fn new(
         instance_storage: Arc<IS>,
-        global_instance_settings_storage: Arc<GISS>,
+        default_instance_settings_storage: Arc<GISS>,
         location_info: Arc<LocationInfo>,
         get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
         install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, RC>>,
@@ -68,7 +68,7 @@ impl<
     ) -> Self {
         Self {
             instance_storage,
-            global_instance_settings_storage,
+            default_instance_settings_storage,
             location_info,
             get_process_by_instance_id_use_case,
             install_instance_use_case,
@@ -79,7 +79,7 @@ impl<
 
     fn resolve_launch_settings(
         instance: &Instance,
-        settings: &GlobalInstanceSettings,
+        settings: &DefaultInstanceSettings,
     ) -> LaunchSettings {
         LaunchSettings {
             extra_launch_args: instance
@@ -123,7 +123,7 @@ impl<
         instance_id: String,
         credentials: Credentials,
     ) -> Result<MinecraftProcessMetadata, InstanceError> {
-        let settings = self.global_instance_settings_storage.get().await?;
+        let settings = self.default_instance_settings_storage.get().await?;
         let instance = self.instance_storage.get(&instance_id).await?;
 
         let launch_settings = Self::resolve_launch_settings(&instance, &settings);
