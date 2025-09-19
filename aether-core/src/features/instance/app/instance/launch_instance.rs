@@ -82,15 +82,15 @@ impl<
         settings: &DefaultInstanceSettings,
     ) -> LaunchSettings {
         LaunchSettings {
-            extra_launch_args: instance
-                .extra_launch_args
+            launch_args: instance
+                .launch_args
                 .clone()
-                .unwrap_or_else(|| settings.extra_launch_args.clone()),
+                .unwrap_or_else(|| settings.launch_args.clone()),
 
-            custom_env_vars: instance
-                .custom_env_vars
+            env_vars: instance
+                .env_vars
                 .clone()
-                .unwrap_or_else(|| settings.custom_env_vars.clone()),
+                .unwrap_or_else(|| settings.env_vars.clone()),
 
             memory: instance.memory.unwrap_or(settings.memory),
 

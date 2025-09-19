@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DefaultInstanceSettings {
-    pub extra_launch_args: Vec<String>,
-    pub custom_env_vars: Vec<(String, String)>,
+    pub launch_args: Vec<String>,
+    pub env_vars: Vec<(String, String)>,
 
     pub memory: MemorySettings,
     pub game_resolution: WindowSize,
