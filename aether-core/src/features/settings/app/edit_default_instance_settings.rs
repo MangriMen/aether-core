@@ -35,19 +35,19 @@ fn apply_edit_changes(
     edit_settings: &EditDefaultInstanceSettings,
 ) {
     let EditDefaultInstanceSettings {
-        extra_launch_args,
-        custom_env_vars,
+        launch_args,
+        env_vars,
         memory,
         game_resolution,
         hooks,
     } = edit_settings;
 
-    if let Some(extra_launch_args) = extra_launch_args {
-        settings.extra_launch_args = extra_launch_args.clone();
+    if let Some(launch_args) = launch_args {
+        settings.launch_args = launch_args.clone();
     }
 
-    if let Some(custom_env_vars) = custom_env_vars {
-        settings.custom_env_vars = custom_env_vars.clone();
+    if let Some(env_vars) = env_vars {
+        settings.env_vars = env_vars.clone();
     }
 
     if let Some(memory) = memory {
@@ -77,8 +77,8 @@ fn apply_edit_changes(
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct EditDefaultInstanceSettings {
-    pub extra_launch_args: Option<Vec<String>>,
-    pub custom_env_vars: Option<Vec<(String, String)>>,
+    pub launch_args: Option<Vec<String>>,
+    pub env_vars: Option<Vec<(String, String)>>,
     pub memory: Option<MemorySettings>,
     pub game_resolution: Option<WindowSize>,
     pub hooks: Option<EditHooks>,

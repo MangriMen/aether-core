@@ -38,8 +38,8 @@ pub struct Instance {
 
     // Launch arguments
     pub java_path: Option<String>,
-    pub extra_launch_args: Option<Vec<String>>,
-    pub custom_env_vars: Option<Vec<(String, String)>>,
+    pub launch_args: Option<Vec<String>>,
+    pub env_vars: Option<Vec<(String, String)>>,
 
     // Minecraft runtime settings
     pub memory: Option<MemorySettings>,
