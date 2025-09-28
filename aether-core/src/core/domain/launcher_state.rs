@@ -6,10 +6,7 @@ use crate::{
     core::domain::LazyLocator,
     features::{
         instance::InstanceWatcherService,
-        settings::{
-            FsSettingsStorage, Hooks, LocationInfo, MemorySettings, Settings, SettingsStorage,
-            WindowSize,
-        },
+        settings::{FsSettingsStorage, LocationInfo, Settings, SettingsStorage},
     },
     shared::domain::FetchSemaphore,
 };
@@ -78,22 +75,17 @@ impl LauncherState {
     ) -> crate::Result<Arc<Self>> {
         log::info!("Initializing state");
 
-        let settings_storage = FsSettingsStorage::new(&launcher_dir.clone());
+        let launcher_dir_path = launcher_dir.as_path();
+
+        let settings_storage = FsSettingsStorage::new(launcher_dir_path);
 
         let settings = if let Ok(settings) = settings_storage.get().await {
             settings
         } else {
             let settings = Settings {
-                launcher_dir,
+                launcher_dir: launcher_dir.clone(),
                 metadata_dir,
                 max_concurrent_downloads: 10,
-
-                memory: MemorySettings { maximum: 2048 },
-                game_resolution: WindowSize(960, 540),
-                custom_env_vars: vec![],
-                extra_launch_args: vec![],
-                hooks: Hooks::default(),
-
                 enabled_plugins: HashSet::default(),
             };
 
@@ -116,19 +108,15 @@ impl LauncherState {
             settings.max_concurrent_downloads,
         )));
 
-        log::info!("Initialize file watcher");
-        // let file_watcher = Arc::new(fs_watcher::init_watcher().await?);
-        // fs_watcher::watch_instances(&file_watcher, &location_info).await;
-
         log::info!("State initialized");
-
-        log::info!("Initializing service locator");
 
         let state = Arc::new(Self {
             location_info,
             fetch_semaphore,
             api_semaphore,
         });
+
+        log::info!("Initializing service locator");
 
         LazyLocator::init(state.clone(), app_handle).await?;
 
@@ -138,6 +126,8 @@ impl LauncherState {
             .await?
             .watch_instances()
             .await?;
+
+        log::info!("Service locator initialized");
 
         Ok(state)
     }
