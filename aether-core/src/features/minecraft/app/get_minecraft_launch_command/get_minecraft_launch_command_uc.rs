@@ -132,7 +132,7 @@ impl<
 
         let args = version_info.arguments.clone().unwrap_or_default();
 
-        let env_args_vec = launch_settings.custom_env_vars.clone();
+        let env_args_vec = launch_settings.env_vars.clone();
 
         let natives_dir = self.location_info.version_natives_dir(&version_jar);
         if !natives_dir.exists() {
@@ -149,7 +149,7 @@ impl<
             version_jar,
             &java,
             launch_settings.memory,
-            &launch_settings.extra_launch_args,
+            &launch_settings.launch_args,
             minecraft_updated,
         )?;
 

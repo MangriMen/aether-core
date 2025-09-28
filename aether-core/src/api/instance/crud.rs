@@ -247,7 +247,7 @@ pub async fn get(instance_id: String) -> crate::Result<Instance> {
 }
 
 #[tracing::instrument]
-pub async fn edit(instance_id: String, edit_instance: EditInstance) -> crate::Result<()> {
+pub async fn edit(instance_id: String, edit_instance: EditInstance) -> crate::Result<Instance> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
