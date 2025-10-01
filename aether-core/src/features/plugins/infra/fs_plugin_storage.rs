@@ -24,12 +24,12 @@ impl FsPluginStorage {
         Self { location_info }
     }
 
-    fn get_metadata_path(dir: &Path) -> PathBuf {
-        dir.join("plugin.toml")
+    fn get_manifest_path(dir: &Path) -> PathBuf {
+        dir.join("manifest.toml")
     }
 
     async fn load_manifest(dir: &Path) -> Result<PluginManifest, PluginError> {
-        Ok(read_toml_async(&Self::get_metadata_path(dir)).await?)
+        Ok(read_toml_async(&Self::get_manifest_path(dir)).await?)
     }
 
     async fn calc_hash(dir: &Path, manifest: &PluginManifest) -> Result<String, PluginError> {

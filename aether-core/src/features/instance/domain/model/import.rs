@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportConfig {
-    pub pack_type: String,
+    pub plugin_id: String,
     pub title: String,
     pub field_label: String,
     pub file_name: String,

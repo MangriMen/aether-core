@@ -16,6 +16,7 @@ use super::{ContentType, InstanceInstallStage};
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct PackInfo {
+    pub plugin_id: Option<String>,
     pub pack_type: String,
     pub pack_version: String,
     pub can_update: bool,

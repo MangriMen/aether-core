@@ -5,8 +5,8 @@ use crate::{
     features::{
         instance::{
             CreateInstanceUseCase, EditInstance, EditInstanceUseCase, GetInstanceUseCase,
-            InstallInstanceUseCase, Instance, InstanceError, ListInstancesUseCase, NewInstance,
-            RemoveInstanceUseCase,
+            InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
+            RemoveInstanceUseCase, UpdateInstanceUseCase,
         },
         java::{
             infra::{AzulJreProvider, FsJavaInstallationService},
@@ -184,44 +184,14 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
 
 #[tracing::instrument]
 pub async fn update(instance_id: String) -> crate::Result<()> {
-    if let Ok(instance) = get(instance_id.clone()).await {
-        if let Some(pack_info) = instance.pack_info {
-            let lazy_locator = LazyLocator::get().await?;
-            let plugin_registry = lazy_locator.get_plugin_registry().await;
+    let lazy_locator = LazyLocator::get().await?;
 
-            if let Ok(plugin) = plugin_registry.get(&pack_info.pack_type) {
-                if let Some(plugin) = &plugin.instance {
-                    plugin.lock().await.update(&instance_id).map_err(|_| {
-                        InstanceError::InstanceUpdateError(format!(
-                            "Failed to import instance from plugin {}",
-                            pack_info.pack_type
-                        ))
-                    })?;
-                } else {
-                    return Err(InstanceError::InstanceUpdateError(format!(
-                        "Can't get plugin \"{}\" to update instance. Check if it is installed and enabled",
-                        &pack_info.pack_type
-                    )).into()
-                    );
-                }
-
-                return Ok(());
-            } else {
-                return Err(
-                    InstanceError::InstanceUpdateError("Unsupported pack type".to_owned()).into(),
-                );
-            };
-        } else {
-            return Err(
-                InstanceError::InstanceUpdateError("There is not pack info".to_owned()).into(),
-            );
-        };
-    } else {
-        return Err(InstanceError::UnmanagedInstance {
-            instance_id: instance_id.to_string(),
-        }
-        .into());
-    }
+    Ok(UpdateInstanceUseCase::new(
+        lazy_locator.get_instance_storage().await,
+        lazy_locator.get_plugin_registry().await,
+    )
+    .execute(instance_id)
+    .await?)
 }
 
 #[tracing::instrument]
