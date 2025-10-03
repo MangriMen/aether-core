@@ -124,9 +124,17 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
     }
 
     async fn remove_plugin(&self, plugin_id: &str) -> Result<(), PluginError> {
-        self.disable_plugin_use_case
+        let disable_result = self
+            .disable_plugin_use_case
             .execute(plugin_id.to_string())
-            .await?;
+            .await;
+
+        if let Err(PluginError::PluginNotFoundError { .. }) = disable_result {
+            log::debug!("Plugin {} was already disabled", plugin_id);
+        } else {
+            disable_result?;
+        }
+
         self.plugin_registry.remove(plugin_id);
         Ok(())
     }
