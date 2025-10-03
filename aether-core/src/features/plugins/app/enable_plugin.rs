@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use crate::features::{
     plugins::{
-        PluginError, PluginLoader, PluginLoaderRegistry, PluginRegistry, PluginSettingsStorage,
+        LoadConfigType, PluginError, PluginLoader, PluginLoaderRegistry, PluginRegistry,
+        PluginSettingsStorage,
     },
     settings::SettingsStorage,
 };
@@ -33,14 +34,15 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
 
     pub async fn execute(&self, plugin_id: String) -> Result<(), PluginError> {
         let plugin = self.plugin_registry.get(&plugin_id)?;
+        let manifest = plugin.manifest.clone();
+        drop(plugin);
 
         let plugin_settings = self.plugin_settings_storage.get(&plugin_id).await?;
 
-        let loader = self
-            .plugin_loader_registry
-            .get(&(&plugin.manifest.load).into())?;
+        let load_config_type: LoadConfigType = (&(manifest.load)).into();
+        let loader = self.plugin_loader_registry.get(&load_config_type)?;
 
-        let plugin_instance = loader.load(&plugin, &plugin_settings).await?;
+        let plugin_instance = loader.load(&manifest, &plugin_settings).await?;
 
         let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;
         plugin.instance = Some(plugin_instance);

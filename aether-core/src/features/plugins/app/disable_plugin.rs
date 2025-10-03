@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::features::{
-    plugins::{PluginError, PluginLoader, PluginLoaderRegistry, PluginRegistry},
+    plugins::{LoadConfigType, PluginError, PluginLoader, PluginLoaderRegistry, PluginRegistry},
     settings::SettingsStorage,
 };
 
@@ -26,12 +26,14 @@ impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
 
     pub async fn execute(&self, plugin_id: String) -> Result<(), PluginError> {
         let plugin = self.plugin_registry.get(&plugin_id)?;
+        let manifest = plugin.manifest.clone();
+        let instance = plugin.instance.clone();
+        drop(plugin);
 
-        let loader = self
-            .plugin_loader_registry
-            .get(&(&plugin.manifest.load).into())?;
+        let load_config_type: LoadConfigType = (&(manifest.load)).into();
+        let loader = self.plugin_loader_registry.get(&load_config_type)?;
 
-        if let Some(plugin_instance) = plugin.instance.clone() {
+        if let Some(plugin_instance) = instance {
             loader.unload(plugin_instance.clone()).await?;
 
             let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;

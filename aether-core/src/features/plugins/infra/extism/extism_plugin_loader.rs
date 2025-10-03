@@ -13,7 +13,7 @@ use crate::{
     features::{
         plugins::{
             extism_host_functions, plugin_utils::get_default_allowed_paths, ExtismPluginInstance,
-            LoadConfig, PathMapping, Plugin, PluginError, PluginInstance, PluginLoader,
+            LoadConfig, PathMapping, PluginError, PluginInstance, PluginLoader, PluginManifest,
             PluginSettings,
         },
         settings::LocationInfo,
@@ -59,12 +59,12 @@ impl ExtismPluginLoader {
     }
 
     fn resolve_allowed_paths(
-        plugin: &Plugin,
+        manifest: &PluginManifest,
         settings: &Option<PluginSettings>,
         default_allowed_paths: &Option<HashMap<String, PathBuf>>,
     ) -> (Vec<String>, Vec<PathMapping>) {
-        let mut allowed_hosts = plugin.manifest.runtime.allowed_hosts.clone();
-        let mut allowed_paths = plugin.manifest.runtime.allowed_paths.clone();
+        let mut allowed_hosts = manifest.runtime.allowed_hosts.clone();
+        let mut allowed_paths = manifest.runtime.allowed_paths.clone();
 
         if let Some(settings) = settings {
             allowed_hosts.extend_from_slice(&settings.allowed_hosts);
@@ -93,12 +93,12 @@ impl ExtismPluginLoader {
 
     fn load_extism_plugin(
         &self,
-        plugin: &Plugin,
+        manifest: &PluginManifest,
         cache_dir: &Option<PathBuf>,
         default_allowed_paths: &Option<HashMap<String, PathBuf>>,
         settings: &Option<PluginSettings>,
     ) -> Result<extism::Plugin, PluginError> {
-        let wasm_file_path = match &plugin.manifest.load {
+        let wasm_file_path = match &manifest.load {
             LoadConfig::Extism { file, .. } => file,
             load_config => {
                 return Err(PluginError::InvalidLoadConfigError {
@@ -108,18 +108,18 @@ impl ExtismPluginLoader {
         };
 
         let (allowed_hosts, allowed_paths) =
-            Self::resolve_allowed_paths(plugin, settings, default_allowed_paths);
+            Self::resolve_allowed_paths(manifest, settings, default_allowed_paths);
 
         let absolute_wasm_file_path = self
             .location_info
-            .plugin_dir(&plugin.manifest.metadata.id)
+            .plugin_dir(&manifest.metadata.id)
             .join(wasm_file_path);
 
-        let manifest =
+        let extism_manifest =
             Self::construct_wasm_manifest(&absolute_wasm_file_path, &allowed_hosts, &allowed_paths);
 
-        let mut builder = extism::PluginBuilder::new(&manifest)
-            .with_functions(Self::get_host_functions(&plugin.manifest.metadata.id))
+        let mut builder = extism::PluginBuilder::new(&extism_manifest)
+            .with_functions(Self::get_host_functions(&manifest.metadata.id))
             .with_wasi(true);
 
         if let Some(cache_dir) = cache_dir {
@@ -217,27 +217,26 @@ impl ExtismPluginLoader {
 impl PluginLoader for ExtismPluginLoader {
     async fn load(
         &self,
-        plugin: &Plugin,
+        manifest: &PluginManifest,
         settings: &Option<PluginSettings>,
     ) -> Result<Arc<Mutex<dyn PluginInstance>>, PluginError> {
         let cache_config = self.get_cache_config_path().await?;
 
         let default_allowed_paths =
-            get_default_allowed_paths(&self.location_info, &plugin.manifest.metadata.id);
+            get_default_allowed_paths(&self.location_info, &manifest.metadata.id);
 
-        for (_, host) in default_allowed_paths.iter() {
+        for (host, _) in default_allowed_paths.iter() {
             create_dir_all(host).await?;
         }
 
         let extism_plugin = self.load_extism_plugin(
-            plugin,
+            manifest,
             &Some(cache_config),
             &Some(default_allowed_paths),
             settings,
         )?;
 
-        let mut plugin =
-            ExtismPluginInstance::new(extism_plugin, plugin.manifest.metadata.id.to_owned());
+        let mut plugin = ExtismPluginInstance::new(extism_plugin, manifest.metadata.id.to_owned());
 
         plugin.on_load()?;
 
