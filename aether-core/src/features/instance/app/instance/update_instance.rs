@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::features::{
     instance::{InstanceError, InstanceStorage},
-    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry},
+    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
 };
 
 pub struct UpdateInstanceUseCase<IS: InstanceStorage> {
@@ -44,7 +44,7 @@ impl<IS: InstanceStorage> UpdateInstanceUseCase<IS> {
             .get(plugin_id)
             .map_err(|_| InstanceError::InstanceUpdateError("Unsupported pack type".to_owned()))?;
 
-        let Some(plugin_instance) = &plugin.instance else {
+        let PluginState::Loaded(plugin_instance) = &plugin.state else {
             return Err(InstanceError::InstanceUpdateError(format!(
                 "Can't get plugin \"{}\" to update instance. Check if it is installed and enabled",
                 &plugin_id

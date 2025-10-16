@@ -26,6 +26,18 @@ pub enum PluginError {
     #[error("Plugin with id \"{plugin_id}\" not found")]
     PluginNotFoundError { plugin_id: String },
 
+    #[error("Plugin already loaded")]
+    PluginAlreadyLoaded,
+
+    #[error("Plugin already loading")]
+    PluginAlreadyLoading,
+
+    #[error("Plugin already unloading")]
+    PluginAlreadyUnloading,
+
+    #[error("Plugin already unloaded")]
+    PluginAlreadyUnloaded,
+
     #[error("Error while loading plugin")]
     PluginLoadError,
 

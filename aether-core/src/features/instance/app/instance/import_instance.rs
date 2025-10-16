@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::features::{
     instance::InstanceError,
-    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry},
+    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -46,7 +46,7 @@ impl ImportInstanceUseCase {
             .get(plugin_id)
             .map_err(|_| InstanceError::InstanceImportError("Unsupported pack type".to_owned()))?;
 
-        let Some(instance) = &plugin.instance else {
+        let PluginState::Loaded(instance) = &plugin.state else {
             return Err(InstanceError::InstanceImportError(
                 "Plugin disabled".to_owned(),
             ));

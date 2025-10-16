@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::features::{
     instance::{ImportConfig, InstanceError},
-    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry},
+    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
 };
 
 pub struct ListImportConfigsUseCase {
@@ -22,7 +22,7 @@ impl ListImportConfigsUseCase {
         let mut configs: Vec<ImportConfig> = Vec::new();
 
         for plugin in self.plugin_registry.list() {
-            let Some(instance) = &plugin.instance else {
+            let PluginState::Loaded(instance) = &plugin.state else {
                 continue;
             };
 

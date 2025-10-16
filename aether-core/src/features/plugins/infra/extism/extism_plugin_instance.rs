@@ -21,10 +21,18 @@ impl PluginInstance for ExtismPluginInstance {
     }
 
     fn on_load(&mut self) -> Result<(), PluginError> {
+        if !self.supports("on_load") {
+            return Ok(());
+        }
+
         self.call("on_load", ())
     }
     fn on_unload(&mut self) -> Result<(), PluginError> {
-        self.call("on_unload", ())
+        if !self.supports("on_unload") {
+            return Ok(());
+        }
+
+        self.call("on_load", ())
     }
 
     fn call_bytes<'b>(&'b mut self, name: &str, args: &[u8]) -> Result<&'b [u8], PluginError> {

@@ -9,7 +9,7 @@ use log::debug;
 
 use crate::{
     features::{
-        plugins::{LoadConfig, Plugin, PluginError, PluginManifest, PluginStorage},
+        plugins::{LoadConfig, Plugin, PluginError, PluginManifest, PluginState, PluginStorage},
         settings::LocationInfo,
     },
     shared::{create_dir_all, read_async, read_dir, read_toml_async, sha1_async, IoError},
@@ -54,7 +54,7 @@ impl FsPluginStorage {
         Ok(Plugin {
             manifest,
             hash,
-            instance: None,
+            state: PluginState::NotLoaded,
         })
     }
 }
