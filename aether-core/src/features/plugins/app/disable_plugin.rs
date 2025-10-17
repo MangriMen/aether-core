@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::features::{
+    events::EventEmitter,
     plugins::{
         LoadConfigType, PluginError, PluginInstance, PluginLoader, PluginLoaderRegistry,
         PluginManifest, PluginRegistry, PluginState,
@@ -10,15 +11,15 @@ use crate::features::{
     settings::SettingsStorage,
 };
 
-pub struct DisablePluginUseCase<SS, PL> {
-    plugin_registry: Arc<PluginRegistry>,
+pub struct DisablePluginUseCase<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> {
+    plugin_registry: Arc<PluginRegistry<E>>,
     plugin_loader_registry: Arc<PluginLoaderRegistry<PL>>,
     settings_storage: Arc<SS>,
 }
 
-impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
+impl<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> DisablePluginUseCase<SS, PL, E> {
     pub fn new(
-        plugin_registry: Arc<PluginRegistry>,
+        plugin_registry: Arc<PluginRegistry<E>>,
         plugin_loader_registry: Arc<PluginLoaderRegistry<PL>>,
         settings_storage: Arc<SS>,
     ) -> Self {
@@ -30,14 +31,20 @@ impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
     }
 
     pub async fn execute(&self, plugin_id: String) -> Result<(), PluginError> {
-        let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;
-
-        let plugin_instance = self.check_is_able_to_unload(&plugin.state)?;
-
-        plugin.state = PluginState::Unloading;
+        let plugin = self.plugin_registry.get(&plugin_id)?;
         let manifest = plugin.manifest.clone();
+        let state = plugin.state.clone();
         // Drop immediate to prevent dead lock in dash map
         drop(plugin);
+
+        let plugin_instance = self.check_is_able_to_unload(&state)?;
+
+        self.plugin_registry
+            .upsert_with(&plugin_id, |plugin| {
+                plugin.state = PluginState::Unloading;
+                Ok(())
+            })
+            .await?;
 
         match self
             .unload_plugin(&plugin_id, &manifest, plugin_instance.clone())
@@ -45,13 +52,17 @@ impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
         {
             Ok(_) => self.remove_from_enabled_plugins(&plugin_id).await,
             Err(err) => {
-                let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;
-                match &err {
-                    // If there is error on plugin on_unload call we are anyway drop instance
-                    PluginError::CallError { .. } => plugin.state = PluginState::NotLoaded,
-                    // If there is others error - plugin still loaded
-                    _ => plugin.state = PluginState::Loaded(plugin_instance),
-                }
+                self.plugin_registry
+                    .upsert_with(&plugin_id, |plugin| {
+                        match &err {
+                            // If there is error on plugin on_unload call we are anyway drop instance
+                            PluginError::CallError { .. } => plugin.state = PluginState::NotLoaded,
+                            // If there is others error - plugin still loaded
+                            _ => plugin.state = PluginState::Loaded(plugin_instance),
+                        }
+                        Ok(())
+                    })
+                    .await?;
 
                 Err(err)
             }
@@ -82,8 +93,12 @@ impl<SS: SettingsStorage, PL: PluginLoader> DisablePluginUseCase<SS, PL> {
 
         loader.unload(plugin_instance.clone()).await?;
 
-        let mut plugin = self.plugin_registry.get_mut(plugin_id)?;
-        plugin.state = PluginState::NotLoaded;
+        self.plugin_registry
+            .upsert_with(plugin_id, |plugin| {
+                plugin.state = PluginState::NotLoaded;
+                Ok(())
+            })
+            .await?;
 
         Ok(())
     }

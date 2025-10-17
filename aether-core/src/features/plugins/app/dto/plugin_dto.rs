@@ -8,7 +8,7 @@ pub enum PluginDtoState {
     Loading,
     Loaded,
     Unloading,
-    Failed(String),
+    Failed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,7 +24,7 @@ impl From<&PluginState> for PluginDtoState {
             PluginState::Loading => PluginDtoState::Loading,
             PluginState::Loaded(_) => PluginDtoState::Loaded,
             PluginState::Unloading => PluginDtoState::Unloading,
-            PluginState::Failed(err) => PluginDtoState::Failed(err.clone()),
+            PluginState::Failed(_) => PluginDtoState::Failed,
         }
     }
 }

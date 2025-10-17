@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
 use crate::features::{
+    events::EventEmitter,
     instance::{InstanceError, InstanceStorage},
     plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
 };
 
-pub struct UpdateInstanceUseCase<IS: InstanceStorage> {
+pub struct UpdateInstanceUseCase<IS: InstanceStorage, E: EventEmitter> {
     instance_storage: Arc<IS>,
-    plugin_registry: Arc<PluginRegistry>,
+    plugin_registry: Arc<PluginRegistry<E>>,
 }
 
-impl<IS: InstanceStorage> UpdateInstanceUseCase<IS> {
-    pub fn new(instance_storage: Arc<IS>, plugin_registry: Arc<PluginRegistry>) -> Self {
+impl<IS: InstanceStorage, E: EventEmitter> UpdateInstanceUseCase<IS, E> {
+    pub fn new(instance_storage: Arc<IS>, plugin_registry: Arc<PluginRegistry<E>>) -> Self {
         Self {
             instance_storage,
             plugin_registry,

@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use crate::features::{
+    events::EventEmitter,
     instance::{ImportConfig, InstanceError},
     plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
 };
 
-pub struct ListImportConfigsUseCase {
-    plugin_registry: Arc<PluginRegistry>,
+pub struct ListImportConfigsUseCase<E: EventEmitter> {
+    plugin_registry: Arc<PluginRegistry<E>>,
 }
 
-impl ListImportConfigsUseCase {
-    pub fn new(plugin_registry: Arc<PluginRegistry>) -> Self {
+impl<E: EventEmitter> ListImportConfigsUseCase<E> {
+    pub fn new(plugin_registry: Arc<PluginRegistry<E>>) -> Self {
         Self { plugin_registry }
     }
 

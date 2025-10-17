@@ -1,8 +1,11 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use dashmap::DashMap;
 
-use crate::features::plugins::{Plugin, PluginError, PluginManifest};
+use crate::features::{
+    events::{EventEmitter, EventEmitterExt, PluginEventType},
+    plugins::{Plugin, PluginError, PluginManifest},
+};
 
 use dashmap::mapref::{
     multiple::RefMulti as DashMapRefMulti,
@@ -10,11 +13,19 @@ use dashmap::mapref::{
 };
 
 #[derive(Default)]
-pub struct PluginRegistry {
+pub struct PluginRegistry<E: EventEmitter> {
     plugins: DashMap<String, Plugin>,
+    event_emitter: Arc<E>,
 }
 
-impl PluginRegistry {
+impl<E: EventEmitter> PluginRegistry<E> {
+    pub fn new(event_emitter: Arc<E>) -> Self {
+        Self {
+            plugins: DashMap::default(),
+            event_emitter,
+        }
+    }
+
     pub fn insert(&self, plugin_id: String, plugin: Plugin) {
         self.plugins.insert(plugin_id, plugin);
     }
@@ -59,5 +70,18 @@ impl PluginRegistry {
 
     pub fn get_manifest(&self, plugin_id: &str) -> Result<PluginManifest, PluginError> {
         Ok(self.get(plugin_id)?.manifest.clone())
+    }
+
+    pub async fn upsert_with<F>(&self, plugin_id: &str, update_fn: F) -> Result<(), PluginError>
+    where
+        F: FnOnce(&mut Plugin) -> Result<(), PluginError> + Send,
+    {
+        let mut plugin = self.get_mut(plugin_id)?;
+        update_fn(&mut plugin)?;
+        self.event_emitter
+            .emit_plugin_safe(plugin_id.to_owned(), PluginEventType::Edit)
+            .await;
+
+        Ok(())
     }
 }

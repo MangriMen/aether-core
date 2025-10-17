@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, ToBytes)]
 #[encoding(Json)]
-pub enum PluginEvent {
+pub enum PluginInternalEvent {
     BeforeInstanceLaunch { instance_id: String },
     AfterInstanceLaunch { instance_id: String },
 }

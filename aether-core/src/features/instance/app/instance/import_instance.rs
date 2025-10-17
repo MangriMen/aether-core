@@ -3,6 +3,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
+    events::EventEmitter,
     instance::InstanceError,
     plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
 };
@@ -14,12 +15,12 @@ pub struct ImportInstance {
     pub plugin_id: Option<String>,
 }
 
-pub struct ImportInstanceUseCase {
-    plugin_registry: Arc<PluginRegistry>,
+pub struct ImportInstanceUseCase<E: EventEmitter> {
+    plugin_registry: Arc<PluginRegistry<E>>,
 }
 
-impl ImportInstanceUseCase {
-    pub fn new(plugin_registry: Arc<PluginRegistry>) -> Self {
+impl<E: EventEmitter> ImportInstanceUseCase<E> {
+    pub fn new(plugin_registry: Arc<PluginRegistry<E>>) -> Self {
         Self { plugin_registry }
     }
 

@@ -64,7 +64,7 @@ pub struct LazyLocator {
         Arc<ContentProviderRegistry<ModrinthContentProvider<ReqwestClient<ProgressServiceType>>>>,
     >,
     plugin_settings_storage: OnceCell<Arc<FsPluginSettingsStorage>>,
-    plugin_registry: OnceCell<Arc<PluginRegistry>>,
+    plugin_registry: OnceCell<Arc<PluginRegistry<TauriEventEmitter>>>,
     plugin_loader_registry: OnceCell<Arc<PluginLoaderRegistry<ExtismPluginLoader>>>,
     plugin_storage: OnceCell<Arc<FsPluginStorage>>,
     event_emitter: OnceCell<Arc<TauriEventEmitter>>,
@@ -317,9 +317,9 @@ impl LazyLocator {
             .clone()
     }
 
-    pub async fn get_plugin_registry(&self) -> Arc<PluginRegistry> {
+    pub async fn get_plugin_registry(&self) -> Arc<PluginRegistry<TauriEventEmitter>> {
         self.plugin_registry
-            .get_or_init(|| async { Arc::new(PluginRegistry::default()) })
+            .get_or_init(|| async { Arc::new(PluginRegistry::new(self.get_event_emitter().await)) })
             .await
             .clone()
     }

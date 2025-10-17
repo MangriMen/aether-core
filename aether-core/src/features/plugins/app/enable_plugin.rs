@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::features::{
+    events::EventEmitter,
     plugins::{
         LoadConfigType, PluginError, PluginLoader, PluginLoaderRegistry, PluginManifest,
         PluginRegistry, PluginSettingsStorage, PluginState,
@@ -8,18 +9,23 @@ use crate::features::{
     settings::SettingsStorage,
 };
 
-pub struct EnablePluginUseCase<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader> {
-    plugin_registry: Arc<PluginRegistry>,
+pub struct EnablePluginUseCase<
+    PSS: PluginSettingsStorage,
+    SS: SettingsStorage,
+    PL: PluginLoader,
+    E: EventEmitter,
+> {
+    plugin_registry: Arc<PluginRegistry<E>>,
     plugin_loader_registry: Arc<PluginLoaderRegistry<PL>>,
     plugin_settings_storage: Arc<PSS>,
     settings_storage: Arc<SS>,
 }
 
-impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
-    EnablePluginUseCase<PSS, SS, PL>
+impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader, E: EventEmitter>
+    EnablePluginUseCase<PSS, SS, PL, E>
 {
     pub fn new(
-        plugin_registry: Arc<PluginRegistry>,
+        plugin_registry: Arc<PluginRegistry<E>>,
         plugin_loader_registry: Arc<PluginLoaderRegistry<PL>>,
         plugin_settings_storage: Arc<PSS>,
         settings_storage: Arc<SS>,
@@ -33,26 +39,36 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
     }
 
     pub async fn execute(&self, plugin_id: String) -> Result<(), PluginError> {
-        let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;
-
-        self.check_is_able_to_load(&plugin.state)?;
-
-        plugin.state = PluginState::Loading;
+        let plugin = self.plugin_registry.get(&plugin_id)?;
+        let state = plugin.state.clone();
         let manifest = plugin.manifest.clone();
         // Drop immediate to prevent dead lock in dash map
         drop(plugin);
 
+        self.check_is_able_to_load(&state)?;
+
+        self.plugin_registry
+            .upsert_with(&plugin_id, |plugin| {
+                plugin.state = PluginState::Loading;
+                Ok(())
+            })
+            .await?;
+
         match self.load_plugin(&plugin_id, &manifest).await {
             Ok(_) => self.add_to_enabled_plugins(&plugin_id).await,
             Err(err) => {
-                let mut plugin = self.plugin_registry.get_mut(&plugin_id)?;
+                self.plugin_registry
+                    .upsert_with(&plugin_id, |plugin| {
+                        match &err {
+                            PluginError::PluginLoadError => {
+                                plugin.state = PluginState::Failed(err.to_string())
+                            }
+                            _ => plugin.state = PluginState::NotLoaded,
+                        }
 
-                match &err {
-                    PluginError::PluginLoadError => {
-                        plugin.state = PluginState::Failed(err.to_string())
-                    }
-                    _ => plugin.state = PluginState::NotLoaded,
-                }
+                        Ok(())
+                    })
+                    .await?;
 
                 Err(err)
             }
@@ -79,8 +95,12 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader>
         let plugin_settings = self.plugin_settings_storage.get(plugin_id).await?;
         let plugin_instance = loader.load(manifest, &plugin_settings).await?;
 
-        let mut plugin = self.plugin_registry.get_mut(plugin_id)?;
-        plugin.state = PluginState::Loaded(plugin_instance);
+        self.plugin_registry
+            .upsert_with(plugin_id, |plugin| {
+                plugin.state = PluginState::Loaded(plugin_instance);
+                Ok(())
+            })
+            .await?;
 
         Ok(())
     }

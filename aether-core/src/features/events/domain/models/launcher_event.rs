@@ -7,6 +7,7 @@ pub enum LauncherEvent {
     Process,
     Instance,
     Warning,
+    Plugin,
 }
 
 impl LauncherEvent {
@@ -16,6 +17,7 @@ impl LauncherEvent {
             LauncherEvent::Process => "process",
             LauncherEvent::Instance => "instance",
             LauncherEvent::Warning => "warning",
+            LauncherEvent::Plugin => "plugin",
         }
     }
 }
