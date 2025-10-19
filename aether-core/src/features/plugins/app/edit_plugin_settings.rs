@@ -51,7 +51,7 @@ fn apply_edit_changes(
     if let Some(allowed_paths) = &edit_settings.allowed_paths {
         let filtered = allowed_paths
             .iter()
-            .filter(|(from, _)| PathBuf::from(from).exists())
+            .filter(|(host, _)| PathBuf::from(host).exists())
             .cloned()
             .collect();
 
