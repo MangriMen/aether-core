@@ -40,16 +40,9 @@ pub trait EventEmitterExt: EventEmitter {
         .await
     }
 
-    async fn emit_plugin(
-        &self,
-        plugin_id: String,
-        event: PluginEventType,
-    ) -> Result<(), EventError> {
-        self.emit(
-            LauncherEvent::Plugin.as_str(),
-            PluginEvent { plugin_id, event },
-        )
-        .await
+    async fn emit_plugin(&self, event: PluginEventType) -> Result<(), EventError> {
+        self.emit(LauncherEvent::Plugin.as_str(), PluginEvent { event })
+            .await
     }
 
     async fn emit_warning(&self, message: String) -> Result<(), EventError> {
@@ -84,8 +77,8 @@ pub trait EventEmitterExt: EventEmitter {
         }
     }
 
-    async fn emit_plugin_safe(&self, plugin_id: String, event: PluginEventType) {
-        if let Err(e) = self.emit_plugin(plugin_id, event).await {
+    async fn emit_plugin_safe(&self, event: PluginEventType) {
+        if let Err(e) = self.emit_plugin(event).await {
             debug!("Failed to emit plugin: {e}")
         }
     }

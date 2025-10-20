@@ -45,7 +45,7 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader, E: Event
         // Drop immediate to prevent dead lock in dash map
         drop(plugin);
 
-        self.check_is_able_to_load(&state)?;
+        self.check_is_able_to_load(&plugin_id, &state)?;
 
         self.plugin_registry
             .upsert_with(&plugin_id, |plugin| {
@@ -75,12 +75,22 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader, E: Event
         }
     }
 
-    fn check_is_able_to_load(&self, plugin_state: &PluginState) -> Result<(), PluginError> {
+    fn check_is_able_to_load(
+        &self,
+        plugin_id: &str,
+        plugin_state: &PluginState,
+    ) -> Result<(), PluginError> {
         match plugin_state {
             PluginState::NotLoaded | PluginState::Failed(_) => Ok(()),
-            PluginState::Loading => Err(PluginError::PluginAlreadyLoading),
-            PluginState::Loaded(_) => Err(PluginError::PluginAlreadyLoaded),
-            PluginState::Unloading => Err(PluginError::PluginAlreadyUnloading),
+            PluginState::Loading => Err(PluginError::PluginAlreadyLoading {
+                plugin_id: plugin_id.to_owned(),
+            }),
+            PluginState::Loaded(_) => Err(PluginError::PluginAlreadyLoaded {
+                plugin_id: plugin_id.to_owned(),
+            }),
+            PluginState::Unloading => Err(PluginError::PluginAlreadyUnloading {
+                plugin_id: plugin_id.to_owned(),
+            }),
         }
     }
 

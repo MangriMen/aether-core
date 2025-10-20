@@ -12,7 +12,9 @@ use crate::{
         plugins::{LoadConfig, Plugin, PluginError, PluginManifest, PluginState, PluginStorage},
         settings::LocationInfo,
     },
-    shared::{create_dir_all, read_async, read_dir, read_toml_async, sha1_async, IoError},
+    shared::{
+        create_dir_all, read_async, read_dir, read_toml_async, remove_dir_all, sha1_async, IoError,
+    },
 };
 
 pub struct FsPluginStorage {
@@ -94,5 +96,17 @@ impl PluginStorage for FsPluginStorage {
     async fn get(&self, plugin_id: &str) -> Result<Plugin, PluginError> {
         let plugin_dir = self.location_info.plugin_dir(plugin_id);
         self.load_from_dir(&plugin_dir).await
+    }
+
+    async fn remove(&self, plugin_id: &str) -> Result<(), PluginError> {
+        let plugin_dir = self.location_info.plugin_dir(plugin_id);
+
+        if !plugin_dir.exists() {
+            return Ok(());
+        }
+
+        remove_dir_all(plugin_dir).await?;
+
+        Ok(())
     }
 }

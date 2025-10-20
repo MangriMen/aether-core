@@ -37,7 +37,7 @@ impl<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> DisablePluginUseCas
         // Drop immediate to prevent dead lock in dash map
         drop(plugin);
 
-        let plugin_instance = self.check_is_able_to_unload(&state)?;
+        let plugin_instance = self.check_is_able_to_unload(&plugin_id, &state)?;
 
         self.plugin_registry
             .upsert_with(&plugin_id, |plugin| {
@@ -71,13 +71,18 @@ impl<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> DisablePluginUseCas
 
     fn check_is_able_to_unload(
         &self,
+        plugin_id: &str,
         plugin_state: &PluginState,
     ) -> Result<Arc<Mutex<dyn PluginInstance>>, PluginError> {
         match plugin_state {
             PluginState::Loaded(plugin_instance) => Ok(plugin_instance.clone()),
-            PluginState::Loading => Err(PluginError::PluginAlreadyLoading),
+            PluginState::Loading => Err(PluginError::PluginAlreadyLoading {
+                plugin_id: plugin_id.to_owned(),
+            }),
             PluginState::NotLoaded | PluginState::Unloading | PluginState::Failed(_) => {
-                Err(PluginError::PluginAlreadyUnloaded)
+                Err(PluginError::PluginAlreadyUnloaded {
+                    plugin_id: plugin_id.to_owned(),
+                })
             }
         }
     }

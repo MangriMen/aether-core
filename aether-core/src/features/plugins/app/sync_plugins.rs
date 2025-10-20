@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::features::{
-    events::EventEmitter,
+    events::{EventEmitter, EventEmitterExt, PluginEventType},
     plugins::{Plugin, PluginError, PluginLoader, PluginRegistry, PluginStorage},
     settings::SettingsStorage,
 };
@@ -20,6 +20,7 @@ pub struct SyncPluginsUseCase<
     plugin_storage: Arc<PS>,
     plugin_registry: Arc<PluginRegistry<E>>,
     disable_plugin_use_case: DisablePluginUseCase<SS, PL, E>,
+    event_emitter: Arc<E>,
 }
 
 impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader, E: EventEmitter>
@@ -29,11 +30,13 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader, E: EventEmitter>
         plugin_storage: Arc<PS>,
         plugin_registry: Arc<PluginRegistry<E>>,
         disable_plugin_use_case: DisablePluginUseCase<SS, PL, E>,
+        event_emitter: Arc<E>,
     ) -> Self {
         Self {
             plugin_storage,
             plugin_registry,
             disable_plugin_use_case,
+            event_emitter,
         }
     }
 
@@ -137,10 +140,14 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader, E: EventEmitter>
             .execute(plugin_id.to_string())
             .await;
 
-        if let Err(PluginError::PluginNotFoundError { .. }) = disable_result {
-            log::debug!("Plugin {} was already disabled", plugin_id);
-        } else {
-            disable_result?;
+        if let Err(err) = disable_result {
+            match err {
+                PluginError::PluginNotFoundError { plugin_id }
+                | PluginError::PluginAlreadyUnloaded { plugin_id } => {
+                    log::debug!("Plugin {} was already disabled", plugin_id);
+                }
+                _ => return Err(err),
+            }
         }
 
         self.plugin_registry.remove(plugin_id);
@@ -149,6 +156,10 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader, E: EventEmitter>
 
     pub async fn execute(&self) -> Result<(), PluginError> {
         let found_plugins = self.plugin_storage.list().await?;
-        self.sync_plugins(found_plugins).await
+        self.sync_plugins(found_plugins).await?;
+        self.event_emitter
+            .emit_plugin_safe(PluginEventType::Sync)
+            .await;
+        Ok(())
     }
 }

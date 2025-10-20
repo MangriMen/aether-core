@@ -79,7 +79,9 @@ impl<E: EventEmitter> PluginRegistry<E> {
         let mut plugin = self.get_mut(plugin_id)?;
         update_fn(&mut plugin)?;
         self.event_emitter
-            .emit_plugin_safe(plugin_id.to_owned(), PluginEventType::Edit)
+            .emit_plugin_safe(PluginEventType::Edit {
+                plugin_id: plugin_id.to_owned(),
+            })
             .await;
 
         Ok(())

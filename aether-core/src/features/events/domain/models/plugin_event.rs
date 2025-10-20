@@ -4,13 +4,13 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct PluginEvent {
     pub event: PluginEventType,
-    pub plugin_id: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum PluginEventType {
-    Add,
-    Edit,
-    Remove,
+    Add { plugin_id: String },
+    Edit { plugin_id: String },
+    Remove { plugin_id: String },
+    Sync,
 }

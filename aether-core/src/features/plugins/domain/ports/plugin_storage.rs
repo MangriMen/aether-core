@@ -8,4 +8,5 @@ use crate::features::plugins::{Plugin, PluginError};
 pub trait PluginStorage: Send + Sync {
     async fn list(&self) -> Result<HashMap<String, Plugin>, PluginError>;
     async fn get(&self, plugin_id: &str) -> Result<Plugin, PluginError>;
+    async fn remove(&self, plugin_id: &str) -> Result<(), PluginError>;
 }

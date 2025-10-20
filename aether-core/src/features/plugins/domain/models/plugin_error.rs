@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serr::SerializeError;
 
 use crate::{
@@ -27,16 +29,16 @@ pub enum PluginError {
     PluginNotFoundError { plugin_id: String },
 
     #[error("Plugin already loaded")]
-    PluginAlreadyLoaded,
+    PluginAlreadyLoaded { plugin_id: String },
 
     #[error("Plugin already loading")]
-    PluginAlreadyLoading,
+    PluginAlreadyLoading { plugin_id: String },
 
     #[error("Plugin already unloading")]
-    PluginAlreadyUnloading,
+    PluginAlreadyUnloading { plugin_id: String },
 
     #[error("Plugin already unloaded")]
-    PluginAlreadyUnloaded,
+    PluginAlreadyUnloaded { plugin_id: String },
 
     #[error("Error while loading plugin")]
     PluginLoadError,
@@ -55,4 +57,7 @@ pub enum PluginError {
 
     #[error("Host function error: {0}")]
     HostFunctionError(String),
+
+    #[error("Import error: {path:?}")]
+    ImportError { path: PathBuf },
 }

@@ -1,11 +1,38 @@
+use std::{path::PathBuf, sync::Arc};
+
 use crate::{
-    core::domain::LazyLocator,
+    core::{domain::LazyLocator, LauncherState},
     features::plugins::{
         DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
-        GetPluginDtoUseCase, GetPluginSettingsUseCase, ListPluginsDtoUseCase, PluginDto,
-        PluginSettings, SyncPluginsUseCase,
+        GetPluginDtoUseCase, GetPluginSettingsUseCase, ImportPluginsUseCase, ListPluginsDtoUseCase,
+        PluginDto, PluginSettings, RemovePluginUseCase, SyncPluginsUseCase,
     },
 };
+
+#[tracing::instrument]
+pub async fn import(paths: Vec<PathBuf>) -> crate::Result<()> {
+    let state = LauncherState::get().await?;
+    let lazy_locator = LazyLocator::get().await?;
+
+    let disable_plugin_use_case = DisablePluginUseCase::new(
+        lazy_locator.get_plugin_registry().await,
+        lazy_locator.get_plugin_loader_registry().await,
+        lazy_locator.get_settings_storage().await,
+    );
+
+    let sync_plugins_use_case = Arc::new(SyncPluginsUseCase::new(
+        lazy_locator.get_plugin_storage().await,
+        lazy_locator.get_plugin_registry().await,
+        disable_plugin_use_case,
+        lazy_locator.get_event_emitter().await,
+    ));
+
+    Ok(
+        ImportPluginsUseCase::new(state.location_info.clone(), sync_plugins_use_case)
+            .execute(paths)
+            .await?,
+    )
+}
 
 #[tracing::instrument]
 pub async fn sync() -> crate::Result<()> {
@@ -21,6 +48,7 @@ pub async fn sync() -> crate::Result<()> {
         lazy_locator.get_plugin_storage().await,
         lazy_locator.get_plugin_registry().await,
         disable_plugin_use_case,
+        lazy_locator.get_event_emitter().await,
     )
     .execute()
     .await?)
@@ -46,6 +74,31 @@ pub async fn get(plugin_id: String) -> crate::Result<PluginDto> {
             .execute(plugin_id)
             .await?,
     )
+}
+
+#[tracing::instrument]
+pub async fn remove(plugin_id: String) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    let disable_plugin_use_case = DisablePluginUseCase::new(
+        lazy_locator.get_plugin_registry().await,
+        lazy_locator.get_plugin_loader_registry().await,
+        lazy_locator.get_settings_storage().await,
+    );
+
+    let sync_plugins_use_case = Arc::new(SyncPluginsUseCase::new(
+        lazy_locator.get_plugin_storage().await,
+        lazy_locator.get_plugin_registry().await,
+        disable_plugin_use_case,
+        lazy_locator.get_event_emitter().await,
+    ));
+
+    Ok(RemovePluginUseCase::new(
+        lazy_locator.get_plugin_storage().await,
+        sync_plugins_use_case,
+    )
+    .execute(plugin_id)
+    .await?)
 }
 
 #[tracing::instrument]
