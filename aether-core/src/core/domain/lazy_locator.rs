@@ -22,7 +22,7 @@ use crate::{
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         plugins::{
             ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, LoadConfigType,
-            PluginLoaderRegistry, PluginRegistry,
+            PluginLoaderRegistry, PluginRegistry, ZipPluginExtractor,
         },
         process::InMemoryProcessStorage,
         settings::{FsDefaultInstanceSettingsStorage, FsSettingsStorage},
@@ -74,6 +74,7 @@ pub struct LazyLocator {
         Arc<InstanceWatcherServiceImpl<NotifyFileWatcher<InstanceEventHandler<TauriEventEmitter>>>>,
     >,
     default_instance_settings_storage: OnceCell<Arc<FsDefaultInstanceSettingsStorage>>,
+    plugin_extractor: OnceCell<Arc<ZipPluginExtractor>>,
 }
 
 fn get_reqwest_client() -> Arc<ClientWithMiddleware> {
@@ -125,6 +126,7 @@ impl LazyLocator {
                     progress_service: OnceCell::new(),
                     instance_watcher_service: OnceCell::new(),
                     default_instance_settings_storage: OnceCell::new(),
+                    plugin_extractor: OnceCell::new(),
                 })
             })
             .await;
@@ -343,7 +345,7 @@ impl LazyLocator {
     pub async fn get_plugin_storage(&self) -> Arc<FsPluginStorage> {
         self.plugin_storage
             .get_or_init(|| async {
-                Arc::new(FsPluginStorage::new(self.state.location_info.clone()))
+                Arc::new(FsPluginStorage::new(self.state.location_info.clone(), None))
             })
             .await
             .clone()
@@ -406,6 +408,13 @@ impl LazyLocator {
                     &self.state.location_info.settings_dir,
                 ))
             })
+            .await
+            .clone()
+    }
+
+    pub async fn get_plugin_extractor(&self) -> Arc<ZipPluginExtractor> {
+        self.plugin_extractor
+            .get_or_init(|| async { Arc::new(ZipPluginExtractor::default()) })
             .await
             .clone()
     }

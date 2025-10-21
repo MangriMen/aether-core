@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    core::{domain::LazyLocator, LauncherState},
+    core::domain::LazyLocator,
     features::plugins::{
         DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
         GetPluginDtoUseCase, GetPluginSettingsUseCase, ImportPluginsUseCase, ListPluginsDtoUseCase,
@@ -11,7 +11,6 @@ use crate::{
 
 #[tracing::instrument]
 pub async fn import(paths: Vec<PathBuf>) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
     let lazy_locator = LazyLocator::get().await?;
 
     let disable_plugin_use_case = DisablePluginUseCase::new(
@@ -27,11 +26,13 @@ pub async fn import(paths: Vec<PathBuf>) -> crate::Result<()> {
         lazy_locator.get_event_emitter().await,
     ));
 
-    Ok(
-        ImportPluginsUseCase::new(state.location_info.clone(), sync_plugins_use_case)
-            .execute(paths)
-            .await?,
+    Ok(ImportPluginsUseCase::new(
+        lazy_locator.get_plugin_extractor().await,
+        lazy_locator.get_plugin_storage().await,
+        sync_plugins_use_case,
     )
+    .execute(paths)
+    .await?)
 }
 
 #[tracing::instrument]

@@ -75,3 +75,4 @@ serr = { git = 'https://github.com/MangriMen/serr.git', version = "0.1.0", featu
     "derive",
 ] }
 serde_with = "3.13.0"
+tempfile = "3.23.0"

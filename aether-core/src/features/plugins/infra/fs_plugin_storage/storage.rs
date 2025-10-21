@@ -9,29 +9,40 @@ use log::debug;
 
 use crate::{
     features::{
-        plugins::{LoadConfig, Plugin, PluginError, PluginManifest, PluginState, PluginStorage},
+        plugins::{
+            ExtractedPlugin, FsPluginStorageConstants, LoadConfig, Plugin, PluginContent,
+            PluginError, PluginManifest, PluginState, PluginStorage,
+        },
         settings::LocationInfo,
     },
     shared::{
-        create_dir_all, read_async, read_dir, read_toml_async, remove_dir_all, sha1_async, IoError,
+        copy_dir_all, create_dir_all, read_async, read_dir, read_json_async, remove_dir_all,
+        sha1_async, IoError,
     },
 };
 
 pub struct FsPluginStorage {
     location_info: Arc<LocationInfo>,
+    constants: FsPluginStorageConstants,
 }
 
 impl FsPluginStorage {
-    pub fn new(location_info: Arc<LocationInfo>) -> Self {
-        Self { location_info }
+    pub fn new(
+        location_info: Arc<LocationInfo>,
+        constants: Option<FsPluginStorageConstants>,
+    ) -> Self {
+        Self {
+            location_info,
+            constants: constants.unwrap_or_default(),
+        }
     }
 
-    fn get_manifest_path(dir: &Path) -> PathBuf {
-        dir.join("manifest.toml")
+    fn get_manifest_path(&self, dir: &Path) -> PathBuf {
+        dir.join(self.constants.manifest_filename)
     }
 
-    async fn load_manifest(dir: &Path) -> Result<PluginManifest, PluginError> {
-        Ok(read_toml_async(&Self::get_manifest_path(dir)).await?)
+    async fn load_manifest(&self, dir: &Path) -> Result<PluginManifest, PluginError> {
+        Ok(read_json_async(&self.get_manifest_path(dir)).await?)
     }
 
     async fn calc_hash(dir: &Path, manifest: &PluginManifest) -> Result<String, PluginError> {
@@ -50,7 +61,7 @@ impl FsPluginStorage {
     }
 
     async fn load_from_dir(&self, dir: &Path) -> Result<Plugin, PluginError> {
-        let manifest = Self::load_manifest(dir).await?;
+        let manifest = self.load_manifest(dir).await?;
         let hash = Self::calc_hash(dir, &manifest).await?;
 
         Ok(Plugin {
@@ -63,6 +74,19 @@ impl FsPluginStorage {
 
 #[async_trait]
 impl PluginStorage for FsPluginStorage {
+    async fn add(&self, extracted_plugin: ExtractedPlugin) -> Result<(), PluginError> {
+        let source_dir = match &extracted_plugin.content {
+            PluginContent::Filesystem { temp_dir } => temp_dir,
+        };
+
+        let target_dir = self.location_info.plugin_dir(&extracted_plugin.plugin_id);
+        create_dir_all(&target_dir).await?;
+
+        copy_dir_all(source_dir, target_dir)?;
+
+        Ok(())
+    }
+
     async fn list(&self) -> Result<HashMap<String, Plugin>, PluginError> {
         let plugins_dir = self.location_info.plugins_dir();
 

@@ -168,3 +168,20 @@ pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir, IoError> {
         .await
         .map_err(|e| IoError::with_path(e, path_ref))
 }
+
+pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), IoError> {
+    std::fs::create_dir_all(&dst)?;
+
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let dst_path = dst.as_ref().join(entry.file_name());
+
+        if file_type.is_dir() {
+            copy_dir_all(entry.path(), dst_path)?;
+        } else {
+            std::fs::copy(entry.path(), dst_path)?;
+        }
+    }
+    Ok(())
+}
