@@ -4,7 +4,7 @@ use dashmap::DashMap;
 
 use crate::features::{
     events::{EventEmitter, EventEmitterExt, PluginEventType},
-    plugins::{Plugin, PluginError, PluginManifest},
+    plugins::{Plugin, PluginCapabilities, PluginError, PluginManifest, PluginState},
 };
 
 use dashmap::mapref::{
@@ -64,8 +64,25 @@ impl<E: EventEmitter> PluginRegistry<E> {
             .collect()
     }
 
+    pub fn get_enabled_ids(&self) -> HashSet<String> {
+        self.plugins
+            .iter()
+            .filter_map(|entry| match &entry.state {
+                PluginState::Loaded(_) => Some(entry.key().clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
     pub fn list_manifests(&self) -> Result<Vec<PluginManifest>, PluginError> {
         Ok(self.list().map(|plugin| plugin.manifest.clone()).collect())
+    }
+
+    pub fn get_capabilities(
+        &self,
+        plugin_id: &str,
+    ) -> Result<Option<PluginCapabilities>, PluginError> {
+        Ok(self.get(plugin_id)?.capabilities.clone())
     }
 
     pub fn get_manifest(&self, plugin_id: &str) -> Result<PluginManifest, PluginError> {

@@ -30,6 +30,10 @@
           "icon": {
             "type": "string",
             "description": "Optional icon file name or URL for the importer."
+          },
+          "fieldLabel": {
+            "type": "string",
+            "description": "Optional field label for the importer."
           }
         },
         "additionalProperties": false

@@ -36,8 +36,8 @@ pub enum InstanceError {
     #[error("Failed to construct hash")]
     HashConstructError,
 
-    #[error("Failed to import instance: {0}")]
-    InstanceImportError(String),
+    #[error("Failed to import instance from {plugin_id}. {err:?}")]
+    InstanceImportError { plugin_id: String, err: String },
 
     #[error("Failed to update instance: {0}")]
     InstanceUpdateError(String),

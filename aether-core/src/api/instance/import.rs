@@ -1,15 +1,16 @@
 use crate::{
     core::domain::LazyLocator,
-    features::instance::{
-        ImportConfig, ImportInstance, ImportInstanceUseCase, ListImportConfigsUseCase,
+    features::{
+        instance::{ImportInstance, ImportInstanceUseCase, ListImportersUseCase},
+        plugins::PluginImporters,
     },
 };
 
-pub async fn list_import_configs() -> crate::Result<Vec<ImportConfig>> {
+pub async fn list_importers() -> crate::Result<Vec<PluginImporters>> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
-        ListImportConfigsUseCase::new(lazy_locator.get_plugin_registry().await)
+        ListImportersUseCase::new(lazy_locator.get_plugin_registry().await)
             .execute()
             .await?,
     )

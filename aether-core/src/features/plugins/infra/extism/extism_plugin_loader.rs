@@ -171,15 +171,7 @@ impl ExtismPluginLoader {
 
         let instance_create_fn = extism::Function::new(
             "instance_create",
-            [
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-            ],
+            [extism::PTR],
             [extism::PTR],
             extism::UserData::new(context.clone()),
             extism_host_functions::instance_create,

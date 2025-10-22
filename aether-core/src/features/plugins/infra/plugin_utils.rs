@@ -28,6 +28,13 @@ pub fn get_default_allowed_paths(
     ])
 }
 
+pub fn invert_allowed_paths(allowed: &HashMap<String, PathBuf>) -> HashMap<String, PathBuf> {
+    allowed
+        .iter()
+        .map(|(host, plugin)| (plugin.to_string_lossy().to_string(), PathBuf::from(host)))
+        .collect()
+}
+
 pub fn plugin_path_to_relative<I, T>(
     id: &str,
     path: &str,
@@ -75,7 +82,9 @@ pub fn plugin_path_to_host(id: &str, path: &str) -> Result<PathBuf, PluginError>
     let cleaned_path_start_segment = get_first_segment(cleaned_path_str);
 
     let allowed_paths = get_default_allowed_paths(&state.location_info, id);
-    let base_dir = allowed_paths.get(cleaned_path_start_segment).ok_or(
+    let plugin_to_host = invert_allowed_paths(&allowed_paths);
+
+    let base_dir = plugin_to_host.get(cleaned_path_start_segment).ok_or(
         PluginError::PluginPathAccessViolationError {
             plugin_id: id.to_owned(),
             path: path.to_owned(),
@@ -86,7 +95,7 @@ pub fn plugin_path_to_host(id: &str, path: &str) -> Result<PathBuf, PluginError>
         std::fs::create_dir_all(base_dir).map_err(|e| IoError::with_path(e, path))?;
     }
 
-    let stripped_path = plugin_path_to_relative(id, cleaned_path_str, allowed_paths.keys())?;
+    let stripped_path = plugin_path_to_relative(id, cleaned_path_str, plugin_to_host.keys())?;
     let host_path = base_dir.join(stripped_path);
 
     let canonical_base = crate::shared::canonicalize(base_dir)?;

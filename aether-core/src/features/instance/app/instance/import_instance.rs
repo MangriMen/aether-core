@@ -5,14 +5,17 @@ use serde::{Deserialize, Serialize};
 use crate::features::{
     events::EventEmitter,
     instance::InstanceError,
-    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
+    plugins::{
+        DefaultPluginInstanceFunctionsExt, PluginImportInstance, PluginRegistry, PluginState,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportInstance {
-    pub path_or_url: String,
-    pub plugin_id: Option<String>,
+    pub plugin_id: String,
+    pub importer_id: String,
+    pub path: String,
 }
 
 pub struct ImportInstanceUseCase<E: EventEmitter> {
@@ -26,39 +29,43 @@ impl<E: EventEmitter> ImportInstanceUseCase<E> {
 
     pub async fn execute(&self, import_instance: ImportInstance) -> Result<(), InstanceError> {
         let ImportInstance {
-            path_or_url,
             plugin_id,
+            importer_id,
+            path,
         } = import_instance;
 
-        if let Some(plugin_id) = plugin_id {
-            self.import_by_plugin(&path_or_url, &plugin_id).await?;
-        }
+        self.import_by_plugin(&plugin_id, importer_id, path).await?;
 
         Ok(())
     }
 
     pub async fn import_by_plugin(
         &self,
-        path_or_url: &str,
         plugin_id: &str,
+        importer_id: String,
+        path: String,
     ) -> Result<bool, InstanceError> {
-        let plugin = self
-            .plugin_registry
-            .get(plugin_id)
-            .map_err(|_| InstanceError::InstanceImportError("Unsupported pack type".to_owned()))?;
+        let plugin = self.plugin_registry.get(plugin_id).map_err(|_| {
+            InstanceError::InstanceImportError {
+                plugin_id: plugin_id.to_owned(),
+                err: "Unsupported pack type".to_owned(),
+            }
+        })?;
 
         let PluginState::Loaded(instance) = &plugin.state else {
-            return Err(InstanceError::InstanceImportError(
-                "Plugin disabled".to_owned(),
-            ));
+            return Err(InstanceError::InstanceImportError {
+                plugin_id: plugin_id.to_owned(),
+                err: "Plugin disabled".to_owned(),
+            });
         };
 
         let mut plugin_guard = instance.lock().await;
 
-        plugin_guard.import(path_or_url).map_err(|_| {
-            InstanceError::InstanceImportError(format!(
-                "Failed to import instance from plugin {plugin_id}"
-            ))
-        })
+        plugin_guard
+            .import(PluginImportInstance { importer_id, path })
+            .map_err(|e| InstanceError::InstanceImportError {
+                plugin_id: plugin_id.to_owned(),
+                err: e.to_string(),
+            })
     }
 }
