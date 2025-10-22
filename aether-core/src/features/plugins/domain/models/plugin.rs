@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::features::plugins::PluginInstance;
+use crate::features::plugins::{PluginCapabilities, PluginInstance};
 
 use super::PluginManifest;
 
@@ -17,6 +17,7 @@ pub enum PluginState {
 #[derive(Clone)]
 pub struct Plugin {
     pub manifest: PluginManifest,
+    pub capabilities: Option<PluginCapabilities>,
     pub hash: String,
     pub state: PluginState,
 }

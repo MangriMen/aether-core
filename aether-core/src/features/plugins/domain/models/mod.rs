@@ -1,6 +1,7 @@
 pub mod extracted_plugin;
 pub mod manifest_error;
 pub mod plugin;
+pub mod plugin_capabilities;
 pub mod plugin_error;
 pub mod plugin_internal_event;
 pub mod plugin_manifest;
@@ -10,6 +11,7 @@ pub mod serializable_output;
 pub use extracted_plugin::*;
 pub use manifest_error::*;
 pub use plugin::*;
+pub use plugin_capabilities::*;
 pub use plugin_error::*;
 pub use plugin_internal_event::*;
 pub use plugin_manifest::*;

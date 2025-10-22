@@ -10,8 +10,8 @@ use log::debug;
 use crate::{
     features::{
         plugins::{
-            ExtractedPlugin, FsPluginStorageConstants, LoadConfig, Plugin, PluginContent,
-            PluginError, PluginManifest, PluginState, PluginStorage,
+            ExtractedPlugin, FsPluginStorageConstants, LoadConfig, Plugin, PluginCapabilities,
+            PluginContent, PluginError, PluginManifest, PluginState, PluginStorage,
         },
         settings::LocationInfo,
     },
@@ -41,8 +41,32 @@ impl FsPluginStorage {
         dir.join(self.constants.manifest_filename)
     }
 
+    fn get_capabilities_path(&self, dir: &Path) -> PathBuf {
+        dir.join(self.constants.capabilities_filename)
+    }
+
     async fn load_manifest(&self, dir: &Path) -> Result<PluginManifest, PluginError> {
         Ok(read_json_async(&self.get_manifest_path(dir)).await?)
+    }
+
+    async fn load_capabilities(
+        &self,
+        dir: &Path,
+    ) -> Result<Option<PluginCapabilities>, PluginError> {
+        Ok(read_json_async(&self.get_capabilities_path(dir))
+            .await
+            .map(Some)
+            .or_else(|e| {
+                if let Some(io_error) = match &e {
+                    IoError::IOPathError { source, .. } | IoError::IOError(source) => Some(source),
+                    _ => None,
+                } {
+                    if io_error.kind() == std::io::ErrorKind::NotFound {
+                        return Ok(None);
+                    }
+                }
+                Err(e)
+            })?)
     }
 
     async fn calc_hash(dir: &Path, manifest: &PluginManifest) -> Result<String, PluginError> {
@@ -62,10 +86,12 @@ impl FsPluginStorage {
 
     async fn load_from_dir(&self, dir: &Path) -> Result<Plugin, PluginError> {
         let manifest = self.load_manifest(dir).await?;
+        let capabilities = self.load_capabilities(dir).await?;
         let hash = Self::calc_hash(dir, &manifest).await?;
 
         Ok(Plugin {
             manifest,
+            capabilities,
             hash,
             state: PluginState::NotLoaded,
         })
