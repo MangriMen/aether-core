@@ -60,7 +60,7 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader, E: Event
                 self.plugin_registry
                     .upsert_with(&plugin_id, |plugin| {
                         match &err {
-                            PluginError::PluginLoadError => {
+                            PluginError::LoadFailed { .. } => {
                                 plugin.state = PluginState::Failed(err.to_string())
                             }
                             _ => plugin.state = PluginState::NotLoaded,
@@ -82,13 +82,13 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader, E: Event
     ) -> Result<(), PluginError> {
         match plugin_state {
             PluginState::NotLoaded | PluginState::Failed(_) => Ok(()),
-            PluginState::Loading => Err(PluginError::PluginAlreadyLoading {
+            PluginState::Loading => Err(PluginError::LoadingInProgress {
                 plugin_id: plugin_id.to_owned(),
             }),
-            PluginState::Loaded(_) => Err(PluginError::PluginAlreadyLoaded {
+            PluginState::Loaded(_) => Err(PluginError::AlreadyLoaded {
                 plugin_id: plugin_id.to_owned(),
             }),
-            PluginState::Unloading => Err(PluginError::PluginAlreadyUnloading {
+            PluginState::Unloading => Err(PluginError::UnloadingInProgress {
                 plugin_id: plugin_id.to_owned(),
             }),
         }

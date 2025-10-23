@@ -101,8 +101,8 @@ impl ExtismPluginLoader {
         let wasm_file_path = match &manifest.load {
             LoadConfig::Extism { file, .. } => file,
             load_config => {
-                return Err(PluginError::InvalidLoadConfigError {
-                    load_config: load_config.clone(),
+                return Err(PluginError::InvalidConfig {
+                    config: load_config.clone(),
                 })
             }
         };
@@ -127,8 +127,12 @@ impl ExtismPluginLoader {
         }
 
         builder.build().map_err(|e| {
-            debug!("Failed to load plugin: {:?}", e);
-            PluginError::PluginLoadError
+            let err = PluginError::LoadFailed {
+                plugin_id: manifest.metadata.id.to_owned(),
+                reason: e.to_string(),
+            };
+            debug!("{:?}", err);
+            err
         })
     }
 

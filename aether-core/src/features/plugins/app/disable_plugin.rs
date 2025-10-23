@@ -56,7 +56,9 @@ impl<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> DisablePluginUseCas
                     .upsert_with(&plugin_id, |plugin| {
                         match &err {
                             // If there is error on plugin on_unload call we are anyway drop instance
-                            PluginError::CallError { .. } => plugin.state = PluginState::NotLoaded,
+                            PluginError::FunctionCallFailed { .. } => {
+                                plugin.state = PluginState::NotLoaded
+                            }
                             // If there is others error - plugin still loaded
                             _ => plugin.state = PluginState::Loaded(plugin_instance),
                         }
@@ -76,11 +78,11 @@ impl<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> DisablePluginUseCas
     ) -> Result<Arc<Mutex<dyn PluginInstance>>, PluginError> {
         match plugin_state {
             PluginState::Loaded(plugin_instance) => Ok(plugin_instance.clone()),
-            PluginState::Loading => Err(PluginError::PluginAlreadyLoading {
+            PluginState::Loading => Err(PluginError::LoadingInProgress {
                 plugin_id: plugin_id.to_owned(),
             }),
             PluginState::NotLoaded | PluginState::Unloading | PluginState::Failed(_) => {
-                Err(PluginError::PluginAlreadyUnloaded {
+                Err(PluginError::AlreadyUnloaded {
                     plugin_id: plugin_id.to_owned(),
                 })
             }

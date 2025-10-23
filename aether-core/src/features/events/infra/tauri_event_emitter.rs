@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::Serialize;
-use tauri::Emitter;
+use tauri::{Emitter, Listener};
 
 use crate::features::events::{EventEmitter, EventError};
 
@@ -24,5 +24,15 @@ impl EventEmitter for TauriEventEmitter {
         self.app_handle
             .emit(event, payload)
             .map_err(|e| EventError::SerializeError(anyhow::Error::from(e)))
+    }
+
+    fn listen<F, T>(&self, event: impl Into<String>, handler: F)
+    where
+        F: Fn(String) + Send + 'static,
+    {
+        self.app_handle.listen(event, move |e| {
+            let handler = &handler;
+            handler(e.payload().to_owned())
+        });
     }
 }

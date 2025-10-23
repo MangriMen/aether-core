@@ -37,18 +37,7 @@ impl<E: EventEmitter> PluginRegistry<E> {
     pub fn get(&self, plugin_id: &str) -> Result<DashMapRef<'_, String, Plugin>, PluginError> {
         self.plugins
             .get(plugin_id)
-            .ok_or_else(|| PluginError::PluginNotFoundError {
-                plugin_id: plugin_id.to_owned(),
-            })
-    }
-
-    pub fn get_mut(
-        &self,
-        plugin_id: &str,
-    ) -> Result<DashMapRefMut<'_, String, Plugin>, PluginError> {
-        self.plugins
-            .get_mut(plugin_id)
-            .ok_or_else(|| PluginError::PluginNotFoundError {
+            .ok_or_else(|| PluginError::NotFound {
                 plugin_id: plugin_id.to_owned(),
             })
     }
@@ -102,5 +91,13 @@ impl<E: EventEmitter> PluginRegistry<E> {
             .await;
 
         Ok(())
+    }
+
+    fn get_mut(&self, plugin_id: &str) -> Result<DashMapRefMut<'_, String, Plugin>, PluginError> {
+        self.plugins
+            .get_mut(plugin_id)
+            .ok_or_else(|| PluginError::NotFound {
+                plugin_id: plugin_id.to_owned(),
+            })
     }
 }

@@ -142,8 +142,8 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader, E: EventEmitter>
 
         if let Err(err) = disable_result {
             match err {
-                PluginError::PluginNotFoundError { plugin_id }
-                | PluginError::PluginAlreadyUnloaded { plugin_id } => {
+                PluginError::NotFound { plugin_id }
+                | PluginError::AlreadyUnloaded { plugin_id } => {
                     log::debug!("Plugin {} was already disabled", plugin_id);
                 }
                 _ => return Err(err),

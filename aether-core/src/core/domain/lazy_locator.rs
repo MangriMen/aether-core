@@ -22,7 +22,8 @@ use crate::{
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         plugins::{
             ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, LoadConfigType,
-            PluginLoaderRegistry, PluginRegistry, ZipPluginExtractor,
+            MemoryImportersRegistry, PluginInfrastructureListener, PluginLoaderRegistry,
+            PluginRegistry, ZipPluginExtractor,
         },
         process::InMemoryProcessStorage,
         settings::{FsDefaultInstanceSettingsStorage, FsSettingsStorage},
@@ -75,6 +76,9 @@ pub struct LazyLocator {
     >,
     default_instance_settings_storage: OnceCell<Arc<FsDefaultInstanceSettingsStorage>>,
     plugin_extractor: OnceCell<Arc<ZipPluginExtractor>>,
+    importers_registry: OnceCell<Arc<MemoryImportersRegistry>>,
+    plugin_infrastructure_listener:
+        OnceCell<Arc<PluginInfrastructureListener<TauriEventEmitter, MemoryImportersRegistry>>>,
 }
 
 fn get_reqwest_client() -> Arc<ClientWithMiddleware> {
@@ -127,6 +131,8 @@ impl LazyLocator {
                     instance_watcher_service: OnceCell::new(),
                     default_instance_settings_storage: OnceCell::new(),
                     plugin_extractor: OnceCell::new(),
+                    importers_registry: OnceCell::new(),
+                    plugin_infrastructure_listener: OnceCell::new(),
                 })
             })
             .await;
@@ -415,6 +421,27 @@ impl LazyLocator {
     pub async fn get_plugin_extractor(&self) -> Arc<ZipPluginExtractor> {
         self.plugin_extractor
             .get_or_init(|| async { Arc::new(ZipPluginExtractor::default()) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_importers_registry(&self) -> Arc<MemoryImportersRegistry> {
+        self.importers_registry
+            .get_or_init(|| async { Arc::new(MemoryImportersRegistry::default()) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_plugin_infrastructure_listener(
+        &self,
+    ) -> Arc<PluginInfrastructureListener<TauriEventEmitter, MemoryImportersRegistry>> {
+        self.plugin_infrastructure_listener
+            .get_or_init(|| async {
+                Arc::new(PluginInfrastructureListener::new(
+                    self.get_plugin_registry().await,
+                    self.get_importers_registry().await,
+                ))
+            })
             .await
             .clone()
     }

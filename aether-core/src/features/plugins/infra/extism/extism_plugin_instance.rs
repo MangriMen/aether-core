@@ -36,13 +36,11 @@ impl PluginInstance for ExtismPluginInstance {
     }
 
     fn call_bytes<'b>(&'b mut self, name: &str, args: &[u8]) -> Result<&'b [u8], PluginError> {
-        self.inner
-            .call(name, args)
-            .map_err(|e| PluginError::CallError {
-                function_name: name.to_owned(),
-                plugin_id: self.id.to_owned(),
-                error: e.to_string(),
-            })
+        self.inner.call(name, args).map_err(|e| PluginError::FunctionCallFailed {
+            function_name: name.to_owned(),
+            plugin_id: self.id.to_owned(),
+            error: e.to_string(),
+        })
     }
 
     // fn supports_handle_events(&self) -> bool {

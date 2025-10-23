@@ -4,9 +4,9 @@ use crate::{
     core::domain::LazyLocator,
     features::plugins::{
         DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
-        GetPluginDtoUseCase, GetPluginSettingsUseCase, ImportPluginsUseCase, ListImportersUseCase,
-        ListPluginsDtoUseCase, PluginDto, PluginImporters, PluginSettings, RemovePluginUseCase,
-        SyncPluginsUseCase,
+        GetPluginDtoUseCase, GetPluginSettingsUseCase, ImportPluginsUseCase, Importer,
+        ListImportersUseCase, ListPluginsDtoUseCase, PluginDto, PluginSettings,
+        RemovePluginUseCase, SyncPluginsUseCase,
     },
 };
 
@@ -168,11 +168,11 @@ pub async fn edit_settings(
     )
 }
 
-pub async fn list_importers() -> crate::Result<Vec<PluginImporters>> {
+pub async fn list_importers() -> crate::Result<Vec<Importer>> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
-        ListImportersUseCase::new(lazy_locator.get_plugin_registry().await)
+        ListImportersUseCase::new(lazy_locator.get_importers_registry().await)
             .execute()
             .await?,
     )

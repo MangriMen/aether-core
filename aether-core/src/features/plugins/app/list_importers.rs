@@ -1,36 +1,17 @@
 use std::sync::Arc;
 
-use crate::features::{
-    events::EventEmitter,
-    instance::InstanceError,
-    plugins::{PluginImporters, PluginRegistry},
-};
+use crate::features::plugins::{Importer, ImportersRegistry, PluginError};
 
-pub struct ListImportersUseCase<E: EventEmitter> {
-    plugin_registry: Arc<PluginRegistry<E>>,
+pub struct ListImportersUseCase<IR: ImportersRegistry> {
+    importers_registry: Arc<IR>,
 }
 
-impl<E: EventEmitter> ListImportersUseCase<E> {
-    pub fn new(plugin_registry: Arc<PluginRegistry<E>>) -> Self {
-        Self { plugin_registry }
+impl<IR: ImportersRegistry> ListImportersUseCase<IR> {
+    pub fn new(importers_registry: Arc<IR>) -> Self {
+        Self { importers_registry }
     }
 
-    pub async fn execute(&self) -> Result<Vec<PluginImporters>, InstanceError> {
-        let plugins_ids = self.plugin_registry.get_enabled_ids();
-
-        Ok(plugins_ids
-            .iter()
-            .filter_map(|plugin_id| {
-                let capabilities = self.plugin_registry.get_capabilities(plugin_id);
-
-                match capabilities {
-                    Ok(capabilities) => capabilities.map(|capabilities| PluginImporters {
-                        plugin_id: plugin_id.to_owned(),
-                        importers: capabilities.importers,
-                    }),
-                    Err(_) => None,
-                }
-            })
-            .collect())
+    pub async fn execute(&self) -> Result<Vec<Importer>, PluginError> {
+        self.importers_registry.list().await
     }
 }

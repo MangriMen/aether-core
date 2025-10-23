@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use serr::SerializeError;
 
 use crate::{
@@ -12,52 +10,69 @@ use crate::{
 
 #[derive(thiserror::Error, Debug, SerializeError)]
 pub enum PluginError {
-    #[error("Error when calling function \"{function_name}\" in plugin with id \"{plugin_id}\": {error}")]
-    CallError {
+    // Plugin lifecycle errors
+    #[error("Plugin \"{plugin_id}\" not found")]
+    NotFound { plugin_id: String },
+
+    #[error("Plugin \"{plugin_id}\" is already loaded")]
+    AlreadyLoaded { plugin_id: String },
+
+    #[error("Plugin \"{plugin_id}\" is currently loading")]
+    LoadingInProgress { plugin_id: String },
+
+    #[error("Plugin \"{plugin_id}\" is currently unloading")]
+    UnloadingInProgress { plugin_id: String },
+
+    #[error("Plugin \"{plugin_id}\" is already unloaded")]
+    AlreadyUnloaded { plugin_id: String },
+
+    #[error("Failed to load plugin \"{plugin_id}\": {reason}")]
+    LoadFailed { plugin_id: String, reason: String },
+
+    // Plugin execution errors
+    #[error("Function \"{function_name}\" call failed in plugin \"{plugin_id}\": {error}")]
+    FunctionCallFailed {
         function_name: String,
         plugin_id: String,
         error: String,
     },
 
-    #[error("Not found loader for: {load_config_type:?}")]
-    LoaderNotFoundError { load_config_type: LoadConfigType },
+    // Configuration & loading errors
+    #[error("Plugin manifest not found: {path}")]
+    ManifestNotFound { path: String },
 
-    #[error("Invalid load config: {load_config:?}")]
-    InvalidLoadConfigError { load_config: LoadConfig },
+    #[error("Invalid plugin manifest format: {error}")]
+    InvalidManifestFormat { error: String },
 
-    #[error("Plugin with id \"{plugin_id}\" not found")]
-    PluginNotFoundError { plugin_id: String },
+    #[error("Loader not found for config type: {config_type:?}")]
+    LoaderNotFound { config_type: LoadConfigType },
 
-    #[error("Plugin already loaded")]
-    PluginAlreadyLoaded { plugin_id: String },
+    #[error("Invalid load configuration: {config:?}")]
+    InvalidConfig { config: LoadConfig },
 
-    #[error("Plugin already loading")]
-    PluginAlreadyLoading { plugin_id: String },
+    #[error("Importer \"{importer_id}\" not found")]
+    ImporterNotFound { importer_id: String },
 
-    #[error("Plugin already unloading")]
-    PluginAlreadyUnloading { plugin_id: String },
+    #[error("Failed to extract plugin from: {from}")]
+    ExtractionFailed { from: String },
 
-    #[error("Plugin already unloaded")]
-    PluginAlreadyUnloaded { plugin_id: String },
+    #[error("Invalid extraction format")]
+    InvalidExtractionFormat,
 
-    #[error("Error while loading plugin")]
-    PluginLoadError,
+    #[error("Failed to extract plugin files: {from}")]
+    FileExtractionFailed { from: String },
 
-    #[error("Storage failure: {0}")]
-    StorageFailure(#[from] IoError),
+    // Security & access errors
+    #[error("Plugin \"{plugin_id}\" attempted to access restricted path: {path}")]
+    AccessViolation { plugin_id: String, path: String },
 
-    #[error("Failed to construct hash")]
-    HashConstructError,
+    // Infrastructure errors
+    #[error("Failed to compute hash")]
+    HashComputationFailed,
 
-    #[error("Error when updating settings: {0}")]
-    SettingsError(#[from] SettingsError),
+    #[error("Settings update failed: {0}")]
+    Settings(#[from] SettingsError),
 
-    #[error("Plugin \"{plugin_id}\" tried to access disallowed path \"{path}\"")]
-    PluginPathAccessViolationError { plugin_id: String, path: String },
-
-    #[error("Host function error: {0}")]
-    HostFunctionError(String),
-
-    #[error("Import error: {path:?}")]
-    ImportError { path: PathBuf },
+    #[error("Storage operation failed: {0}")]
+    Storage(#[from] IoError),
 }

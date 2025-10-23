@@ -18,7 +18,7 @@ pub trait PluginInstanceExt: PluginInstance {
     ) -> Result<U, PluginError> {
         let id = self.get_id();
         let map_err = |e: extism::Error| -> PluginError {
-            PluginError::CallError {
+            PluginError::FunctionCallFailed {
                 function_name: name.to_owned(),
                 plugin_id: id.to_owned(),
                 error: e.to_string(),

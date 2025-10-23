@@ -1,4 +1,4 @@
-use std::{path::PathBuf, process::Output};
+use std::process::Output;
 
 use extism::host_fn;
 use path_slash::PathBufExt;
@@ -12,7 +12,7 @@ use crate::{
             PluginContext, SerializableOutput,
         },
     },
-    shared::domain::SerializableCommand,
+    shared::{domain::SerializableCommand, execute_async},
 };
 
 host_fn!(
@@ -32,52 +32,15 @@ pub get_id(user_data: PluginContext;) -> extism::Result<String> {
     Ok(id)
 });
 
-// host_fn!(
-// pub download_file(user_data: PluginContext; url: String, path: String) -> extism::Result<()> {
-//     let context = user_data.get()?;
-//     let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
-
-//     tokio::task::block_in_place(|| -> crate::Result<()> {
-//         let state = tokio::runtime::Handle::current()
-//             .block_on(LauncherState::get())?;
-
-//         let validated_path = plugin_path_to_host(&id, &path)?;
-
-//         let response = tokio::runtime::Handle::current()
-//             .block_on(fetch_advanced(
-//                 Method::GET,
-//                 &url,
-//                 None,
-//                 None,
-//                 None,
-//                 &state.fetch_semaphore,
-//                 None,
-//             ))?;
-
-//         tokio::runtime::Handle::current()
-//             .block_on(crate::shared::write_async(&validated_path, response))?;
-
-//         Ok(())
-//     })?;
-
-//     Ok(())
-// });
-
 host_fn!(
 pub instance_get_dir(user_data: PluginContext; id: String) -> extism::Result<String> {
-   let res = tokio::task::block_in_place(|| -> anyhow::Result<PathBuf> {
-        let state = tokio::runtime::Handle::current().block_on(
-            LauncherState::get()
-        )?;
+    execute_async(async move {
+        let state =  LauncherState::get().await?;
+        let dir = crate::api::instance::get_dir(&id).await?;
+        let relative_path = dir.strip_prefix(&state.location_info.config_dir)?.to_path_buf();
 
-       let dir = tokio::runtime::Handle::current().block_on(
-            crate::api::instance::get_dir(&id)
-       )?;
-
-       Ok(dir.strip_prefix(&state.location_info.config_dir)?.to_path_buf())
-   })?;
-
-   Ok(format!("/{}",res.to_slash_lossy()))
+        Ok::<String, anyhow::Error>(format!("/{}",relative_path.to_slash_lossy()))
+    })
 });
 
 host_fn!(
@@ -102,34 +65,24 @@ host_fn!(
         user_data: PluginContext;
         create_instance_request: NewInstance
     ) -> extism::Result<String> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current()
-                .block_on(crate::api::instance::create(create_instance_request))
-                .map_err(Into::into)
-        })
+        Ok(execute_async(async move {
+            crate::api::instance::create(create_instance_request).await
+        })?)
     }
 );
 
 host_fn!(
 pub get_java(user_data: PluginContext; version: u32) -> extism::Result<String> {
-    let res = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(
-            crate::api::java::get(version)
-        )
-    })?;
-
-    Ok(res)
+    Ok(execute_async(async move {
+        crate::api::java::get(version).await
+    })?)
 });
 
 host_fn!(
 pub install_java(user_data: PluginContext; version: u32) -> extism::Result<String> {
-    let res = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(
-            crate::api::java::install(version)
-        )
-    })?;
-
-    Ok(res)
+    Ok(execute_async(async move {
+        crate::api::java::install(version).await
+    })?)
 });
 
 host_fn!(
@@ -137,19 +90,26 @@ pub run_command(user_data: PluginContext; command: SerializableCommand) -> extis
     let context = user_data.get()?;
     let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
 
-    log::debug!("Processing command from plugin: {:?}", command);
+    let command_for_log = command.clone();
+    log::debug!("Processing command from plugin: {:?}", command_for_log);
 
-    let output = tokio::task::block_in_place(|| -> anyhow::Result<Output> {
-        let host_command = plugin_utils::plugin_command_to_host(&id, &command)?;
+
+    let output = execute_async(async move {
+        let id = id.clone();
+        let command = command.clone();
+
+        let state = LauncherState::get().await?;
+
+        let host_command = plugin_utils::plugin_command_to_host(&id, &command, &state.location_info)?;
         let mut cmd = host_command.to_tokio_command();
 
         log::debug!("Running command: {:?}", host_command);
 
-        Ok(tokio::runtime::Handle::current().block_on(cmd.output())?)
+        Ok::<Output, anyhow::Error>(cmd.output().await?)
     })?;
 
     if !output.status.success() {
-        log::error!("Command failed: {:?}, stderr: {:?}", command, String::from_utf8_lossy(&output.stderr));
+        log::error!("Command failed: {:?}, stderr: {:?}", command_for_log, String::from_utf8_lossy(&output.stderr));
         return Err(anyhow::Error::msg("Command execution failed"));
     }
 

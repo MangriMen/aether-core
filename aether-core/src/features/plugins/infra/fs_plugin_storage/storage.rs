@@ -80,7 +80,7 @@ impl FsPluginStorage {
 
         sha1_async(file_content).await.map_err(|error| {
             debug!("Failed to compute sha1: {error}");
-            PluginError::HashConstructError
+            PluginError::HashComputationFailed
         })
     }
 

@@ -1,4 +1,5 @@
 pub mod extracted_plugin;
+pub mod importer;
 pub mod manifest_error;
 pub mod plugin;
 pub mod plugin_capabilities;
@@ -10,6 +11,7 @@ pub mod plugin_settings;
 pub mod serializable_output;
 
 pub use extracted_plugin::*;
+pub use importer::*;
 pub use manifest_error::*;
 pub use plugin::*;
 pub use plugin_capabilities::*;
