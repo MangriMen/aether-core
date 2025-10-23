@@ -55,7 +55,7 @@ pub trait DefaultPluginInstanceFunctionsExt: PluginInstance {
     fn supports_import(&mut self) -> bool {
         self.supports(PluginFunction::Import.as_str())
     }
-    fn import(&mut self, import_instance: PluginImportInstance) -> Result<bool, PluginError> {
+    fn import(&mut self, import_instance: PluginImportInstance) -> Result<(), PluginError> {
         self.call(PluginFunction::Import.as_str(), import_instance)
     }
 

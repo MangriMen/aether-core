@@ -181,8 +181,8 @@ impl ExtismPluginLoader {
             extism_host_functions::instance_create,
         );
 
-        let get_or_download_java_fn = extism::Function::new(
-            "get_or_download_java",
+        let get_java = extism::Function::new(
+            "get_java",
             [extism::PTR],
             [extism::ValType::I64],
             extism::UserData::new(context.clone()),
@@ -203,7 +203,7 @@ impl ExtismPluginLoader {
             instance_get_dir_fn,
             instance_plugin_get_dir_fn,
             instance_create_fn,
-            get_or_download_java_fn,
+            get_java,
             run_command_fn,
         ]
     }

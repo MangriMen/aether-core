@@ -44,7 +44,7 @@ impl<E: EventEmitter> ImportInstanceUseCase<E> {
         plugin_id: &str,
         importer_id: String,
         path: String,
-    ) -> Result<bool, InstanceError> {
+    ) -> Result<(), InstanceError> {
         let plugin = self.plugin_registry.get(plugin_id).map_err(|_| {
             InstanceError::InstanceImportError {
                 plugin_id: plugin_id.to_owned(),

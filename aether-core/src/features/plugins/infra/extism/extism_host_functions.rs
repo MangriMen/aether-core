@@ -63,10 +63,10 @@ pub instance_plugin_get_dir(user_data: PluginContext; instance_id: String) -> ex
 host_fn!(
     pub instance_create(
         user_data: PluginContext;
-        create_instance_request: NewInstance
+        new_instance: NewInstance
     ) -> extism::Result<String> {
         Ok(execute_async(async move {
-            crate::api::instance::create(create_instance_request).await
+            crate::api::instance::create(new_instance).await
         })?)
     }
 );
