@@ -6,45 +6,55 @@ use crate::features::{
     events::EventEmitter,
     instance::InstanceError,
     plugins::{
-        DefaultPluginInstanceFunctionsExt, PluginImportInstance, PluginRegistry, PluginState,
+        DefaultPluginInstanceFunctionsExt, ImportersRegistry, PluginImportInstance, PluginRegistry,
+        PluginState,
     },
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportInstance {
-    pub plugin_id: String,
     pub importer_id: String,
     pub path: String,
 }
 
-pub struct ImportInstanceUseCase<E: EventEmitter> {
+pub struct ImportInstanceUseCase<E: EventEmitter, IR: ImportersRegistry> {
     plugin_registry: Arc<PluginRegistry<E>>,
+    importers_registry: Arc<IR>,
 }
 
-impl<E: EventEmitter> ImportInstanceUseCase<E> {
-    pub fn new(plugin_registry: Arc<PluginRegistry<E>>) -> Self {
-        Self { plugin_registry }
+impl<E: EventEmitter, IR: ImportersRegistry> ImportInstanceUseCase<E, IR> {
+    pub fn new(plugin_registry: Arc<PluginRegistry<E>>, importers_registry: Arc<IR>) -> Self {
+        Self {
+            plugin_registry,
+            importers_registry,
+        }
     }
 
     pub async fn execute(&self, import_instance: ImportInstance) -> Result<(), InstanceError> {
-        let ImportInstance {
-            plugin_id,
-            importer_id,
-            path,
-        } = import_instance;
+        let ImportInstance { importer_id, path } = import_instance;
 
-        self.import_by_plugin(&plugin_id, importer_id, path).await?;
+        self.import_by_plugin(&importer_id, &path).await?;
 
         Ok(())
     }
 
     pub async fn import_by_plugin(
         &self,
-        plugin_id: &str,
-        importer_id: String,
-        path: String,
+        importer_id: &str,
+        path: &str,
     ) -> Result<(), InstanceError> {
+        let importer = self
+            .importers_registry
+            .get(importer_id)
+            .await
+            .map_err(|_| InstanceError::InstanceImportError {
+                plugin_id: "unknown".to_owned(),
+                err: "Importer not found".to_owned(),
+            })?;
+
+        let plugin_id = &importer.plugin_id;
+
         let plugin = self.plugin_registry.get(plugin_id).map_err(|_| {
             InstanceError::InstanceImportError {
                 plugin_id: plugin_id.to_owned(),
@@ -62,7 +72,10 @@ impl<E: EventEmitter> ImportInstanceUseCase<E> {
         let mut plugin_guard = instance.lock().await;
 
         plugin_guard
-            .import(PluginImportInstance { importer_id, path })
+            .import(PluginImportInstance {
+                importer_id: importer_id.to_owned(),
+                path: path.to_owned(),
+            })
             .map_err(|e| InstanceError::InstanceImportError {
                 plugin_id: plugin_id.to_owned(),
                 err: e.to_string(),

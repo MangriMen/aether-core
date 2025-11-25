@@ -2,20 +2,26 @@ use std::sync::Arc;
 
 use crate::features::{
     events::EventEmitter,
-    instance::{InstanceError, InstanceStorage},
-    plugins::{DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState},
+    instance::{InstanceError, InstanceStorage, PackInfo},
+    plugins::{DefaultPluginInstanceFunctionsExt, ImportersRegistry, PluginRegistry, PluginState},
 };
 
-pub struct UpdateInstanceUseCase<IS: InstanceStorage, E: EventEmitter> {
+pub struct UpdateInstanceUseCase<IS: InstanceStorage, E: EventEmitter, IR: ImportersRegistry> {
     instance_storage: Arc<IS>,
     plugin_registry: Arc<PluginRegistry<E>>,
+    importers_registry: Arc<IR>,
 }
 
-impl<IS: InstanceStorage, E: EventEmitter> UpdateInstanceUseCase<IS, E> {
-    pub fn new(instance_storage: Arc<IS>, plugin_registry: Arc<PluginRegistry<E>>) -> Self {
+impl<IS: InstanceStorage, E: EventEmitter, IR: ImportersRegistry> UpdateInstanceUseCase<IS, E, IR> {
+    pub fn new(
+        instance_storage: Arc<IS>,
+        plugin_registry: Arc<PluginRegistry<E>>,
+        importers_registry: Arc<IR>,
+    ) -> Self {
         Self {
             instance_storage,
             plugin_registry,
+            importers_registry,
         }
     }
 
@@ -24,22 +30,29 @@ impl<IS: InstanceStorage, E: EventEmitter> UpdateInstanceUseCase<IS, E> {
 
         let Some(pack_info) = instance.pack_info else {
             return Err(InstanceError::InstanceUpdateError(
-                "There is not pack info".to_owned(),
+                "There is no pack info".to_owned(),
             ));
         };
 
-        if let Some(plugin_id) = pack_info.plugin_id {
-            self.update_by_plugin(&instance_id, &plugin_id).await
-        } else {
-            Ok(())
-        }
+        self.update_by_plugin(&instance_id, &pack_info).await
     }
 
     pub async fn update_by_plugin(
         &self,
         instance_id: &str,
-        plugin_id: &str,
+        pack_info: &PackInfo,
     ) -> Result<(), InstanceError> {
+        let importer = self
+            .importers_registry
+            .get(&pack_info.modpack_id)
+            .await
+            .map_err(|_| InstanceError::InstanceImportError {
+                plugin_id: "unknown".to_owned(),
+                err: "Importer not found".to_owned(),
+            })?;
+
+        let plugin_id = &importer.plugin_id;
+
         let plugin = self
             .plugin_registry
             .get(plugin_id)
