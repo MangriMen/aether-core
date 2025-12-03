@@ -1,5 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
+use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 
 use crate::features::plugins::{PathMapping, PluginError, PluginSettings, PluginSettingsStorage};
@@ -51,8 +52,16 @@ fn apply_edit_changes(
     if let Some(allowed_paths) = &edit_settings.allowed_paths {
         let filtered = allowed_paths
             .iter()
-            .filter(|(host, _)| PathBuf::from(host).exists())
-            .cloned()
+            .filter_map(|(host, plugin)| {
+                if !PathBuf::from(host).exists() {
+                    return None;
+                }
+
+                Some((
+                    host.to_owned(),
+                    PathBuf::from(plugin.to_slash_lossy().to_string()),
+                ))
+            })
             .collect();
 
         settings.allowed_paths = filtered;

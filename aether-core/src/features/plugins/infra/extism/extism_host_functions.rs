@@ -1,5 +1,3 @@
-use std::process::Output;
-
 use extism::host_fn;
 use path_slash::PathBufExt;
 
@@ -97,40 +95,50 @@ host_fn!(
 pub install_java(user_data: PluginContext; version: u32) -> HostResult<Java> {
     to_extism_res(
         execute_async(async move {
+            LauncherState::get().await?;
+
             crate::api::java::install(version).await
         })
     )
 });
 
 host_fn!(
-pub run_command(user_data: PluginContext; command: SerializableCommand) -> SerializableOutput {
+pub run_command(user_data: PluginContext; command: SerializableCommand) -> HostResult<> {
     let context = user_data.get()?;
     let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
 
     let command_for_log = command.clone();
     log::debug!("Processing command from plugin: {:?}", command_for_log);
 
+    to_extism_res(
+        execute_async(async move {
+            let id = id.clone();
+            let command = command.clone();
 
-    let output = execute_async(async move {
-        let id = id.clone();
-        let command = command.clone();
+            let state = LauncherState::get().await?;
 
-        let state = LauncherState::get().await?;
+            let host_command = plugin_utils::plugin_command_to_host(&id, &command, &state.location_info)?;
+            let mut cmd = host_command.to_tokio_command();
 
-        let host_command = plugin_utils::plugin_command_to_host(&id, &command, &state.location_info)?;
-        let mut cmd = host_command.to_tokio_command();
+            log::debug!("Running command: {:?}", host_command);
+            let output = cmd.output().await;
 
-        log::debug!("Running command: {:?}", host_command);
+            match output {
+                Ok(output) => {
+                    if !output.status.success() {
+                        log::error!("Command failed: {:?}, stderr: {:?}", command_for_log, String::from_utf8_lossy(&output.stderr));
+                        return Err(crate::ErrorKind::CoreError("Command execution failed".to_string()).as_error());
+                    }
 
-        Ok::<Output, anyhow::Error>(cmd.output().await?)
-    })?;
-
-    if !output.status.success() {
-        log::error!("Command failed: {:?}, stderr: {:?}", command_for_log, String::from_utf8_lossy(&output.stderr));
-        return Err(anyhow::Error::msg("Command execution failed"));
-    }
-
-    Ok(SerializableOutput::from_output(&output))
+                    Ok(SerializableOutput::from_output(&output))
+                },
+                Err(err) => {
+                    log::debug!("Update command run error {:?}", err);
+                    Err(crate::ErrorKind::CoreError(format!("Failed to run command: {:?}", cmd)).as_error())
+                }
+            }
+        })
+    )
 });
 
 // host_fn!(

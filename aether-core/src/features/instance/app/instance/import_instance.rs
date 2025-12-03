@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
+use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
@@ -48,37 +49,48 @@ impl<E: EventEmitter, IR: ImportersRegistry> ImportInstanceUseCase<E, IR> {
             .importers_registry
             .get(importer_id)
             .await
-            .map_err(|_| InstanceError::InstanceImportError {
-                plugin_id: "unknown".to_owned(),
-                err: "Importer not found".to_owned(),
+            .map_err(|_| InstanceError::ImporterNotFound {
+                importer_id: importer_id.to_owned(),
             })?;
 
         let plugin_id = &importer.plugin_id;
 
-        let plugin = self.plugin_registry.get(plugin_id).map_err(|_| {
-            InstanceError::InstanceImportError {
-                plugin_id: plugin_id.to_owned(),
-                err: "Unsupported pack type".to_owned(),
+        let plugin = self.plugin_registry.get(plugin_id).map_err(|err| {
+            tracing::debug!("Error importing instance (plugin not found): {:?}", err);
+
+            InstanceError::ImporterNotFound {
+                importer_id: importer_id.to_owned(),
             }
         })?;
 
         let PluginState::Loaded(instance) = &plugin.state else {
-            return Err(InstanceError::InstanceImportError {
-                plugin_id: plugin_id.to_owned(),
-                err: "Plugin disabled".to_owned(),
+            tracing::debug!("Error importing instance (plugin disabled)");
+
+            return Err(InstanceError::ImporterNotFound {
+                importer_id: importer_id.to_owned(),
             });
         };
 
         let mut plugin_guard = instance.lock().await;
 
+        if !plugin_guard.supports_import() {
+            tracing::debug!("Error importing instance (plugin doesn't supports import)");
+
+            return Err(InstanceError::ImporterNotFound {
+                importer_id: importer_id.to_owned(),
+            });
+        }
+
         plugin_guard
             .import(PluginImportInstance {
                 importer_id: importer_id.to_owned(),
-                path: path.to_owned(),
+                path: PathBuf::from(path).to_slash_lossy().to_string(),
             })
-            .map_err(|e| InstanceError::InstanceImportError {
-                plugin_id: plugin_id.to_owned(),
-                err: e.to_string(),
+            .map_err(|err| {
+                tracing::debug!("Error importing instance: {:?}", err);
+                InstanceError::ImportFailed {
+                    importer_id: importer_id.to_owned(),
+                }
             })
     }
 }

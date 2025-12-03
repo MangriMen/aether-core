@@ -36,11 +36,21 @@ pub enum InstanceError {
     #[error("Failed to construct hash")]
     HashConstructError,
 
-    #[error("Failed to import instance from {plugin_id}. {err:?}")]
-    InstanceImportError { plugin_id: String, err: String },
+    #[error("Not found importer {importer_id}")]
+    ImporterNotFound { importer_id: String },
 
-    #[error("Failed to update instance: {0}")]
-    InstanceUpdateError(String),
+    #[error("Failed to import instance with importer {importer_id}")]
+    ImportFailed { importer_id: String },
+
+    // Update errors
+    #[error("Not found pack info in instance")]
+    PackInfoNotFound,
+
+    #[error("Not found updater for modpack {modpack_id}")]
+    UpdaterNotFound { modpack_id: String },
+
+    #[error("Failed to update instance with modpack {modpack_id}")]
+    UpdateFailed { modpack_id: String },
 
     #[error("Unmanaged instance")]
     UnmanagedInstance { instance_id: String },
