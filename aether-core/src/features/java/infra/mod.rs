@@ -1,5 +1,6 @@
 pub mod azul_jre_provider;
 pub mod constants;
+pub mod error_converter;
 pub mod fs_java_installation_service;
 pub mod fs_java_storage;
 

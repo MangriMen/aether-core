@@ -39,7 +39,7 @@ impl<RC: RequestClient> ReadMetadataStorage for ModrinthMetadataStorage<RC> {
             )
             .await
             .map_err(|err| {
-                IoError::IOError(std::io::Error::new(
+                IoError::IoError(std::io::Error::new(
                     std::io::ErrorKind::NetworkUnreachable,
                     err,
                 ))
@@ -56,7 +56,7 @@ impl<RC: RequestClient> ReadMetadataStorage for ModrinthMetadataStorage<RC> {
             .fetch_json_with_progress(Request::get(Self::get_loader_manifest_url(loader)), None)
             .await
             .map_err(|err| {
-                IoError::IOError(std::io::Error::new(
+                IoError::IoError(std::io::Error::new(
                     std::io::ErrorKind::NetworkUnreachable,
                     err,
                 ))

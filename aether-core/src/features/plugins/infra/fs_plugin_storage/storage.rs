@@ -58,7 +58,7 @@ impl FsPluginStorage {
             .map(Some)
             .or_else(|e| {
                 if let Some(io_error) = match &e {
-                    IoError::IOPathError { source, .. } | IoError::IOError(source) => Some(source),
+                    IoError::IoPathError { source, .. } | IoError::IoError(source) => Some(source),
                     _ => None,
                 } {
                     if io_error.kind() == std::io::ErrorKind::NotFound {

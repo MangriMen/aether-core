@@ -2,36 +2,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs::ReadDir;
 
-#[derive(Debug, thiserror::Error)]
-pub enum IoError {
-    #[error("{source}, path: {path}")]
-    IOPathError {
-        #[source]
-        source: std::io::Error,
-        path: String,
-    },
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-
-    #[error("Serialization error: {0}")]
-    SerializationError(String),
-
-    #[error("Deserialization error: {0}")]
-    DeserializationError(String),
-}
-
-impl IoError {
-    pub fn from(source: std::io::Error) -> Self {
-        Self::IOError(source)
-    }
-
-    pub fn with_path(source: std::io::Error, path: impl AsRef<Path>) -> Self {
-        Self::IOPathError {
-            source,
-            path: path.as_ref().to_string_lossy().to_string(),
-        }
-    }
-}
+use crate::shared::io::error::IoError;
 
 // Bytes
 
