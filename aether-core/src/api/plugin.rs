@@ -4,9 +4,9 @@ use crate::{
     core::domain::LazyLocator,
     features::plugins::{
         DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
-        GetPluginDtoUseCase, GetPluginSettingsUseCase, ImportPluginsUseCase, Importer,
-        ListImportersUseCase, ListPluginsDtoUseCase, PluginDto, PluginSettings,
-        RemovePluginUseCase, SyncPluginsUseCase,
+        GetPluginApiVersionUseCase, GetPluginDtoUseCase, GetPluginSettingsUseCase,
+        ImportPluginsUseCase, Importer, ListImportersUseCase, ListPluginsDtoUseCase, PluginDto,
+        PluginSettings, RemovePluginUseCase, SyncPluginsUseCase,
     },
 };
 
@@ -176,4 +176,8 @@ pub async fn list_importers() -> crate::Result<Vec<Importer>> {
             .execute()
             .await?,
     )
+}
+
+pub async fn get_api_version() -> crate::Result<semver::Version> {
+    Ok(GetPluginApiVersionUseCase::default().execute().await?)
 }

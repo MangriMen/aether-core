@@ -1,3 +1,4 @@
+pub mod constants;
 pub mod extracted_plugin;
 pub mod importer;
 pub mod manifest_error;
@@ -10,6 +11,7 @@ pub mod plugin_manifest;
 pub mod plugin_settings;
 pub mod serializable_output;
 
+pub use constants::*;
 pub use extracted_plugin::*;
 pub use importer::*;
 pub use manifest_error::*;
