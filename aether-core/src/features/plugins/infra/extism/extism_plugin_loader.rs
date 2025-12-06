@@ -183,7 +183,7 @@ impl ExtismPluginLoader {
 
         let get_java = extism::Function::new(
             "get_java",
-            [extism::PTR],
+            [extism::ValType::I64],
             [extism::PTR],
             extism::UserData::new(context.clone()),
             extism_host_functions::get_java,
@@ -191,7 +191,7 @@ impl ExtismPluginLoader {
 
         let install_java = extism::Function::new(
             "install_java",
-            [extism::PTR],
+            [extism::ValType::I64],
             [extism::PTR],
             extism::UserData::new(context.clone()),
             extism_host_functions::install_java,
@@ -205,6 +205,30 @@ impl ExtismPluginLoader {
             extism_host_functions::run_command,
         );
 
+        let list_content_fn = extism::Function::new(
+            "list_content",
+            [extism::PTR],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            extism_host_functions::list_content,
+        );
+
+        let enable_contents_fn = extism::Function::new(
+            "enable_contents",
+            [extism::PTR, extism::PTR],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            extism_host_functions::enable_contents,
+        );
+
+        let disable_contents_fn = extism::Function::new(
+            "disable_contents",
+            [extism::PTR, extism::PTR],
+            [extism::PTR],
+            extism::UserData::new(context.clone()),
+            extism_host_functions::disable_contents,
+        );
+
         vec![
             log_fn,
             get_id_fn,
@@ -214,6 +238,9 @@ impl ExtismPluginLoader {
             get_java,
             install_java,
             run_command_fn,
+            list_content_fn,
+            enable_contents_fn,
+            disable_contents_fn,
         ]
     }
 }

@@ -1,4 +1,4 @@
-use extism::host_fn;
+use extism::{convert::Msgpack, host_fn};
 use path_slash::PathBufExt;
 
 use crate::{
@@ -103,7 +103,7 @@ pub install_java(user_data: PluginContext; version: u32) -> HostResult<Java> {
 });
 
 host_fn!(
-pub run_command(user_data: PluginContext; command: SerializableCommand) -> HostResult<> {
+pub run_command(user_data: PluginContext; command: SerializableCommand) -> HostResult<SerializableOutput> {
     let context = user_data.get()?;
     let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
 
@@ -141,35 +141,29 @@ pub run_command(user_data: PluginContext; command: SerializableCommand) -> HostR
     )
 });
 
-// host_fn!(
-// pub get_contents(user_data: PluginContext; id: String) -> DashMap<String, InstanceFile> {
-//     let res = tokio::task::block_in_place(|| {
-//         tokio::runtime::Handle::current().block_on(
-//             crate::api::instance::get_contents(&id)
-//         )
-//     })?;
+host_fn!(
+pub list_content(user_data: PluginContext; id: String) -> HostResult<DashMap<String, InstanceFile>> {
+    to_extism_res(
+        execute_async(async move {
+            crate::api::instance::list_content(id).await
+        })
+    )
+});
 
-//     Ok(res)
-// });
+host_fn!(
+pub enable_contents(user_data: PluginContext; instance_id: String, content_paths: Msgpack<Vec<String>>) -> HostResult<()> {
+    to_extism_res(
+        execute_async(async move {
+            crate::api::instance::enable_contents(instance_id, content_paths.0).await
+        })
+    )
+});
 
-// host_fn!(
-// pub enable_contents(user_data: PluginContext; instance_id: String, content_paths: Vec<String>) -> () {
-//     let res = tokio::task::block_in_place(|| {
-//         tokio::runtime::Handle::current().block_on(
-//             crate::api::instance::disable_contents(&instance_id, content_paths)
-//         )
-//     })?;
-
-//     Ok(res)
-// });
-
-// host_fn!(
-// pub disable_contents(user_data: PluginContext; instance_id: String, content_paths: Vec<String>) -> () {
-//     let res = tokio::task::block_in_place(|| {
-//         tokio::runtime::Handle::current().block_on(
-//             crate::api::instance::disable_contents(&instance_id, content_paths)
-//         )
-//     })?;
-
-//     Ok(res)
-// });
+host_fn!(
+pub disable_contents(user_data: PluginContext; instance_id: String, content_paths: Msgpack<Vec<String>>) -> HostResult<()> {
+    to_extism_res(
+        execute_async(async move {
+            crate::api::instance::disable_contents(instance_id, content_paths.0).await
+        })
+    )
+});

@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-pub async fn get_contents(instance_id: String) -> crate::Result<DashMap<String, InstanceFile>> {
+pub async fn list_content(instance_id: String) -> crate::Result<DashMap<String, InstanceFile>> {
     let state = LauncherState::get().await?;
     let lazy_locator = LazyLocator::get().await?;
 
@@ -22,19 +22,6 @@ pub async fn get_contents(instance_id: String) -> crate::Result<DashMap<String, 
         state.location_info.clone(),
     )
     .execute(instance_id)
-    .await?)
-}
-
-pub async fn remove_content(instance_id: String, content_path: String) -> crate::Result<()> {
-    let state = LauncherState::get().await?;
-    let lazy_locator = LazyLocator::get().await?;
-
-    Ok(RemoveContentUseCase::new(
-        lazy_locator.get_event_emitter().await,
-        lazy_locator.get_pack_storage().await,
-        state.location_info.clone(),
-    )
-    .execute(RemoveContent::single(instance_id, content_path))
     .await?)
 }
 

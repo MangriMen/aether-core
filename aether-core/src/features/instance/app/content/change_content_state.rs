@@ -55,6 +55,27 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         }
     }
 
+    pub async fn execute(&self, input: ChangeContentState) -> Result<(), InstanceError> {
+        let ChangeContentState {
+            instance_id,
+            content_paths,
+            action,
+        } = input;
+
+        match action {
+            ContentStateAction::Enable => {
+                self.enable_many(&instance_id, content_paths.as_slice())
+                    .await
+            }
+            ContentStateAction::Disable => {
+                self.disable_many(&instance_id, content_paths.as_slice())
+                    .await
+            }
+        }?;
+
+        Ok(())
+    }
+
     pub async fn enable_many(
         &self,
         instance_id: &str,
@@ -92,15 +113,28 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         instance_id: &str,
         content_path: &str,
     ) -> Result<Option<String>, InstanceError> {
-        if !content_path.ends_with(".disabled") {
+        let instance_dir = self.location_info.instance_dir(instance_id);
+
+        let absolute_enabled_content_path = instance_dir.join(content_path);
+
+        if absolute_enabled_content_path.exists() {
             return Ok(None);
         }
 
-        let new_path = content_path.trim_end_matches(".disabled").to_string();
-        self.rename_content_file(instance_id, content_path, &new_path)
-            .await?;
+        let disabled_content_path = format!("{content_path}.disabled");
+        let absolute_disabled_content_path = instance_dir.join(disabled_content_path);
 
-        Ok(Some(new_path))
+        if !absolute_disabled_content_path.exists() {
+            return Ok(None);
+        }
+
+        rename(
+            absolute_disabled_content_path,
+            absolute_enabled_content_path,
+        )
+        .await?;
+
+        Ok(Some(content_path.to_string()))
     }
 
     async fn disable(
@@ -108,45 +142,27 @@ impl<E: EventEmitter> ChangeContentStateUseCase<E> {
         instance_id: &str,
         content_path: &str,
     ) -> Result<Option<String>, InstanceError> {
-        if content_path.ends_with(".disabled") {
+        let instance_dir = self.location_info.instance_dir(instance_id);
+
+        let disabled_content_path = format!("{content_path}.disabled");
+        let absolute_disabled_content_path = instance_dir.join(disabled_content_path.clone());
+
+        if absolute_disabled_content_path.exists() {
             return Ok(None);
         }
 
-        let new_path = format!("{content_path}.disabled");
-        self.rename_content_file(instance_id, content_path, &new_path)
-            .await?;
+        let absolute_enabled_content_path = instance_dir.join(content_path);
 
-        Ok(Some(new_path))
-    }
+        if !absolute_enabled_content_path.exists() {
+            return Ok(None);
+        }
 
-    async fn rename_content_file(
-        &self,
-        instance_id: &str,
-        from: &str,
-        to: &str,
-    ) -> Result<(), InstanceError> {
-        let instance_dir = self.location_info.instance_dir(instance_id);
-        Ok(rename(&instance_dir.join(from), &instance_dir.join(to)).await?)
-    }
+        rename(
+            absolute_enabled_content_path,
+            absolute_disabled_content_path,
+        )
+        .await?;
 
-    pub async fn execute(&self, input: ChangeContentState) -> Result<(), InstanceError> {
-        let ChangeContentState {
-            instance_id,
-            content_paths,
-            action,
-        } = input;
-
-        match action {
-            ContentStateAction::Enable => {
-                self.enable_many(&instance_id, content_paths.as_slice())
-                    .await
-            }
-            ContentStateAction::Disable => {
-                self.disable_many(&instance_id, content_paths.as_slice())
-                    .await
-            }
-        }?;
-
-        Ok(())
+        Ok(Some(disabled_content_path))
     }
 }

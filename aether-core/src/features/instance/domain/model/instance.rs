@@ -62,6 +62,7 @@ pub struct Instance {
 #[encoding(Json)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceFile {
+    pub id: String,
     pub hash: String,
     pub name: Option<String>,
     pub file_name: String,

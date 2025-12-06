@@ -28,6 +28,29 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         }
     }
 
+    pub async fn execute(
+        &self,
+        instance_id: String,
+    ) -> Result<DashMap<String, InstanceFile>, InstanceError> {
+        let instance_dir = self.location_info.instance_dir(&instance_id);
+
+        let entries_by_path = self.get_entries_by_path(&instance_id).await?;
+
+        let mut files = DashMap::new();
+        for content_type in ContentType::iterator() {
+            self.process_content_directory(
+                &instance_id,
+                &instance_dir,
+                content_type,
+                &entries_by_path,
+                &mut files,
+            )
+            .await?
+        }
+
+        Ok(files)
+    }
+
     async fn get_entries_by_path(
         &self,
         instance_id: &str,
@@ -95,6 +118,10 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
             .to_string();
 
         let pack_file_path = original_path.trim_end_matches(".disabled").to_string();
+        let non_disabled_file_name = PathBuf::from(pack_file_path.clone())
+            .file_name()
+            .map(|x| x.to_string_lossy().to_string())
+            .unwrap_or(file_name.to_string());
 
         let pack_file = match entries_by_path.get(&pack_file_path) {
             Some(entry) => {
@@ -112,38 +139,16 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         };
 
         Ok(Some(InstanceFile {
+            id: pack_file_path,
             name: pack_file.name,
             hash: pack_file.hash,
-            file_name: file_name.to_string(),
+            file_name: non_disabled_file_name,
             content_type,
             size: file_size,
             disabled: file_name.ends_with(".disabled"),
             path: original_path,
             update: pack_file.update,
         }))
-    }
-
-    pub async fn execute(
-        &self,
-        instance_id: String,
-    ) -> Result<DashMap<String, InstanceFile>, InstanceError> {
-        let instance_dir = self.location_info.instance_dir(&instance_id);
-
-        let entries_by_path = self.get_entries_by_path(&instance_id).await?;
-
-        let mut files = DashMap::new();
-        for content_type in ContentType::iterator() {
-            self.process_content_directory(
-                &instance_id,
-                &instance_dir,
-                content_type,
-                &entries_by_path,
-                &mut files,
-            )
-            .await?
-        }
-
-        Ok(files)
     }
 }
 

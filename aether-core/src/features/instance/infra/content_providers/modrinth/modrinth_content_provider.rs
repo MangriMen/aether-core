@@ -111,13 +111,16 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
             InstanceError::ContentDownloadError("Failed to parse update data".to_owned())
         })?;
 
+        let path = relative_path.to_slash_lossy().to_string();
+
         Ok(InstanceFile {
+            id: path.clone(),
             name: Some(version.name.clone()),
             hash: file.hashes.sha1.clone(),
             file_name: file.filename.clone(),
             size: file.size as u64,
             content_type: install_params.content_type,
-            path: relative_path.to_slash_lossy().to_string(),
+            path,
             disabled: false,
             update: Some(HashMap::from([(
                 install_params.provider.clone(),
