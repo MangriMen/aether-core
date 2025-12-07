@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::features::instance::{
-    ContentInstallParams, ContentSearchParams, ContentSearchResult, InstanceError, InstanceFile,
+    ContentInstallParams, ContentSearchParams, ContentSearchResult, InstanceError, ContentFile,
 };
 
 #[async_trait]
@@ -15,7 +15,7 @@ pub trait ContentProvider: Send + Sync {
         &self,
         instance_id: &str,
         install_params: &ContentInstallParams,
-    ) -> Result<InstanceFile, InstanceError>;
+    ) -> Result<ContentFile, InstanceError>;
 
     fn get_update_data_id_field(&self) -> String;
 }

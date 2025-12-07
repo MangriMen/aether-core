@@ -5,15 +5,15 @@ use dashmap::DashMap;
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::instance::{
-        ChangeContentState, ChangeContentStateUseCase, ContentInstallParams, ContentSearchParams,
-        ContentSearchResult, ContentStateAction, ContentType, GetProviderMetadataUseCase,
-        ImportContent, ImportContentUseCase, InstallContentUseCase, InstanceFile,
+        ChangeContentState, ChangeContentStateUseCase, ContentFile, ContentInstallParams,
+        ContentSearchParams, ContentSearchResult, ContentStateAction, ContentType,
+        GetProviderMetadataUseCase, ImportContent, ImportContentUseCase, InstallContentUseCase,
         ListContentUseCase, ListProvidersUseCase, RemoveContent, RemoveContentUseCase,
         SearchContentUseCase,
     },
 };
 
-pub async fn list_content(instance_id: String) -> crate::Result<DashMap<String, InstanceFile>> {
+pub async fn list_content(instance_id: String) -> crate::Result<DashMap<String, ContentFile>> {
     let state = LauncherState::get().await?;
     let lazy_locator = LazyLocator::get().await?;
 

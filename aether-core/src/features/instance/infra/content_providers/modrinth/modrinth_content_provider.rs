@@ -10,8 +10,8 @@ use path_slash::PathBufExt;
 use crate::{
     features::{
         instance::{
-            modrinth::ProjectSearchParams, ContentInstallParams, ContentProvider,
-            ContentSearchParams, ContentSearchResult, InstanceError, InstanceFile,
+            modrinth::ProjectSearchParams, ContentFile, ContentInstallParams, ContentProvider,
+            ContentSearchParams, ContentSearchResult, InstanceError,
         },
         settings::LocationInfo,
     },
@@ -102,7 +102,7 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
         install_params: &ContentInstallParams,
         relative_path: &PathBuf,
         provider_data: &ModrinthProviderData,
-    ) -> Result<InstanceFile, InstanceError> {
+    ) -> Result<ContentFile, InstanceError> {
         let update_data = toml::Value::try_from(&ModrinthUpdateData {
             project_id: provider_data.project_id.clone(),
             version: version.id.clone(),
@@ -113,14 +113,14 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
 
         let path = relative_path.to_slash_lossy().to_string();
 
-        Ok(InstanceFile {
-            id: path.clone(),
+        Ok(ContentFile {
+            content_path: path.clone(),
             name: Some(version.name.clone()),
             hash: file.hashes.sha1.clone(),
-            file_name: file.filename.clone(),
+            filename: file.filename.clone(),
             size: file.size as u64,
             content_type: install_params.content_type,
-            path,
+            instance_relative_path: path,
             disabled: false,
             update: Some(HashMap::from([(
                 install_params.provider.clone(),
@@ -161,7 +161,7 @@ impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
         &self,
         instance_id: &str,
         install_params: &ContentInstallParams,
-    ) -> Result<InstanceFile, InstanceError> {
+    ) -> Result<ContentFile, InstanceError> {
         let provider_data = Self::parse_provider_data(install_params)?;
 
         let project_version = self
