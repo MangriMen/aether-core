@@ -21,9 +21,9 @@ use crate::{
         java::infra::FsJavaStorage,
         minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
         plugins::{
-            ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, LoadConfigType,
-            MemoryImportersRegistry, PluginInfrastructureListener, PluginLoaderRegistry,
-            PluginRegistry, ZipPluginExtractor,
+            ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, ImporterCapability,
+            LoadConfigType, MemoryCapabilityRegistry, PluginInfrastructureListener,
+            PluginLoaderRegistry, PluginRegistry, UpdaterCapability, ZipPluginExtractor,
         },
         process::InMemoryProcessStorage,
         settings::{FsDefaultInstanceSettingsStorage, FsSettingsStorage},
@@ -38,6 +38,9 @@ static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 const CACHE_TTL: Duration = Duration::from_secs(120);
 
 pub type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgressBarStorage>;
+
+pub type ImporterRegistry = MemoryCapabilityRegistry<ImporterCapability>;
+pub type UpdaterRegistry = MemoryCapabilityRegistry<UpdaterCapability>;
 
 pub struct LazyLocator {
     state: Arc<LauncherState>,
@@ -76,9 +79,11 @@ pub struct LazyLocator {
     >,
     default_instance_settings_storage: OnceCell<Arc<FsDefaultInstanceSettingsStorage>>,
     plugin_extractor: OnceCell<Arc<ZipPluginExtractor>>,
-    importers_registry: OnceCell<Arc<MemoryImportersRegistry>>,
-    plugin_infrastructure_listener:
-        OnceCell<Arc<PluginInfrastructureListener<TauriEventEmitter, MemoryImportersRegistry>>>,
+    importers_registry: OnceCell<Arc<ImporterRegistry>>,
+    updaters_registry: OnceCell<Arc<UpdaterRegistry>>,
+    plugin_infrastructure_listener: OnceCell<
+        Arc<PluginInfrastructureListener<TauriEventEmitter, ImporterRegistry, UpdaterRegistry>>,
+    >,
 }
 
 fn get_reqwest_client() -> Arc<ClientWithMiddleware> {
@@ -132,6 +137,7 @@ impl LazyLocator {
                     default_instance_settings_storage: OnceCell::new(),
                     plugin_extractor: OnceCell::new(),
                     importers_registry: OnceCell::new(),
+                    updaters_registry: OnceCell::new(),
                     plugin_infrastructure_listener: OnceCell::new(),
                 })
             })
@@ -425,21 +431,30 @@ impl LazyLocator {
             .clone()
     }
 
-    pub async fn get_importers_registry(&self) -> Arc<MemoryImportersRegistry> {
+    pub async fn get_importers_registry(&self) -> Arc<ImporterRegistry> {
         self.importers_registry
-            .get_or_init(|| async { Arc::new(MemoryImportersRegistry::default()) })
+            .get_or_init(|| async { Arc::new(MemoryCapabilityRegistry::default()) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_updaters_registry(&self) -> Arc<UpdaterRegistry> {
+        self.updaters_registry
+            .get_or_init(|| async { Arc::new(MemoryCapabilityRegistry::default()) })
             .await
             .clone()
     }
 
     pub async fn get_plugin_infrastructure_listener(
         &self,
-    ) -> Arc<PluginInfrastructureListener<TauriEventEmitter, MemoryImportersRegistry>> {
+    ) -> Arc<PluginInfrastructureListener<TauriEventEmitter, ImporterRegistry, UpdaterRegistry>>
+    {
         self.plugin_infrastructure_listener
             .get_or_init(|| async {
                 Arc::new(PluginInfrastructureListener::new(
                     self.get_plugin_registry().await,
                     self.get_importers_registry().await,
+                    self.get_updaters_registry().await,
                 ))
             })
             .await

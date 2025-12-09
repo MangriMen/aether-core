@@ -5,20 +5,29 @@ use crate::features::{
     instance::{
         InstanceError, InstanceInstallStage, InstanceStorage, InstanceStorageExt, PackInfo,
     },
-    plugins::{DefaultPluginInstanceFunctionsExt, ImportersRegistry, PluginRegistry, PluginState},
+    plugins::{
+        CapabilityRegistry, DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState,
+        UpdaterCapability,
+    },
 };
 
-pub struct UpdateInstanceUseCase<IS: InstanceStorage, E: EventEmitter, IR: ImportersRegistry> {
+pub struct UpdateInstanceUseCase<
+    IS: InstanceStorage,
+    E: EventEmitter,
+    UR: CapabilityRegistry<UpdaterCapability>,
+> {
     instance_storage: Arc<IS>,
     plugin_registry: Arc<PluginRegistry<E>>,
-    importers_registry: Arc<IR>,
+    importers_registry: Arc<UR>,
 }
 
-impl<IS: InstanceStorage, E: EventEmitter, IR: ImportersRegistry> UpdateInstanceUseCase<IS, E, IR> {
+impl<IS: InstanceStorage, E: EventEmitter, UR: CapabilityRegistry<UpdaterCapability>>
+    UpdateInstanceUseCase<IS, E, UR>
+{
     pub fn new(
         instance_storage: Arc<IS>,
         plugin_registry: Arc<PluginRegistry<E>>,
-        importers_registry: Arc<IR>,
+        importers_registry: Arc<UR>,
     ) -> Self {
         Self {
             instance_storage,
@@ -68,18 +77,16 @@ impl<IS: InstanceStorage, E: EventEmitter, IR: ImportersRegistry> UpdateInstance
         pack_info: &PackInfo,
     ) -> Result<(), InstanceError> {
         let modpack_id = pack_info.modpack_id.clone();
+        let plugin_id = pack_info.plugin_id.clone();
 
-        let importer = self
-            .importers_registry
-            .get(&modpack_id)
+        self.importers_registry
+            .find_by_plugin_and_capability_id(plugin_id.clone(), modpack_id.clone())
             .await
             .map_err(|_| InstanceError::UpdaterNotFound {
                 modpack_id: modpack_id.clone(),
             })?;
 
-        let plugin_id = &importer.plugin_id;
-
-        let plugin = self.plugin_registry.get(plugin_id).map_err(|err| {
+        let plugin = self.plugin_registry.get(&plugin_id).map_err(|err| {
             tracing::debug!("Error updating instance (plugin not found): {:?}", err);
 
             InstanceError::UpdaterNotFound {

@@ -9,39 +9,70 @@
       "description": "List of supported modpack importers provided by the plugin.",
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
+        "required": ["id", "name"],
         "properties": {
           "id": {
             "type": "string",
             "pattern": "^[a-z0-9_\\-]+$",
-            "description": "Unique identifier for the importer (lowercase, kebab/underscore allowed)."
+            "description": "Identifier for the importer (lowercase, kebab/underscore allowed)."
           },
           "name": {
             "type": "string",
-            "description": "Display name of the importer."
+            "description": "Display name"
           },
           "description": {
             "type": "string",
-            "description": "Optional description of what this importer does."
+            "description": "Optional description"
           },
           "icon": {
             "type": "string",
-            "description": "Optional icon file name or URL for the importer."
+            "description": "Optional icon file name"
           },
           "fieldLabel": {
             "type": "string",
-            "description": "Optional field label for the importer."
+            "description": "Optional field label for import field"
+          },
+          "handler": {
+            "type": "string",
+            "description": "Plugin function name to handle this capability call"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "updaters": {
+      "type": "array",
+      "description": "List of supported modpack updaters provided by the plugin.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_\\-]+$",
+            "description": "Identifier for the importer (lowercase, kebab/underscore allowed)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Optional icon file name"
+          },
+          "handler": {
+            "type": "string",
+            "description": "Plugin function name to handle this capability call"
           }
         },
         "additionalProperties": false
       }
     }
   },
-  "required": [
-    "importers"
-  ],
+  "required": ["importers"],
   "additionalProperties": false
 }

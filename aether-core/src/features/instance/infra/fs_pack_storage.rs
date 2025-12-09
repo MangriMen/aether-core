@@ -59,7 +59,7 @@ impl PackStorage for FsPackStorage {
         self.update_pack_file_many(
             instance_id,
             &[content_path.to_string()],
-            &[pack_file.clone()],
+            std::slice::from_ref(pack_file),
         )
         .await
     }

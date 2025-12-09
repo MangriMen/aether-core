@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::features::plugins::ImporterCapability;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Importer {
+pub struct CapabilityEntry<C: Send + Sync + Clone> {
     pub plugin_id: String,
-    pub capability: ImporterCapability,
+    pub capability: C,
 }

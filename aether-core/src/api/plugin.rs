@@ -3,10 +3,10 @@ use std::{path::PathBuf, sync::Arc};
 use crate::{
     core::domain::LazyLocator,
     features::plugins::{
-        DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
-        GetPluginApiVersionUseCase, GetPluginDtoUseCase, GetPluginSettingsUseCase,
-        ImportPluginsUseCase, Importer, ListImportersUseCase, ListPluginsDtoUseCase, PluginDto,
-        PluginSettings, RemovePluginUseCase, SyncPluginsUseCase,
+        CapabilityEntry, DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase,
+        EnablePluginUseCase, GetPluginApiVersionUseCase, GetPluginDtoUseCase,
+        GetPluginSettingsUseCase, ImportPluginsUseCase, ImporterCapability, ListImportersUseCase,
+        ListPluginsDtoUseCase, PluginDto, PluginSettings, RemovePluginUseCase, SyncPluginsUseCase,
     },
 };
 
@@ -168,7 +168,7 @@ pub async fn edit_settings(
     )
 }
 
-pub async fn list_importers() -> crate::Result<Vec<Importer>> {
+pub async fn list_importers() -> crate::Result<Vec<CapabilityEntry<ImporterCapability>>> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
