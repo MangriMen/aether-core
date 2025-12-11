@@ -23,7 +23,7 @@ pub struct PackFile {
     pub option: Option<PackFileOption>,
     pub side: Option<String>,
     pub update_provider: Option<String>,
-    pub update: Option<HashMap<String, toml::Value>>,
+    pub update: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

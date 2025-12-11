@@ -1,4 +1,6 @@
 use chrono::{DateTime, Utc};
+use register_schema_derive::RegisterSchema;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
@@ -8,7 +10,7 @@ use crate::features::{
 
 use super::{InstanceInstallStage, PackInfo};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, RegisterSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
     pub id: String,

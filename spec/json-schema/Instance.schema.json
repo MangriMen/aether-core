@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Instance",
+  "type": "object",
+  "properties": {
+    "created": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "envVars": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "array",
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "forceFullscreen": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "gameResolution": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WindowSize"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "gameVersion": {
+      "type": "string"
+    },
+    "hooks": {
+      "$ref": "#/$defs/Hooks"
+    },
+    "iconPath": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "installStage": {
+      "$ref": "#/$defs/InstanceInstallStage"
+    },
+    "javaPath": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lastPlayed": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "launchArgs": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "loader": {
+      "$ref": "#/$defs/ModLoader"
+    },
+    "loaderVersion": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LoaderVersionPreference"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "memory": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MemorySettings"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "modified": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "name": {
+      "type": "string"
+    },
+    "packInfo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PackInfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recentTimePlayed": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "timePlayed": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "installStage",
+    "gameVersion",
+    "loader",
+    "created",
+    "modified",
+    "timePlayed",
+    "recentTimePlayed",
+    "hooks"
+  ],
+  "$defs": {
+    "Hooks": {
+      "description": "A struct representing various hooks that can be configured for specific actions\nin the application lifecycle.\n\n# Fields\n- `pre_launch`: An optional string representing a command or script to be executed\n  before the game launches.\n- `wrapper`: An optional string representing a wrapper command or script to be used\n  during the game's execution.\n- `post_exit`: An optional string representing a command or script to be executed\n  after the game exits.",
+      "type": "object",
+      "properties": {
+        "postExit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preLaunch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wrapper": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "InstanceInstallStage": {
+      "oneOf": [
+        {
+          "description": "Instance is installed",
+          "type": "string",
+          "const": "installed"
+        },
+        {
+          "description": "Instance's minecraft game is still installing",
+          "type": "string",
+          "const": "installing"
+        },
+        {
+          "description": "Instance created for pack, but the pack hasn't been fully installed yet",
+          "type": "string",
+          "const": "pack_installing"
+        },
+        {
+          "description": "Instance is not installed",
+          "type": "string",
+          "const": "not_installed"
+        }
+      ]
+    },
+    "LoaderVersionPreference": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "latest",
+            "stable"
+          ]
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "MemorySettings": {
+      "description": "Memory usage settings for Java.\n\nUsed to define the maximum amount of memory that can be allocated\nto the JVM when launching a game.",
+      "type": "object",
+      "properties": {
+        "maximum": {
+          "description": "Maximum amount of RAM in megabytes.\n\nTypically corresponds to the `-Xmx` parameter when starting the JVM.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "maximum"
+      ]
+    },
+    "ModLoader": {
+      "type": "string",
+      "enum": [
+        "vanilla",
+        "forge",
+        "fabric",
+        "quilt",
+        "neoforge"
+      ]
+    },
+    "PackInfo": {
+      "type": "object",
+      "properties": {
+        "modpackId": {
+          "type": "string"
+        },
+        "pluginId": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pluginId",
+        "modpackId",
+        "version"
+      ]
+    },
+    "WindowSize": {
+      "description": "A 2D size, represented by a tuple of two integers\n\nFirst is the width, second is the height of the window (width, height)",
+      "type": "array",
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      ]
+    }
+  }
+}

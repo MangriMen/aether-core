@@ -103,7 +103,7 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
         relative_path: &PathBuf,
         provider_data: &ModrinthProviderData,
     ) -> Result<ContentFile, InstanceError> {
-        let update_data = toml::Value::try_from(&ModrinthUpdateData {
+        let update_data = serde_json::to_value(&ModrinthUpdateData {
             project_id: provider_data.project_id.clone(),
             version: version.id.clone(),
         })

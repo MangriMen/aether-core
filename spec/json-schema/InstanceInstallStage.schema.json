@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InstanceInstallStage",
+  "oneOf": [
+    {
+      "description": "Instance is installed",
+      "type": "string",
+      "const": "installed"
+    },
+    {
+      "description": "Instance's minecraft game is still installing",
+      "type": "string",
+      "const": "installing"
+    },
+    {
+      "description": "Instance created for pack, but the pack hasn't been fully installed yet",
+      "type": "string",
+      "const": "pack_installing"
+    },
+    {
+      "description": "Instance is not installed",
+      "type": "string",
+      "const": "not_installed"
+    }
+  ]
+}

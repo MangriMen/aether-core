@@ -42,7 +42,7 @@ daedalus = "0.2.3"
 uuid = { version = "1.10", features = ["serde", "v4"] }
 
 bytes = "1.6"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 sysinfo = "0.35.2"
 sys-info = "0.9"
 url = "2.5"
@@ -76,3 +76,8 @@ serr = { git = 'https://github.com/MangriMen/serr.git', version = "0.2.0", featu
 ] }
 serde_with = "3.13.0"
 tempfile = "3.23.0"
+schemars = { version = "1.1.0", features = ["chrono04"] }
+
+inventory = "0.3"
+register-schema-derive = { path = "../register-schema-derive" }
+register-schema = { path = "../register-schema" }
