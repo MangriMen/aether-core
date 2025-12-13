@@ -103,7 +103,7 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader, E: Event
         let loader = self.plugin_loader_registry.get(&load_config_type)?;
 
         let plugin_settings = self.plugin_settings_storage.get(plugin_id).await?;
-        let plugin_instance = loader.load(manifest, &plugin_settings).await?;
+        let plugin_instance = loader.load(manifest, plugin_settings.as_ref()).await?;
 
         self.plugin_registry
             .upsert_with(plugin_id, |plugin| {

@@ -12,7 +12,7 @@ pub trait PluginLoader: Send + Sync {
     async fn load(
         &self,
         plugin: &PluginManifest,
-        settings: &Option<PluginSettings>,
+        settings: Option<&PluginSettings>,
     ) -> Result<Arc<Mutex<dyn PluginInstance>>, PluginError>;
     async fn unload(&self, instance: Arc<Mutex<dyn PluginInstance>>) -> Result<(), PluginError>;
 }
