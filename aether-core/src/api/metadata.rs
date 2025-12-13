@@ -3,7 +3,6 @@ use crate::{
     features::minecraft::{GetLoaderVersionManifestUseCase, GetVersionManifestUseCase, ModLoader},
 };
 
-#[tracing::instrument]
 pub async fn get_version_manifest() -> crate::Result<daedalus::minecraft::VersionManifest> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -14,7 +13,6 @@ pub async fn get_version_manifest() -> crate::Result<daedalus::minecraft::Versio
     )
 }
 
-#[tracing::instrument]
 pub async fn get_loader_version_manifest(
     loader: ModLoader,
 ) -> crate::Result<daedalus::modded::Manifest> {

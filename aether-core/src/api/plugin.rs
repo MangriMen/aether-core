@@ -36,7 +36,6 @@ pub async fn import(paths: Vec<PathBuf>) -> crate::Result<()> {
     .await?)
 }
 
-#[tracing::instrument]
 pub async fn sync() -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -56,7 +55,6 @@ pub async fn sync() -> crate::Result<()> {
     .await?)
 }
 
-#[tracing::instrument]
 pub async fn list() -> crate::Result<Vec<PluginDto>> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -67,7 +65,6 @@ pub async fn list() -> crate::Result<Vec<PluginDto>> {
     )
 }
 
-#[tracing::instrument]
 pub async fn get(plugin_id: String) -> crate::Result<PluginDto> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -143,7 +140,6 @@ pub async fn call(plugin_id: String, data: String) -> crate::Result<()> {
     Ok(())
 }
 
-#[tracing::instrument]
 pub async fn get_settings(plugin_id: String) -> crate::Result<Option<PluginSettings>> {
     let lazy_locator = LazyLocator::get().await?;
 

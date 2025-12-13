@@ -46,7 +46,6 @@ impl LauncherState {
         Ok(())
     }
 
-    #[tracing::instrument]
     pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAUNCHER_STATE.initialized() {
             tracing::error!(
@@ -74,8 +73,6 @@ impl LauncherState {
         metadata_dir: PathBuf,
         app_handle: tauri::AppHandle,
     ) -> crate::Result<Arc<Self>> {
-        log::info!("Initializing state");
-
         let launcher_dir_path = launcher_dir.as_path();
 
         let settings_storage = FsSettingsStorage::new(launcher_dir_path);
@@ -93,18 +90,15 @@ impl LauncherState {
             settings_storage.upsert(settings).await?
         };
 
-        log::info!("Initialize locations");
         let location_info = Arc::new(LocationInfo {
             settings_dir: settings.launcher_dir.clone(),
             config_dir: settings.metadata_dir.clone(),
         });
 
-        log::info!("Initialize fetch semaphore");
         let fetch_semaphore = Arc::new(FetchSemaphore(Semaphore::new(
             settings.max_concurrent_downloads,
         )));
 
-        log::info!("Initialize api semaphore");
         let api_semaphore = Arc::new(FetchSemaphore(Semaphore::new(
             settings.max_concurrent_downloads,
         )));
@@ -116,8 +110,6 @@ impl LauncherState {
             fetch_semaphore,
             api_semaphore,
         });
-
-        log::info!("Initializing service locator");
 
         LazyLocator::init(state.clone(), app_handle).await?;
 

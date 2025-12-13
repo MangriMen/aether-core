@@ -3,6 +3,7 @@ use crate::{
     features::instance::{ImportInstance, ImportInstanceUseCase},
 };
 
+#[tracing::instrument]
 pub async fn import(import_instance: ImportInstance) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 

@@ -195,7 +195,6 @@ pub async fn update(instance_id: String) -> crate::Result<()> {
     .await?)
 }
 
-#[tracing::instrument]
 pub async fn list() -> crate::Result<Vec<Instance>> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -206,7 +205,6 @@ pub async fn list() -> crate::Result<Vec<Instance>> {
     )
 }
 
-#[tracing::instrument]
 pub async fn get(instance_id: String) -> crate::Result<Instance> {
     let lazy_locator = LazyLocator::get().await?;
 

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tracing::debug;
 
 use crate::{
     features::{
@@ -45,7 +44,7 @@ impl InstanceStorage for FsInstanceStorage {
             match instance {
                 Ok(instance) => instances.push(instance),
                 Err(err) => {
-                    debug!("Failed to read instance {:?}", err)
+                    tracing::debug!("Failed to read instance {:?}", err)
                 }
             }
         }
