@@ -56,7 +56,7 @@ impl<RC: RequestClient, PS: ProgressService> ClientService<RC, PS> {
                 .fetch_bytes(Request::get(&client_download_url.url))
                 .await
                 .map_err(|err| {
-                    IoError::IOError(std::io::Error::new(
+                    IoError::IoError(std::io::Error::new(
                         std::io::ErrorKind::NetworkUnreachable,
                         err,
                     ))

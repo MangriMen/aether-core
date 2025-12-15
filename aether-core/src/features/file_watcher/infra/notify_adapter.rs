@@ -43,8 +43,8 @@ impl<FEH: FileEventHandler + 'static> NotifyFileWatcher<FEH> {
 
     fn spawn_event_processor(mut rx: Receiver<DebounceEventResult>, event_handler: Arc<FEH>) {
         tokio::spawn(async move {
-            let span = tracing::span!(tracing::Level::INFO, "file_watcher");
-            tracing::info!(parent: &span, "Starting file watcher event processor");
+            let span = tracing::span!(tracing::Level::DEBUG, "file_watcher");
+            tracing::debug!(parent: &span, "Starting file watcher event processor");
 
             while let Some(res) = rx.next().await {
                 let events = res
@@ -60,7 +60,7 @@ impl<FEH: FileEventHandler + 'static> NotifyFileWatcher<FEH> {
                     .map_err(FileWatcherError::from);
 
                 if let Err(e) = event_handler.handle_events(events).await {
-                    tracing::error!("Failed to handle file events: {}", e);
+                    tracing::error!(parent: &span, "Failed to handle file events: {}", e);
                 }
             }
         });

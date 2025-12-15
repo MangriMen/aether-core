@@ -113,7 +113,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                       self.request_client.fetch_bytes(Request::get(&url))
                     })
                     .await
-                    .map_err(|err| IoError::IOError(std::io::Error::new(
+                    .map_err(|err| IoError::IoError(std::io::Error::new(
                         std::io::ErrorKind::NetworkUnreachable,
                         err,
                     )))?;
@@ -132,7 +132,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                       self.request_client.fetch_bytes(Request::get(&url))
                     })
                     .await
-                    .map_err(|err| IoError::IOError(std::io::Error::new(
+                    .map_err(|err| IoError::IoError(std::io::Error::new(
                         std::io::ErrorKind::NetworkUnreachable,
                         err,
                     )))?;
@@ -151,7 +151,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
             }
             Err(err) => {
                 log::error!("Failed downloading asset \"{}\". err: {}", name, err);
-                Ok(Err(IoError::IOError(std::io::Error::new(
+                Ok(Err(IoError::IoError(std::io::Error::new(
                     std::io::ErrorKind::NetworkUnreachable,
                     err,
                 )))?)
@@ -178,7 +178,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                 .fetch_json(Request::get(&version_info.asset_index.url))
                 .await
                 .map_err(|err| {
-                    IoError::IOError(std::io::Error::new(
+                    IoError::IoError(std::io::Error::new(
                         std::io::ErrorKind::NetworkUnreachable,
                         err,
                     ))

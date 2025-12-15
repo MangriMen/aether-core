@@ -118,7 +118,7 @@ impl<RC: RequestClient, PS: ProgressService> MinecraftDownloader
                 .fetch_json(Request::get(&version.url))
                 .await
                 .map_err(|err| {
-                    IoError::IOError(std::io::Error::new(
+                    IoError::IoError(std::io::Error::new(
                         std::io::ErrorKind::NetworkUnreachable,
                         err,
                     ))
@@ -130,7 +130,7 @@ impl<RC: RequestClient, PS: ProgressService> MinecraftDownloader
                     .fetch_json(Request::get(&loader.url))
                     .await
                     .map_err(|err| {
-                        IoError::IOError(std::io::Error::new(
+                        IoError::IoError(std::io::Error::new(
                             std::io::ErrorKind::NetworkUnreachable,
                             err,
                         ))

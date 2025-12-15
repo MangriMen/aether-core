@@ -39,8 +39,14 @@ impl InstanceStorage for FsInstanceStorage {
             let instance_json_path = self
                 .location_info
                 .instance_metadata_file_with_instance_dir(&entry.path());
-            let instance = read_json_async(&instance_json_path).await?;
-            instances.push(instance);
+            let instance = read_json_async::<Instance>(&instance_json_path).await;
+
+            match instance {
+                Ok(instance) => instances.push(instance),
+                Err(err) => {
+                    tracing::debug!("Failed to read instance {:?}", err)
+                }
+            }
         }
 
         return Ok(instances);

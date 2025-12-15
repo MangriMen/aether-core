@@ -1,9 +1,6 @@
-use extism::ToBytes;
-use extism_convert::Json;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, ToBytes)]
-#[encoding(Json)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SerializableOutput {
     pub status: u32,
     pub stdout: Vec<u8>,

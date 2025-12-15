@@ -20,7 +20,7 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
             .storage
             .get(version)
             .await?
-            .ok_or(JavaError::JavaNotFound { version })?;
+            .ok_or(JavaError::NotFound { version })?;
 
         self.java_installation_service
             .locate_java(Path::new(&java.path))

@@ -5,28 +5,24 @@ use std::{
 };
 
 use async_trait::async_trait;
-use log::debug;
-use serde::{Deserialize, Serialize};
+use extism::{Manifest, Plugin, PluginBuilder, Wasm};
 use tokio::sync::Mutex;
 
 use crate::{
     features::{
         plugins::{
-            extism_host_functions, plugin_utils::get_default_allowed_paths, ExtismPluginInstance,
-            LoadConfig, PathMapping, Plugin, PluginError, PluginInstance, PluginLoader,
-            PluginSettings,
+            plugin_utils::get_default_allowed_paths, LoadConfig, PathMapping, PluginError,
+            PluginInstance, PluginLoader, PluginManifest, PluginSettings,
         },
         settings::LocationInfo,
     },
     shared::{create_dir_all, write_toml_async},
 };
 
-use super::wasm_cache::{WasmCache, WasmCacheConfig};
-
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
-pub struct PluginContext {
-    pub id: String,
-}
+use super::{
+    host_functions::get_host_functions,
+    models::{ExtismPluginInstance, WasmCache, WasmCacheConfig},
+};
 
 pub struct ExtismPluginLoader {
     location_info: Arc<LocationInfo>,
@@ -37,89 +33,70 @@ impl ExtismPluginLoader {
         Self { location_info }
     }
 
-    async fn get_cache_config_path(&self) -> Result<PathBuf, PluginError> {
-        let cache_config = self.location_info.wasm_cache_config();
-        if !cache_config.exists() {
+    async fn ensure_cache_config_file(&self) -> Result<PathBuf, PluginError> {
+        let cache_config_path = self.location_info.wasm_cache_config();
+
+        if !cache_config_path.exists() {
             let cache_dir = self.location_info.wasm_cache_dir();
-
-            let config = WasmCacheConfig {
-                cache: WasmCache {
-                    enabled: true,
-                    cleanup_interval: "30m".to_owned(),
-                    files_total_size_soft_limit: "1Gi".to_owned(),
-                    directory: cache_dir.clone(),
-                },
-            };
-
-            write_toml_async(&cache_config, config).await?;
             create_dir_all(&cache_dir).await?;
+
+            write_toml_async(&cache_config_path, get_default_cache_config(cache_dir)).await?;
         }
 
-        Ok(cache_config)
+        Ok(cache_config_path)
     }
 
-    fn resolve_allowed_paths(
-        plugin: &Plugin,
-        settings: &Option<PluginSettings>,
-        default_allowed_paths: &Option<HashMap<String, PathBuf>>,
-    ) -> (Vec<String>, Vec<PathMapping>) {
-        let mut allowed_hosts = plugin.manifest.runtime.allowed_hosts.clone();
-        let mut allowed_paths = plugin.manifest.runtime.allowed_paths.clone();
-
-        if let Some(settings) = settings {
-            allowed_hosts.extend_from_slice(&settings.allowed_hosts);
-            allowed_paths.extend_from_slice(&settings.allowed_paths);
-        }
-
-        if let Some(default_allowed_paths) = default_allowed_paths {
-            for (host_path, plugin_path) in default_allowed_paths {
-                allowed_paths.push((host_path.to_string(), plugin_path.to_path_buf()));
-            }
-        }
-
-        (allowed_hosts, allowed_paths)
-    }
-
-    fn construct_wasm_manifest(
-        wasm_file: &Path,
-        allowed_hosts: &[String],
-        allowed_paths: &[PathMapping],
-    ) -> extism::Manifest {
-        let wasm_file = extism::Wasm::file(wasm_file);
-        extism::Manifest::new([wasm_file])
-            .with_allowed_hosts(allowed_hosts.iter().cloned())
-            .with_allowed_paths(allowed_paths.iter().cloned())
-    }
-
-    fn load_extism_plugin(
+    async fn ensure_default_allowed_paths(
         &self,
-        plugin: &Plugin,
-        cache_dir: &Option<PathBuf>,
-        default_allowed_paths: &Option<HashMap<String, PathBuf>>,
-        settings: &Option<PluginSettings>,
-    ) -> Result<extism::Plugin, PluginError> {
-        let wasm_file_path = match &plugin.manifest.load {
+        plugin_id: &str,
+    ) -> Result<HashMap<String, PathBuf>, PluginError> {
+        let default_allowed_paths = get_default_allowed_paths(&self.location_info, plugin_id);
+
+        for host in default_allowed_paths.keys() {
+            create_dir_all(host).await?;
+        }
+
+        Ok(default_allowed_paths)
+    }
+
+    fn resolve_absolute_wasm_path(&self, plugin_id: &str, wasm_file: &Path) -> PathBuf {
+        self.location_info.plugin_dir(plugin_id).join(wasm_file)
+    }
+
+    fn build_wasm_manifest(
+        &self,
+        manifest: &PluginManifest,
+        default_allowed_paths: Option<&HashMap<String, PathBuf>>,
+        settings: Option<&PluginSettings>,
+    ) -> Result<Manifest, PluginError> {
+        let wasm_file_path = match &manifest.load {
             LoadConfig::Extism { file, .. } => file,
-            load_config => {
-                return Err(PluginError::InvalidLoadConfigError {
-                    load_config: load_config.clone(),
+            config => {
+                return Err(PluginError::InvalidConfig {
+                    config: config.clone(),
                 })
             }
         };
 
+        let wasm_file =
+            Wasm::file(self.resolve_absolute_wasm_path(&manifest.metadata.id, wasm_file_path));
+
         let (allowed_hosts, allowed_paths) =
-            Self::resolve_allowed_paths(plugin, settings, default_allowed_paths);
+            resolve_allowed_paths(manifest, settings, default_allowed_paths);
 
-        let absolute_wasm_file_path = self
-            .location_info
-            .plugin_dir(&plugin.manifest.metadata.id)
-            .join(wasm_file_path);
+        Ok(Manifest::new([wasm_file])
+            .with_allowed_hosts(allowed_hosts.into_iter())
+            .with_allowed_paths(allowed_paths.into_iter()))
+    }
 
-        let manifest =
-            Self::construct_wasm_manifest(&absolute_wasm_file_path, &allowed_hosts, &allowed_paths);
-
-        let mut builder = extism::PluginBuilder::new(&manifest)
-            .with_functions(Self::get_host_functions(&plugin.manifest.metadata.id))
+    fn build_plugin(
+        &self,
+        plugin_id: &str,
+        wasm_manifest: &Manifest,
+        cache_dir: Option<&PathBuf>,
+    ) -> Result<Plugin, PluginError> {
+        let mut builder = PluginBuilder::new(wasm_manifest)
+            .with_functions(get_host_functions(plugin_id))
             .with_wasi(true);
 
         if let Some(cache_dir) = cache_dir {
@@ -127,89 +104,13 @@ impl ExtismPluginLoader {
         }
 
         builder.build().map_err(|e| {
-            debug!("Failed to load plugin: {:?}", e);
-            PluginError::PluginLoadError
+            let err = PluginError::LoadFailed {
+                plugin_id: plugin_id.to_owned(),
+                reason: e.to_string(),
+            };
+            tracing::debug!("Load failed for plugin {}: {}", plugin_id, e);
+            err
         })
-    }
-
-    fn get_host_functions(plugin_id: &str) -> Vec<extism::Function> {
-        let context = PluginContext {
-            id: plugin_id.to_string(),
-        };
-
-        let log_fn = extism::Function::new(
-            "log",
-            [extism::ValType::I64, extism::PTR],
-            [],
-            extism::UserData::new(context.clone()),
-            extism_host_functions::log,
-        );
-
-        let get_id_fn = extism::Function::new(
-            "get_id",
-            [],
-            [extism::PTR],
-            extism::UserData::new(context.clone()),
-            extism_host_functions::get_id,
-        );
-
-        let instance_get_dir_fn = extism::Function::new(
-            "instance_get_dir",
-            [extism::PTR],
-            [extism::PTR],
-            extism::UserData::new(context.clone()),
-            extism_host_functions::instance_get_dir,
-        );
-
-        let instance_plugin_get_dir_fn = extism::Function::new(
-            "instance_plugin_get_dir",
-            [extism::PTR],
-            [extism::PTR],
-            extism::UserData::new(context.clone()),
-            extism_host_functions::instance_plugin_get_dir,
-        );
-
-        let instance_create_fn = extism::Function::new(
-            "instance_create",
-            [
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-                extism::PTR,
-            ],
-            [extism::PTR],
-            extism::UserData::new(context.clone()),
-            extism_host_functions::instance_create,
-        );
-
-        let get_or_download_java_fn = extism::Function::new(
-            "get_or_download_java",
-            [extism::PTR],
-            [extism::ValType::I64],
-            extism::UserData::new(context.clone()),
-            extism_host_functions::get_java,
-        );
-
-        let run_command_fn = extism::Function::new(
-            "run_command",
-            [extism::PTR],
-            [extism::PTR],
-            extism::UserData::new(context.clone()),
-            extism_host_functions::run_command,
-        );
-
-        vec![
-            log_fn,
-            get_id_fn,
-            instance_get_dir_fn,
-            instance_plugin_get_dir_fn,
-            instance_create_fn,
-            get_or_download_java_fn,
-            run_command_fn,
-        ]
     }
 }
 
@@ -217,29 +118,27 @@ impl ExtismPluginLoader {
 impl PluginLoader for ExtismPluginLoader {
     async fn load(
         &self,
-        plugin: &Plugin,
-        settings: &Option<PluginSettings>,
+        manifest: &PluginManifest,
+        settings: Option<&PluginSettings>,
     ) -> Result<Arc<Mutex<dyn PluginInstance>>, PluginError> {
-        let cache_config = self.get_cache_config_path().await?;
+        let plugin_id = &manifest.metadata.id;
 
-        let default_allowed_paths =
-            get_default_allowed_paths(&self.location_info, &plugin.manifest.metadata.id);
+        let cache_config = self.ensure_cache_config_file().await?;
+        let default_allowed_paths = self.ensure_default_allowed_paths(plugin_id).await?;
 
-        for (_, host) in default_allowed_paths.iter() {
-            create_dir_all(host).await?;
+        let wasm_manifest =
+            self.build_wasm_manifest(manifest, Some(&default_allowed_paths), settings)?;
+
+        let extism_plugin = self.build_plugin(plugin_id, &wasm_manifest, Some(&cache_config))?;
+
+        let mut plugin = ExtismPluginInstance::new(extism_plugin, plugin_id.clone());
+        if let Err(err) = plugin.on_load() {
+            tracing::debug!(
+                "Failed to call on_load on plugin {}: {:?}",
+                plugin.get_id(),
+                err
+            );
         }
-
-        let extism_plugin = self.load_extism_plugin(
-            plugin,
-            &Some(cache_config),
-            &Some(default_allowed_paths),
-            settings,
-        )?;
-
-        let mut plugin =
-            ExtismPluginInstance::new(extism_plugin, plugin.manifest.metadata.id.to_owned());
-
-        plugin.on_load()?;
 
         Ok(Arc::new(Mutex::new(plugin)))
     }
@@ -247,12 +146,49 @@ impl PluginLoader for ExtismPluginLoader {
     async fn unload(&self, instance: Arc<Mutex<dyn PluginInstance>>) -> Result<(), PluginError> {
         let mut plugin = instance.lock().await;
 
-        if let Err(res) = plugin.on_unload() {
-            log::debug!("Failed to unload plugin: {}", res);
+        if let Err(err) = plugin.on_unload() {
+            tracing::debug!(
+                "Failed to call on_unload on plugin {}: {:?}",
+                plugin.get_id(),
+                err
+            );
         }
-
-        drop(plugin);
 
         Ok(())
     }
+}
+
+fn get_default_cache_config(cache_dir: PathBuf) -> WasmCacheConfig {
+    WasmCacheConfig {
+        cache: WasmCache {
+            enabled: true,
+            cleanup_interval: "30m".to_owned(),
+            files_total_size_soft_limit: "1Gi".to_owned(),
+            directory: cache_dir,
+        },
+    }
+}
+
+fn resolve_allowed_paths(
+    manifest: &PluginManifest,
+    settings: Option<&PluginSettings>,
+    default_allowed_paths: Option<&HashMap<String, PathBuf>>,
+) -> (Vec<String>, Vec<PathMapping>) {
+    let mut allowed_hosts = manifest.runtime.allowed_hosts.clone();
+    let mut allowed_paths = manifest.runtime.allowed_paths.clone();
+
+    if let Some(default_allowed_paths) = default_allowed_paths {
+        allowed_paths.extend(
+            default_allowed_paths
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        );
+    }
+
+    if let Some(settings) = settings {
+        allowed_hosts.extend_from_slice(&settings.allowed_hosts);
+        allowed_paths.extend_from_slice(&settings.allowed_paths);
+    }
+
+    (allowed_hosts, allowed_paths)
 }

@@ -31,7 +31,6 @@ pub async fn install(version: u32) -> crate::Result<java::Java> {
     Ok(install_java_use_case.execute(version).await?)
 }
 
-#[tracing::instrument]
 pub async fn get(version: u32) -> crate::Result<java::Java> {
     let lazy_locator = LazyLocator::get().await?;
 

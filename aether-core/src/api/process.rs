@@ -8,7 +8,6 @@ use crate::{
     },
 };
 
-#[tracing::instrument]
 pub async fn list() -> crate::Result<Vec<MinecraftProcessMetadata>> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -43,7 +42,6 @@ pub async fn kill(uuid: Uuid) -> crate::Result<()> {
     )
 }
 
-#[tracing::instrument]
 pub async fn wait_for(uuid: Uuid) -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 

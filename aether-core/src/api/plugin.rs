@@ -1,13 +1,41 @@
+use std::{path::PathBuf, sync::Arc};
+
 use crate::{
     core::domain::LazyLocator,
     features::plugins::{
-        DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase, EnablePluginUseCase,
-        GetPluginDtoUseCase, GetPluginSettingsUseCase, ListPluginsDtoUseCase, PluginDto,
-        PluginSettings, SyncPluginsUseCase,
+        CapabilityEntry, DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase,
+        EnablePluginUseCase, GetPluginApiVersionUseCase, GetPluginDtoUseCase,
+        GetPluginSettingsUseCase, ImportPluginsUseCase, ImporterCapability, ListImportersUseCase,
+        ListPluginsDtoUseCase, PluginDto, PluginSettings, RemovePluginUseCase, SyncPluginsUseCase,
     },
 };
 
 #[tracing::instrument]
+pub async fn import(paths: Vec<PathBuf>) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    let disable_plugin_use_case = DisablePluginUseCase::new(
+        lazy_locator.get_plugin_registry().await,
+        lazy_locator.get_plugin_loader_registry().await,
+        lazy_locator.get_settings_storage().await,
+    );
+
+    let sync_plugins_use_case = Arc::new(SyncPluginsUseCase::new(
+        lazy_locator.get_plugin_storage().await,
+        lazy_locator.get_plugin_registry().await,
+        disable_plugin_use_case,
+        lazy_locator.get_event_emitter().await,
+    ));
+
+    Ok(ImportPluginsUseCase::new(
+        lazy_locator.get_plugin_extractor().await,
+        lazy_locator.get_plugin_storage().await,
+        sync_plugins_use_case,
+    )
+    .execute(paths)
+    .await?)
+}
+
 pub async fn sync() -> crate::Result<()> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -21,12 +49,12 @@ pub async fn sync() -> crate::Result<()> {
         lazy_locator.get_plugin_storage().await,
         lazy_locator.get_plugin_registry().await,
         disable_plugin_use_case,
+        lazy_locator.get_event_emitter().await,
     )
     .execute()
     .await?)
 }
 
-#[tracing::instrument]
 pub async fn list() -> crate::Result<Vec<PluginDto>> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -37,7 +65,6 @@ pub async fn list() -> crate::Result<Vec<PluginDto>> {
     )
 }
 
-#[tracing::instrument]
 pub async fn get(plugin_id: String) -> crate::Result<PluginDto> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -46,6 +73,31 @@ pub async fn get(plugin_id: String) -> crate::Result<PluginDto> {
             .execute(plugin_id)
             .await?,
     )
+}
+
+#[tracing::instrument]
+pub async fn remove(plugin_id: String) -> crate::Result<()> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    let disable_plugin_use_case = DisablePluginUseCase::new(
+        lazy_locator.get_plugin_registry().await,
+        lazy_locator.get_plugin_loader_registry().await,
+        lazy_locator.get_settings_storage().await,
+    );
+
+    let sync_plugins_use_case = Arc::new(SyncPluginsUseCase::new(
+        lazy_locator.get_plugin_storage().await,
+        lazy_locator.get_plugin_registry().await,
+        disable_plugin_use_case,
+        lazy_locator.get_event_emitter().await,
+    ));
+
+    Ok(RemovePluginUseCase::new(
+        lazy_locator.get_plugin_storage().await,
+        sync_plugins_use_case,
+    )
+    .execute(plugin_id)
+    .await?)
 }
 
 #[tracing::instrument]
@@ -88,7 +140,6 @@ pub async fn call(plugin_id: String, data: String) -> crate::Result<()> {
     Ok(())
 }
 
-#[tracing::instrument]
 pub async fn get_settings(plugin_id: String) -> crate::Result<Option<PluginSettings>> {
     let lazy_locator = LazyLocator::get().await?;
 
@@ -111,4 +162,18 @@ pub async fn edit_settings(
             .execute(plugin_id, edit_settings)
             .await?,
     )
+}
+
+pub async fn list_importers() -> crate::Result<Vec<CapabilityEntry<ImporterCapability>>> {
+    let lazy_locator = LazyLocator::get().await?;
+
+    Ok(
+        ListImportersUseCase::new(lazy_locator.get_importers_registry().await)
+            .execute()
+            .await?,
+    )
+}
+
+pub async fn get_api_version() -> crate::Result<semver::Version> {
+    Ok(GetPluginApiVersionUseCase::default().execute().await?)
 }
