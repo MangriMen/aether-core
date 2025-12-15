@@ -4,28 +4,39 @@ use std::{
 };
 
 use crate::features::{
+    events::{EventEmitter, EventEmitterExt, PluginEventType},
     plugins::{Plugin, PluginError, PluginLoader, PluginRegistry, PluginStorage},
     settings::SettingsStorage,
 };
 
 use super::DisablePluginUseCase;
 
-pub struct SyncPluginsUseCase<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> {
+pub struct SyncPluginsUseCase<
+    PS: PluginStorage,
+    SS: SettingsStorage,
+    PL: PluginLoader,
+    E: EventEmitter,
+> {
     plugin_storage: Arc<PS>,
-    plugin_registry: Arc<PluginRegistry>,
-    disable_plugin_use_case: DisablePluginUseCase<SS, PL>,
+    plugin_registry: Arc<PluginRegistry<E>>,
+    disable_plugin_use_case: DisablePluginUseCase<SS, PL, E>,
+    event_emitter: Arc<E>,
 }
 
-impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCase<PS, SS, PL> {
+impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader, E: EventEmitter>
+    SyncPluginsUseCase<PS, SS, PL, E>
+{
     pub fn new(
         plugin_storage: Arc<PS>,
-        plugin_registry: Arc<PluginRegistry>,
-        disable_plugin_use_case: DisablePluginUseCase<SS, PL>,
+        plugin_registry: Arc<PluginRegistry<E>>,
+        disable_plugin_use_case: DisablePluginUseCase<SS, PL, E>,
+        event_emitter: Arc<E>,
     ) -> Self {
         Self {
             plugin_storage,
             plugin_registry,
             disable_plugin_use_case,
+            event_emitter,
         }
     }
 
@@ -124,15 +135,31 @@ impl<PS: PluginStorage, SS: SettingsStorage, PL: PluginLoader> SyncPluginsUseCas
     }
 
     async fn remove_plugin(&self, plugin_id: &str) -> Result<(), PluginError> {
-        self.disable_plugin_use_case
+        let disable_result = self
+            .disable_plugin_use_case
             .execute(plugin_id.to_string())
-            .await?;
+            .await;
+
+        if let Err(err) = disable_result {
+            match err {
+                PluginError::NotFound { plugin_id }
+                | PluginError::AlreadyUnloaded { plugin_id } => {
+                    log::debug!("Plugin {} was already disabled", plugin_id);
+                }
+                _ => return Err(err),
+            }
+        }
+
         self.plugin_registry.remove(plugin_id);
         Ok(())
     }
 
     pub async fn execute(&self) -> Result<(), PluginError> {
         let found_plugins = self.plugin_storage.list().await?;
-        self.sync_plugins(found_plugins).await
+        self.sync_plugins(found_plugins).await?;
+        self.event_emitter
+            .emit_plugin_safe(PluginEventType::Sync)
+            .await;
+        Ok(())
     }
 }

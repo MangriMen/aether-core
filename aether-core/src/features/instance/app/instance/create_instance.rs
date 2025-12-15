@@ -4,8 +4,6 @@ use std::{
 };
 
 use chrono::Utc;
-use extism::{FromBytes, ToBytes};
-use extism_convert::{encoding, Json};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
@@ -27,8 +25,7 @@ use crate::{
     shared::create_dir_all,
 };
 
-#[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
-#[encoding(Json)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewInstance {
     pub name: String,

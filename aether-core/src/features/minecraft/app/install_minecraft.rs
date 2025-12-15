@@ -56,6 +56,8 @@ impl<
         RC: RequestClient,
     > InstallMinecraftUseCase<MS, MD, PS, JIS, JS, RC>
 {
+    // TODO: try to decrease arguments count
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         progress_service: Arc<PS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
@@ -78,6 +80,8 @@ impl<
         }
     }
 
+    // TODO: try to decrease arguments count
+    #[allow(clippy::too_many_arguments)]
     async fn run_mod_loader_post_install(
         &self,
         game_version: String,

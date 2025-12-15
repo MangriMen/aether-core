@@ -62,7 +62,7 @@ impl<PS: ProgressService, RC: RequestClient> AzulJreProvider<PS, RC> {
         packages
             .first()
             .cloned()
-            .ok_or_else(|| JavaError::JavaDownloadNotFound {
+            .ok_or_else(|| JavaError::VersionNotAvailable {
                 version,
                 os: std::env::consts::OS.to_owned(),
                 arch: std::env::consts::ARCH.to_owned(),

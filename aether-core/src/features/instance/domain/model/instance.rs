@@ -1,8 +1,4 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Utc};
-use extism::{FromBytes, ToBytes};
-use extism_convert::{encoding, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
@@ -10,16 +6,7 @@ use crate::features::{
     settings::{Hooks, MemorySettings, WindowSize},
 };
 
-use super::{ContentType, InstanceInstallStage};
-
-#[derive(Serialize, Deserialize, Clone, Debug, FromBytes)]
-#[encoding(Json)]
-#[serde(rename_all = "camelCase")]
-pub struct PackInfo {
-    pub pack_type: String,
-    pub pack_version: String,
-    pub can_update: bool,
-}
+use super::{InstanceInstallStage, PackInfo};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -57,18 +44,4 @@ pub struct Instance {
     pub hooks: Hooks,
 
     pub pack_info: Option<PackInfo>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, ToBytes)]
-#[encoding(Json)]
-#[serde(rename_all = "camelCase")]
-pub struct InstanceFile {
-    pub hash: String,
-    pub name: Option<String>,
-    pub file_name: String,
-    pub size: u64,
-    pub content_type: ContentType,
-    pub path: String,
-    pub disabled: bool,
-    pub update: Option<HashMap<String, toml::Value>>,
 }

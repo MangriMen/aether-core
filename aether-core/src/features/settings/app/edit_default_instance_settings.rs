@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use extism::{FromBytes, ToBytes};
-use extism_convert::{encoding, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::features::settings::{
@@ -73,8 +71,7 @@ fn apply_edit_changes(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
-#[encoding(Json)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EditDefaultInstanceSettings {
     pub launch_args: Option<Vec<String>>,

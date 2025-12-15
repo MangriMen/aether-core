@@ -3,12 +3,9 @@ use std::{
     str::FromStr,
 };
 
-use extism::FromBytes;
-use extism_convert::{encoding, Json};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, FromBytes)]
-#[encoding(Json)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SerializableCommand {
     pub program: String,
     pub args: Vec<String>,

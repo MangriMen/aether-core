@@ -136,7 +136,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
                     .fetch_bytes(Request::get(&artifact.url))
                     .await
                     .map_err(|err| {
-                        IoError::IOError(std::io::Error::new(
+                        IoError::IoError(std::io::Error::new(
                             std::io::ErrorKind::NetworkUnreachable,
                             err,
                         ))
@@ -176,7 +176,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
             }
             Err(err) => {
                 log::error!("Failed downloading java library \"{}\"", &library.name,);
-                Ok(Err(IoError::IOError(std::io::Error::new(
+                Ok(Err(IoError::IoError(std::io::Error::new(
                     std::io::ErrorKind::NetworkUnreachable,
                     err,
                 )))?)
@@ -210,7 +210,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
                     .fetch_bytes(Request::get(&native.url))
                     .await
                     .map_err(|err| {
-                        IoError::IOError(std::io::Error::new(
+                        IoError::IoError(std::io::Error::new(
                             std::io::ErrorKind::NetworkUnreachable,
                             err,
                         ))

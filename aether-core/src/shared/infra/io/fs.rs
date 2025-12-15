@@ -2,36 +2,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs::ReadDir;
 
-#[derive(Debug, thiserror::Error)]
-pub enum IoError {
-    #[error("{source}, path: {path}")]
-    IOPathError {
-        #[source]
-        source: std::io::Error,
-        path: String,
-    },
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-
-    #[error("Serialization error: {0}")]
-    SerializationError(String),
-
-    #[error("Deserialization error: {0}")]
-    DeserializationError(String),
-}
-
-impl IoError {
-    pub fn from(source: std::io::Error) -> Self {
-        Self::IOError(source)
-    }
-
-    pub fn with_path(source: std::io::Error, path: impl AsRef<Path>) -> Self {
-        Self::IOPathError {
-            source,
-            path: path.as_ref().to_string_lossy().to_string(),
-        }
-    }
-}
+use crate::shared::io::error::IoError;
 
 // Bytes
 
@@ -167,4 +138,21 @@ pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir, IoError> {
     tokio::fs::read_dir(path_ref)
         .await
         .map_err(|e| IoError::with_path(e, path_ref))
+}
+
+pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), IoError> {
+    std::fs::create_dir_all(&dst)?;
+
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let dst_path = dst.as_ref().join(entry.file_name());
+
+        if file_type.is_dir() {
+            copy_dir_all(entry.path(), dst_path)?;
+        } else {
+            std::fs::copy(entry.path(), dst_path)?;
+        }
+    }
+    Ok(())
 }

@@ -10,4 +10,8 @@ pub trait EventEmitter: Send + Sync {
         event: &str,
         payload: P,
     ) -> Result<(), EventError>;
+
+    fn listen<F, T>(&self, event: impl Into<String>, handler: F)
+    where
+        F: Fn(String) + Send + 'static;
 }

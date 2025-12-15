@@ -19,7 +19,6 @@ pub async fn create_offline_account(username: String) -> crate::Result<AccountOu
     )
 }
 
-#[tracing::instrument]
 pub async fn get_accounts() -> crate::Result<Vec<AccountOutput>> {
     let lazy_locator = LazyLocator::get().await?;
 

@@ -32,10 +32,10 @@ impl<PS: PackStorage, CP: ContentProvider> InstallContentUseCase<PS, CP> {
         self.pack_storage
             .update_pack_file(
                 &instance_id,
-                &instance_file.path,
+                &instance_file.instance_relative_path,
                 &PackFile {
                     name: instance_file.name.clone(),
-                    file_name: instance_file.file_name.clone(),
+                    file_name: instance_file.filename.clone(),
                     hash: instance_file.hash,
                     download: None,
                     option: None,

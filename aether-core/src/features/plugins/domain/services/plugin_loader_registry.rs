@@ -15,14 +15,10 @@ impl<PL: PluginLoader> PluginLoaderRegistry<PL> {
     pub fn get(&self, load_config_type: &LoadConfigType) -> Result<&PL, PluginError> {
         self.loaders
             .get(load_config_type)
-            .ok_or(PluginError::LoaderNotFoundError {
-                load_config_type: *load_config_type,
+            .ok_or(PluginError::LoaderNotFound {
+                config_type: *load_config_type,
             })
     }
-
-    // pub fn list(&self) -> HashMap<LoadConfigType, String> {
-    //     self.loaders.keys().collect()
-    // }
 
     pub fn register(&mut self, load_config_type: LoadConfigType, provider: PL) {
         self.loaders.insert(load_config_type, provider);

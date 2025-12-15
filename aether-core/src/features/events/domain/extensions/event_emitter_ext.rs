@@ -3,8 +3,8 @@ use log::debug;
 use uuid::Uuid;
 
 use crate::features::events::{
-    EventEmitter, EventError, InstanceEvent, InstanceEventType, LauncherEvent, ProcessEvent,
-    ProcessEventType, WarningEvent,
+    EventEmitter, EventError, InstanceEvent, InstanceEventType, LauncherEvent, PluginEvent,
+    PluginEventType, ProcessEvent, ProcessEventType, WarningEvent,
 };
 
 #[async_trait]
@@ -40,6 +40,11 @@ pub trait EventEmitterExt: EventEmitter {
         .await
     }
 
+    async fn emit_plugin(&self, event: PluginEventType) -> Result<(), EventError> {
+        self.emit(LauncherEvent::Plugin.as_str(), PluginEvent { event })
+            .await
+    }
+
     async fn emit_warning(&self, message: String) -> Result<(), EventError> {
         self.emit(LauncherEvent::Warning.as_str(), WarningEvent { message })
             .await
@@ -69,6 +74,12 @@ pub trait EventEmitterExt: EventEmitter {
             .await
         {
             debug!("Failed to emit process: {e}")
+        }
+    }
+
+    async fn emit_plugin_safe(&self, event: PluginEventType) {
+        if let Err(e) = self.emit_plugin(event).await {
+            debug!("Failed to emit plugin: {e}")
         }
     }
 }

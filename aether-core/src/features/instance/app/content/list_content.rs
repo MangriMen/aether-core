@@ -9,7 +9,7 @@ use path_slash::PathBufExt;
 
 use crate::{
     features::{
-        instance::{ContentType, InstanceError, InstanceFile, PackEntry, PackFile, PackStorage},
+        instance::{ContentFile, ContentType, InstanceError, PackEntry, PackFile, PackStorage},
         settings::LocationInfo,
     },
     shared::{read_async, sha1_async, IoError},
@@ -26,6 +26,29 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
             pack_storage,
             location_info,
         }
+    }
+
+    pub async fn execute(
+        &self,
+        instance_id: String,
+    ) -> Result<DashMap<String, ContentFile>, InstanceError> {
+        let instance_dir = self.location_info.instance_dir(&instance_id);
+
+        let entries_by_path = self.get_entries_by_path(&instance_id).await?;
+
+        let mut files = DashMap::new();
+        for content_type in ContentType::iterator() {
+            self.process_content_directory(
+                &instance_id,
+                &instance_dir,
+                content_type,
+                &entries_by_path,
+                &mut files,
+            )
+            .await?
+        }
+
+        Ok(files)
     }
 
     async fn get_entries_by_path(
@@ -47,7 +70,7 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         instance_dir: &Path,
         content_type: ContentType,
         entries_by_path: &DashMap<String, PackEntry>,
-        files: &mut DashMap<String, InstanceFile>,
+        files: &mut DashMap<String, ContentFile>,
     ) -> Result<(), InstanceError> {
         let content_dir = instance_dir.join(content_type.get_folder());
 
@@ -68,7 +91,7 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
                 .process_content_file(instance_id, &entry_path, content_type, entries_by_path)
                 .await?
             {
-                files.insert(file.path.clone(), file);
+                files.insert(file.instance_relative_path.clone(), file);
             }
         }
 
@@ -81,7 +104,7 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
         file_path: &Path,
         content_type: ContentType,
         entries_by_path: &DashMap<String, PackEntry>,
-    ) -> Result<Option<InstanceFile>, InstanceError> {
+    ) -> Result<Option<ContentFile>, InstanceError> {
         let file_name = match file_path.file_name().and_then(|n| n.to_str()) {
             Some(name) => name,
             None => return Ok(None),
@@ -95,6 +118,10 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
             .to_string();
 
         let pack_file_path = original_path.trim_end_matches(".disabled").to_string();
+        let non_disabled_file_name = PathBuf::from(pack_file_path.clone())
+            .file_name()
+            .map(|x| x.to_string_lossy().to_string())
+            .unwrap_or(file_name.to_string());
 
         let pack_file = match entries_by_path.get(&pack_file_path) {
             Some(entry) => {
@@ -111,39 +138,17 @@ impl<PS: PackStorage> ListContentUseCase<PS> {
             }
         };
 
-        Ok(Some(InstanceFile {
+        Ok(Some(ContentFile {
+            content_path: pack_file_path,
             name: pack_file.name,
             hash: pack_file.hash,
-            file_name: file_name.to_string(),
+            filename: non_disabled_file_name,
             content_type,
             size: file_size,
             disabled: file_name.ends_with(".disabled"),
-            path: original_path,
+            instance_relative_path: original_path,
             update: pack_file.update,
         }))
-    }
-
-    pub async fn execute(
-        &self,
-        instance_id: String,
-    ) -> Result<DashMap<String, InstanceFile>, InstanceError> {
-        let instance_dir = self.location_info.instance_dir(&instance_id);
-
-        let entries_by_path = self.get_entries_by_path(&instance_id).await?;
-
-        let mut files = DashMap::new();
-        for content_type in ContentType::iterator() {
-            self.process_content_directory(
-                &instance_id,
-                &instance_dir,
-                content_type,
-                &entries_by_path,
-                &mut files,
-            )
-            .await?
-        }
-
-        Ok(files)
     }
 }
 
