@@ -1,8 +1,7 @@
 use daedalus::modded;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ModLoader {
     Vanilla,

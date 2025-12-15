@@ -1,4 +1,4 @@
-use crate::features::plugins::{PluginError, PluginImportInstance};
+use crate::features::plugins::PluginError;
 
 pub trait PluginInstance: Send + Sync {
     fn get_id(&self) -> String;
@@ -35,36 +35,3 @@ pub trait PluginInstanceExt: PluginInstance {
 }
 
 impl<T: PluginInstance + ?Sized> PluginInstanceExt for T {}
-
-#[derive(Debug, Clone, Copy)]
-pub enum PluginFunction {
-    Import,
-    Update,
-}
-
-impl PluginFunction {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PluginFunction::Import => "import",
-            PluginFunction::Update => "update",
-        }
-    }
-}
-
-pub trait DefaultPluginInstanceFunctionsExt: PluginInstance {
-    fn supports_import(&mut self) -> bool {
-        self.supports(PluginFunction::Import.as_str())
-    }
-    fn import(&mut self, import_instance: PluginImportInstance) -> Result<(), PluginError> {
-        self.call(PluginFunction::Import.as_str(), import_instance)
-    }
-
-    fn supports_update(&mut self) -> bool {
-        self.supports(PluginFunction::Update.as_str())
-    }
-    fn update(&mut self, instance_id: &str) -> Result<(), PluginError> {
-        self.call(PluginFunction::Update.as_str(), instance_id)
-    }
-}
-
-impl<T: PluginInstance + ?Sized> DefaultPluginInstanceFunctionsExt for T {}

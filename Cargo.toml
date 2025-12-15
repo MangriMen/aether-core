@@ -1,8 +1,3 @@
 [workspace]
 resolver = "2"
-members = [
-  "aether-core",
-  "aether-core-gen",
-  "register-schema",
-  "register-schema-derive",
-]
+members = ["aether-core", "aether-core-plugin-api"]

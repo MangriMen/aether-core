@@ -1,4 +1,6 @@
-use crate::features::{instance::PackInfo, plugins::v0::PackInfoDto};
+use aether_core_plugin_api::v0::PackInfoDto;
+
+use crate::features::instance::PackInfo;
 
 impl From<PackInfoDto> for PackInfo {
     fn from(value: PackInfoDto) -> Self {

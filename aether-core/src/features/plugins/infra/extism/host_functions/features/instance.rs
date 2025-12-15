@@ -1,16 +1,11 @@
+use aether_core_plugin_api::v0::{ContentFileDto, NewInstanceDto};
 use dashmap::DashMap;
 use extism::{convert::Msgpack, host_fn};
 use path_slash::PathBufExt;
 
 use crate::{
     core::LauncherState,
-    features::{
-        instance::{ContentFile, NewInstance},
-        plugins::{
-            extism::{host_functions::PluginContext, mappers::to_extism_res},
-            v0::NewInstanceDto,
-        },
-    },
+    features::plugins::extism::{host_functions::PluginContext, mappers::to_extism_res},
     shared::execute_async,
 };
 
@@ -52,21 +47,25 @@ pub instance_plugin_get_dir(user_data: PluginContext; instance_id: String) -> Ho
 host_fn!(
     pub instance_create(
         user_data: PluginContext;
-        new_instance: NewInstanceDto
+        new_instance_dto: Msgpack<NewInstanceDto>
     ) -> HostResult<String> {
         to_extism_res::<String>(
             execute_async(async move {
-                crate::api::instance::create(NewInstance::from(new_instance)).await
+                crate::api::instance::create(new_instance_dto.0.into()).await
             })
         )
     }
 );
 
 host_fn!(
-pub list_content(user_data: PluginContext; id: String) -> HostResult<DashMap<String, ContentFile>> {
-    to_extism_res::<DashMap<String, ContentFile>>(
+pub list_content(user_data: PluginContext; id: String) -> HostResult<DashMap<String, ContentFileDto>> {
+    to_extism_res::<DashMap<String, ContentFileDto>>(
         execute_async(async move {
             crate::api::instance::list_content(id).await
+                .map(|map| map.into_iter()
+                    .map(|(key, content)| (key, content.into()))
+                    .collect()
+                )
         })
     )
 });

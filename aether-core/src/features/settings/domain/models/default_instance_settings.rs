@@ -1,4 +1,3 @@
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -17,7 +16,7 @@ pub struct DefaultInstanceSettings {
 ///
 /// Used to define the maximum amount of memory that can be allocated
 /// to the JVM when launching a game.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct MemorySettings {
     /// Maximum amount of RAM in megabytes.
@@ -35,7 +34,7 @@ impl Default for MemorySettings {
 /// A 2D size, represented by a tuple of two integers
 ///
 /// First is the width, second is the height of the window (width, height)
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct WindowSize(pub u16, pub u16);
 
 impl Default for WindowSize {
@@ -54,7 +53,7 @@ impl Default for WindowSize {
 ///   during the game's execution.
 /// - `post_exit`: An optional string representing a command or script to be executed
 ///   after the game exits.
-#[derive(Serialize, Deserialize, Debug, Clone, Default, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Hooks {
     pub pre_launch: Option<String>,

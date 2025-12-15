@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::ContentType;
+use super::ContentTypeDto;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ContentFile {
+pub struct ContentFileDto {
     pub content_path: String,
-    pub content_type: ContentType,
+    pub content_type: ContentTypeDto,
     pub disabled: bool,
     pub filename: String,
     pub hash: String,

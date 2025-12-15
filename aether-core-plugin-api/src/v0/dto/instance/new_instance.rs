@@ -1,11 +1,8 @@
-use extism::{FromBytes, ToBytes};
-use extism_convert::{encoding, Msgpack};
 use serde::{Deserialize, Serialize};
 
-use crate::features::plugins::v0::{LoaderVersionPreferenceDto, ModLoaderDto, PackInfoDto};
+use crate::v0::{LoaderVersionPreferenceDto, ModLoaderDto, PackInfoDto};
 
-#[derive(Serialize, Deserialize, FromBytes, ToBytes)]
-#[encoding(Msgpack)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewInstanceDto {
     pub name: String,

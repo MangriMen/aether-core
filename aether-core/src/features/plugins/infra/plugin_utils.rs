@@ -3,6 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use aether_core_plugin_api::v0::CommandDto;
+
 use crate::{
     features::{plugins::PluginError, settings::LocationInfo},
     shared::{domain::SerializableCommand, IoError},
@@ -120,7 +122,7 @@ pub fn plugin_path_to_host_from_path(
 
 pub fn plugin_command_to_host(
     id: &str,
-    command: &SerializableCommand,
+    command: &CommandDto,
     location_info: &LocationInfo,
 ) -> Result<SerializableCommand, PluginError> {
     let resolved_program = plugin_path_to_host(id, &command.program, location_info)

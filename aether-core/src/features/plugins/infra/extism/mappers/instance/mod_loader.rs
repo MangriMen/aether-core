@@ -1,4 +1,6 @@
-use crate::features::{minecraft::ModLoader, plugins::v0::ModLoaderDto};
+use aether_core_plugin_api::v0::ModLoaderDto;
+
+use crate::features::minecraft::ModLoader;
 
 impl From<ModLoaderDto> for ModLoader {
     fn from(value: ModLoaderDto) -> Self {

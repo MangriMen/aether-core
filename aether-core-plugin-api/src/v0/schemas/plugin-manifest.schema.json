@@ -2,21 +2,11 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PluginManifest",
   "type": "object",
-  "required": [
-    "metadata",
-    "runtime",
-    "load",
-    "api"
-  ],
+  "required": ["metadata", "runtime", "load", "api"],
   "properties": {
     "metadata": {
       "type": "object",
-      "required": [
-        "id",
-        "name",
-        "version",
-        "authors"
-      ],
+      "required": ["id", "name", "version", "authors"],
       "properties": {
         "id": {
           "type": "string",
@@ -77,9 +67,7 @@
     },
     "load": {
       "type": "object",
-      "required": [
-        "type"
-      ],
+      "required": ["type"],
       "properties": {
         "type": {
           "type": "string"
@@ -95,37 +83,25 @@
               "type": "string"
             },
             "memoryLimit": {
-              "type": [
-                "integer",
-                "null"
-              ]
+              "type": ["integer", "null"]
             }
           },
-          "required": [
-            "file"
-          ]
+          "required": ["file"]
         },
         {
           "properties": {
-            "type": {
-              "const": "native"
-            },
             "lib_path": {
               "type": "string"
             }
           },
-          "required": [
-            "libPath"
-          ]
+          "required": ["libPath"]
         }
       ],
       "additionalProperties": true
     },
     "api": {
       "type": "object",
-      "required": [
-        "version"
-      ],
+      "required": ["version"],
       "properties": {
         "version": {
           "type": "string"

@@ -1,6 +1,6 @@
-use crate::features::{
-    minecraft::LoaderVersionPreference, plugins::v0::LoaderVersionPreferenceDto,
-};
+use aether_core_plugin_api::v0::LoaderVersionPreferenceDto;
+
+use crate::features::minecraft::LoaderVersionPreference;
 
 impl From<LoaderVersionPreferenceDto> for LoaderVersionPreference {
     fn from(value: LoaderVersionPreferenceDto) -> Self {

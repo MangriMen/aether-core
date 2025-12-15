@@ -1,9 +1,6 @@
-use extism::FromBytes;
-use extism_convert::{encoding, Msgpack};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, FromBytes)]
-#[encoding(Msgpack)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackInfoDto {
     pub plugin_id: String,

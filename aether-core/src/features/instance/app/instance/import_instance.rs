@@ -7,8 +7,8 @@ use crate::features::{
     events::EventEmitter,
     instance::InstanceError,
     plugins::{
-        CapabilityRegistry, DefaultPluginInstanceFunctionsExt, ImporterCapability,
-        PluginImportInstance, PluginRegistry, PluginState,
+        CapabilityRegistry, ImporterCapability, PluginImportInstance, PluginInstanceExt,
+        PluginRegistry, PluginState,
     },
 };
 
@@ -51,7 +51,8 @@ impl<E: EventEmitter, IR: CapabilityRegistry<ImporterCapability>> ImportInstance
         importer_id: String,
         path: &str,
     ) -> Result<(), InstanceError> {
-        self.importers_registry
+        let capability_entry = self
+            .importers_registry
             .find_by_plugin_and_capability_id(plugin_id.clone(), importer_id.clone())
             .await
             .map_err(|_| InstanceError::ImporterNotFound {
@@ -76,7 +77,9 @@ impl<E: EventEmitter, IR: CapabilityRegistry<ImporterCapability>> ImportInstance
 
         let mut plugin_guard = instance.lock().await;
 
-        if !plugin_guard.supports_import() {
+        let import_handler = &capability_entry.capability.handler;
+
+        if !plugin_guard.supports(import_handler) {
             tracing::debug!("Error importing instance (plugin doesn't supports import)");
 
             return Err(InstanceError::ImporterNotFound {
@@ -85,10 +88,13 @@ impl<E: EventEmitter, IR: CapabilityRegistry<ImporterCapability>> ImportInstance
         }
 
         plugin_guard
-            .import(PluginImportInstance {
-                importer_id: importer_id.to_owned(),
-                path: PathBuf::from(path).to_slash_lossy().to_string(),
-            })
+            .call(
+                import_handler,
+                PluginImportInstance {
+                    importer_id: importer_id.to_owned(),
+                    path: PathBuf::from(path).to_slash_lossy().to_string(),
+                },
+            )
             .map_err(|err| {
                 tracing::debug!("Error importing instance: {:?}", err);
                 InstanceError::ImportFailed {

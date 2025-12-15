@@ -1,9 +1,6 @@
-use extism::ToBytes;
-use extism_convert::{encoding, Json};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToBytes)]
-#[encoding(Json)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum PluginInternalEvent {
     BeforeInstanceLaunch { instance_id: String },
     AfterInstanceLaunch { instance_id: String },

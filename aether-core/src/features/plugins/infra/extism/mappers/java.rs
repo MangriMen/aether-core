@@ -1,5 +1,6 @@
+use aether_core_plugin_api::v0::JavaDto;
+
 use crate::features::java::Java;
-use crate::features::plugins::infra::plugin_api::v0::JavaDto;
 
 impl From<Java> for JavaDto {
     fn from(java: Java) -> Self {

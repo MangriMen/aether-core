@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use extism::{FromBytes, ToBytes};
-use extism_convert::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
@@ -10,8 +8,7 @@ use crate::features::{
     settings::{EditHooks, MemorySettings, WindowSize},
 };
 
-#[derive(Debug, Serialize, Deserialize, FromBytes, ToBytes)]
-#[encoding(Json)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EditInstance {
     pub name: Option<String>,

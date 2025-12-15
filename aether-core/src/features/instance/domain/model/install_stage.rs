@@ -1,10 +1,8 @@
 use std::str::FromStr;
 
-use register_schema_derive::RegisterSchema;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, PartialEq, JsonSchema, RegisterSchema)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum InstanceInstallStage {
     /// Instance is installed

@@ -6,8 +6,7 @@ use crate::features::{
         InstanceError, InstanceInstallStage, InstanceStorage, InstanceStorageExt, PackInfo,
     },
     plugins::{
-        CapabilityRegistry, DefaultPluginInstanceFunctionsExt, PluginRegistry, PluginState,
-        UpdaterCapability,
+        CapabilityRegistry, PluginInstanceExt, PluginRegistry, PluginState, UpdaterCapability,
     },
 };
 
@@ -79,7 +78,8 @@ impl<IS: InstanceStorage, E: EventEmitter, UR: CapabilityRegistry<UpdaterCapabil
         let modpack_id = pack_info.modpack_id.clone();
         let plugin_id = pack_info.plugin_id.clone();
 
-        self.importers_registry
+        let capability_entry = self
+            .importers_registry
             .find_by_plugin_and_capability_id(plugin_id.clone(), modpack_id.clone())
             .await
             .map_err(|_| InstanceError::UpdaterNotFound {
@@ -104,7 +104,9 @@ impl<IS: InstanceStorage, E: EventEmitter, UR: CapabilityRegistry<UpdaterCapabil
 
         let mut plugin_guard = plugin_instance.lock().await;
 
-        if !plugin_guard.supports_update() {
+        let update_handler = &capability_entry.capability.handler;
+
+        if !plugin_guard.supports(update_handler) {
             tracing::debug!("Error updating instance (plugin doesn't supports update)");
 
             return Err(InstanceError::UpdaterNotFound {
@@ -112,11 +114,13 @@ impl<IS: InstanceStorage, E: EventEmitter, UR: CapabilityRegistry<UpdaterCapabil
             });
         }
 
-        plugin_guard.update(instance_id).map_err(|err| {
-            tracing::debug!("Error updating instance: {:?}", err);
-            InstanceError::UpdateFailed {
-                modpack_id: modpack_id.clone(),
-            }
-        })
+        plugin_guard
+            .call(update_handler, instance_id)
+            .map_err(|err| {
+                tracing::debug!("Error updating instance: {:?}", err);
+                InstanceError::UpdateFailed {
+                    modpack_id: modpack_id.clone(),
+                }
+            })
     }
 }

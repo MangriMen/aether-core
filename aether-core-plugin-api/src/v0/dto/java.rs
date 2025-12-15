@@ -1,9 +1,6 @@
-use extism::ToBytes;
-use extism_convert::{encoding, Msgpack};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, ToBytes)]
-#[encoding(Msgpack)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JavaDto {
     pub major_version: u32,
     pub version: String,

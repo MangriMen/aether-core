@@ -1,4 +1,6 @@
-use crate::features::{instance::NewInstance, plugins::v0::NewInstanceDto};
+use aether_core_plugin_api::v0::NewInstanceDto;
+
+use crate::features::instance::NewInstance;
 
 impl From<NewInstanceDto> for NewInstance {
     fn from(value: NewInstanceDto) -> Self {

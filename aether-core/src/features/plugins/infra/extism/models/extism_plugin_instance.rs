@@ -21,33 +21,31 @@ impl PluginInstance for ExtismPluginInstance {
     }
 
     fn on_load(&mut self) -> Result<(), PluginError> {
-        if !self.supports("on_load") {
+        let handle = "on_load";
+
+        if !self.supports(handle) {
             return Ok(());
         }
 
-        self.call("on_load", ())
+        self.call(handle, ())
     }
     fn on_unload(&mut self) -> Result<(), PluginError> {
-        if !self.supports("on_unload") {
+        let handle = "on_unload";
+
+        if !self.supports(handle) {
             return Ok(());
         }
 
-        self.call("on_load", ())
+        self.call(handle, ())
     }
 
     fn call_bytes<'b>(&'b mut self, name: &str, args: &[u8]) -> Result<&'b [u8], PluginError> {
-        self.inner.call(name, args).map_err(|e| PluginError::FunctionCallFailed {
-            function_name: name.to_owned(),
-            plugin_id: self.id.to_owned(),
-            error: e.to_string(),
-        })
+        self.inner
+            .call(name, args)
+            .map_err(|e| PluginError::FunctionCallFailed {
+                function_name: name.to_owned(),
+                plugin_id: self.id.to_owned(),
+                error: e.to_string(),
+            })
     }
-
-    // fn supports_handle_events(&self) -> bool {
-    //     self.supports("handle_event")
-    // }
-
-    // fn handle_event(&mut self, event: &PluginEvent) -> Result<(), PluginError> {
-    //     self.call::<PluginEvent, ()>("handle_event", event.clone())
-    // }
 }

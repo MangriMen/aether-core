@@ -1,12 +1,17 @@
+use aether_core_plugin_api::v0::{CommandDto, OutputDto};
 use extism::host_fn;
+use extism_convert::Msgpack;
 
 use crate::{
     core::LauncherState,
     features::plugins::{
-        extism::{host_functions::PluginContext, mappers::to_extism_res},
-        plugin_utils, SerializableOutput,
+        extism::{
+            host_functions::PluginContext,
+            mappers::{to_extism_res, OutputDtoExt},
+        },
+        plugin_utils,
     },
-    shared::{execute_async, SerializableCommand},
+    shared::execute_async,
 };
 
 host_fn!(
@@ -27,14 +32,16 @@ pub get_id(user_data: PluginContext;) -> String {
 });
 
 host_fn!(
-pub run_command(user_data: PluginContext; command: SerializableCommand) -> HostResult<SerializableOutput> {
+pub run_command(user_data: PluginContext; command: Msgpack<CommandDto>) -> HostResult<OutputDto> {
     let context = user_data.get()?;
     let id = context.lock().map_err(|_| anyhow::Error::msg("Failed to lock plugin context"))?.id.clone();
+
+    let command = command.0;
 
     let command_for_log = command.clone();
     log::debug!("Processing command from plugin: {:?}", command_for_log);
 
-    to_extism_res::<SerializableOutput>(
+    to_extism_res::<OutputDto>(
         execute_async(async move {
             let id = id.clone();
             let command = command.clone();
@@ -54,7 +61,7 @@ pub run_command(user_data: PluginContext; command: SerializableCommand) -> HostR
                         return Err(crate::ErrorKind::CoreError("Command execution failed".to_string()).as_error());
                     }
 
-                    Ok(SerializableOutput::from_output(&output))
+                    Ok(OutputDto::from_output(&output))
                 },
                 Err(err) => {
                     log::debug!("Update command run error {:?}", err);
