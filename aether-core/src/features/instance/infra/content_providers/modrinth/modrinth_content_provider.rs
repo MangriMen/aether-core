@@ -142,19 +142,20 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
 
 #[async_trait]
 impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
+    fn get_name(&self) -> String {
+        "Modrinth".into()
+    }
+
     async fn search(
         &self,
-        search_params: &ContentSearchParams,
+        params: &ContentSearchParams,
     ) -> Result<ContentSearchResult, InstanceError> {
-        let project_search_params = ProjectSearchParams::try_from(search_params.clone())
+        let search = ProjectSearchParams::try_from(params.clone())
             .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))?;
 
-        let project_search_response = self.api.search(&project_search_params).await?;
+        let response = self.api.search(&search).await?;
 
-        Ok(modrinth_to_content_response(
-            search_params,
-            &project_search_response,
-        ))
+        Ok(modrinth_to_content_response(params, &response))
     }
 
     async fn install(
@@ -185,6 +186,6 @@ impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
     }
 
     fn get_update_data_id_field(&self) -> String {
-        "project_id".to_string()
+        "project_id".into()
     }
 }
