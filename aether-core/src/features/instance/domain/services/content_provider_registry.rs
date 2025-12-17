@@ -22,8 +22,8 @@ impl<CP: ContentProvider> ContentProviderRegistry<CP> {
 
     pub fn list(&self) -> HashMap<String, String> {
         self.providers
-            .keys()
-            .map(|k| (k.to_uppercase(), k.to_string()))
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.get_name()))
             .collect()
     }
 

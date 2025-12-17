@@ -66,6 +66,43 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
             .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))
     }
 
+    fn find_best_version(
+        &self,
+        response: &ListProjectsVersionsResponse,
+        game_version: &str,
+        loader: &Option<String>,
+    ) -> Option<ProjectVersionResponse> {
+        response
+            .iter()
+            .filter(|v| {
+                let is_right_game_version = v.game_versions.contains(&game_version.to_string());
+                let is_right_loader = loader
+                    .clone()
+                    .map(|loader| v.loaders.contains(&loader))
+                    .unwrap_or(true);
+
+                is_right_game_version && is_right_loader
+            })
+            .max_by(|a, b| {
+                // Compare by version type (stability)
+                let stability_priority = |version_type: &str| match version_type {
+                    "release" => 3,
+                    "beta" => 2,
+                    "alpha" => 1,
+                    _ => 0,
+                };
+
+                let a_stability = stability_priority(&a.version_type);
+                let b_stability = stability_priority(&b.version_type);
+
+                // Get newest by date if version type equals
+                a_stability
+                    .cmp(&b_stability)
+                    .then(a.date_published.cmp(&b.date_published))
+            })
+            .cloned()
+    }
+
     pub async fn get_project_version_for_game_version(
         &self,
         project_id: &str,
@@ -94,11 +131,7 @@ impl<RC: RequestClient> ModrinthApiClient<RC> {
             .await
             .map_err(|err| InstanceError::ContentDownloadError(err.to_string()))?;
 
-        let version = response
-            .iter()
-            .find(|v| v.game_versions.contains(&game_version.to_string()));
-
-        if let Some(version) = version {
+        if let Some(version) = self.find_best_version(&response, game_version, loader) {
             Ok(version.clone())
         } else {
             Err(InstanceError::ContentForGameVersionNotFound {
