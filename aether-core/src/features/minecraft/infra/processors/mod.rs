@@ -1,3 +1,3 @@
-pub mod forge_processor;
+mod forge_processor;
 
 pub use forge_processor::*;

@@ -1,6 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
-use crate::features::java::{ports::JreProvider, JavaError};
+use crate::features::java::ports::JreProvider;
+
+use super::JavaApplicationError;
 
 pub struct InstallJreUseCase<JP: JreProvider> {
     provider: Arc<JP>,
@@ -11,7 +13,11 @@ impl<JP: JreProvider> InstallJreUseCase<JP> {
         Self { provider }
     }
 
-    pub async fn execute(&self, version: u32, install_dir: PathBuf) -> Result<PathBuf, JavaError> {
-        self.provider.install(version, &install_dir).await
+    pub async fn execute(
+        &self,
+        version: u32,
+        install_dir: PathBuf,
+    ) -> Result<PathBuf, JavaApplicationError> {
+        Ok(self.provider.install(version, &install_dir).await?)
     }
 }

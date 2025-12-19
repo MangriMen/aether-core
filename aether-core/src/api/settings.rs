@@ -1,8 +1,11 @@
 use crate::{
     core::domain::LazyLocator,
     features::settings::{
-        DefaultInstanceSettings, EditDefaultInstanceSettings, EditDefaultInstanceSettingsUseCase,
-        EditSettingsUseCase, GetDefaultInstanceSettingsUseCase, GetSettingsUseCase, Settings,
+        app::{
+            EditDefaultInstanceSettings, EditDefaultInstanceSettingsUseCase, EditSettingsUseCase,
+            GetDefaultInstanceSettingsUseCase, GetSettingsUseCase,
+        },
+        DefaultInstanceSettings, Settings,
     },
 };
 

@@ -2,9 +2,11 @@ use std::sync::Arc;
 
 use crate::features::{
     events::EventEmitter,
-    plugins::{PluginError, PluginLoader, PluginStorage, SyncPluginsUseCase},
+    plugins::{PluginError, PluginLoader, PluginStorage},
     settings::SettingsStorage,
 };
+
+use super::SyncPluginsUseCase;
 
 pub struct RemovePluginUseCase<
     PS: PluginStorage,

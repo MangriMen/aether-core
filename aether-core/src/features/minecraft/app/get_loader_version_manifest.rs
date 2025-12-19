@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use crate::features::minecraft::{MinecraftError, ModLoader, ReadMetadataStorage};
+use crate::features::minecraft::{MinecraftDomainError, ModLoader, MetadataStorage};
 
-pub struct GetLoaderVersionManifestUseCase<MS: ReadMetadataStorage> {
+pub struct GetLoaderVersionManifestUseCase<MS: MetadataStorage> {
     metadata_storage: Arc<MS>,
 }
 
-impl<MS: ReadMetadataStorage> GetLoaderVersionManifestUseCase<MS> {
+impl<MS: MetadataStorage> GetLoaderVersionManifestUseCase<MS> {
     pub fn new(metadata_storage: Arc<MS>) -> Self {
         Self { metadata_storage }
     }
@@ -14,11 +14,9 @@ impl<MS: ReadMetadataStorage> GetLoaderVersionManifestUseCase<MS> {
     pub async fn execute(
         &self,
         loader: ModLoader,
-    ) -> Result<daedalus::modded::Manifest, MinecraftError> {
-        Ok(self
-            .metadata_storage
+    ) -> Result<daedalus::modded::Manifest, MinecraftDomainError> {
+        self.metadata_storage
             .get_loader_version_manifest(loader)
-            .await?
-            .value)
+            .await
     }
 }

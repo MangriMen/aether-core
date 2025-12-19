@@ -6,10 +6,11 @@ use tempfile::TempDir;
 use crate::{
     features::plugins::{
         ExtractedPlugin, PluginContent, PluginError, PluginExtractor, PluginManifest,
-        ZipPluginExtractorConstants,
     },
     shared::{read_async, IoError},
 };
+
+use super::ZipPluginExtractorConstants;
 
 #[derive(Default)]
 pub struct ZipPluginExtractor {

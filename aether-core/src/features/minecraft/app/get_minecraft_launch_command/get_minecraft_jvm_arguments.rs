@@ -4,7 +4,10 @@ use daedalus::minecraft::{self};
 
 use crate::features::{
     java::Java,
-    minecraft::{get_class_paths, get_jvm_arguments, MinecraftError},
+    minecraft::{
+        utils::{get_class_paths, get_jvm_arguments},
+        MinecraftDomainError,
+    },
     settings::MemorySettings,
 };
 
@@ -21,7 +24,7 @@ pub fn get_minecraft_jvm_arguments(
     memory: MemorySettings,
     java_args: &[String],
     minecraft_updated: bool,
-) -> Result<Vec<String>, MinecraftError> {
+) -> Result<Vec<String>, MinecraftDomainError> {
     Ok(get_jvm_arguments(
         arguments,
         natives_dir,

@@ -5,10 +5,10 @@ use futures::StreamExt;
 use crate::{
     features::{
         events::{
-            try_for_each_concurrent_with_progress, ProgressConfig, ProgressConfigWithMessage,
-            ProgressService,
+            utils::{try_for_each_concurrent_with_progress, ProgressConfigWithMessage},
+            ProgressConfig, ProgressService,
         },
-        minecraft::{parse_rules, MinecraftError},
+        minecraft::{utils::parse_rules, MinecraftDomainError},
         settings::LocationInfo,
     },
     libs::request_client::{Request, RequestClient},
@@ -44,7 +44,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         force: bool,
         minecraft_updated: bool,
         progress_config: Option<&ProgressConfig<'_>>,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         log::info!("Downloading libraries for {}", version_info.id);
 
         tokio::try_join! {
@@ -54,7 +54,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         .map_err(IoError::from)?;
 
         let libraries_stream = futures::stream::iter(libraries.iter())
-            .map(Ok::<&daedalus::minecraft::Library, MinecraftError>);
+            .map(Ok::<&daedalus::minecraft::Library, MinecraftDomainError>);
 
         let futures_count = libraries.len();
 
@@ -91,7 +91,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         java_arch: &str,
         force: bool,
         minecraft_updated: bool,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         if let Some(rules) = &library.rules {
             if !parse_rules(rules, java_arch, minecraft_updated) {
                 return Ok(());
@@ -114,7 +114,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         &self,
         library: &daedalus::minecraft::Library,
         force: bool,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         log::debug!("Downloading java library \"{}\"", &library.name);
 
         let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
@@ -190,7 +190,7 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         version_info: &daedalus::minecraft::VersionInfo,
         java_arch: &str,
         _force: bool,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         use crate::shared::OsExt;
         use daedalus::minecraft::Os;
 

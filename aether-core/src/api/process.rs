@@ -3,8 +3,11 @@ use uuid::Uuid;
 use crate::{
     core::domain::LazyLocator,
     features::process::{
-        GetProcessMetadataByInstanceIdUseCase, KillProcessUseCase, ListProcessMetadataUseCase,
-        MinecraftProcessMetadata, WaitForProcessUseCase,
+        app::{
+            GetProcessMetadataByInstanceIdUseCase, KillProcessUseCase, ListProcessMetadataUseCase,
+            WaitForProcessUseCase,
+        },
+        MinecraftProcessMetadata,
     },
 };
 

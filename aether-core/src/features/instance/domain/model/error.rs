@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        auth::AuthError, minecraft::MinecraftError, process::ProcessError, settings::SettingsError,
+        auth::AuthError, minecraft::MinecraftDomainError, process::ProcessError, settings::SettingsError,
     },
     shared::IoError,
 };
@@ -75,7 +75,7 @@ pub enum InstanceError {
 
     #[error("Failed to get launch command")]
     #[serialize_error]
-    MinecraftError(#[from] MinecraftError),
+    MinecraftError(#[from] MinecraftDomainError),
 
     #[error("Failed to launch instance")]
     #[serialize_error]

@@ -1,6 +1,8 @@
 use std::{path::Path, sync::Arc};
 
-use crate::features::java::{Java, JavaError, JavaInstallationService, JavaStorage};
+use crate::features::java::{Java, JavaDomainError, JavaInstallationService, JavaStorage};
+
+use super::JavaApplicationError;
 
 pub struct GetJavaUseCase<JS: JavaStorage, JIS: JavaInstallationService> {
     storage: Arc<JS>,
@@ -15,15 +17,16 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
         }
     }
 
-    pub async fn execute(&self, version: u32) -> Result<Java, JavaError> {
+    pub async fn execute(&self, version: u32) -> Result<Java, JavaApplicationError> {
         let java = self
             .storage
             .get(version)
             .await?
-            .ok_or(JavaError::NotFound { version })?;
+            .ok_or(JavaDomainError::NotFound { version })?;
 
-        self.java_installation_service
+        Ok(self
+            .java_installation_service
             .locate_java(Path::new(&java.path))
-            .await
+            .await?)
     }
 }

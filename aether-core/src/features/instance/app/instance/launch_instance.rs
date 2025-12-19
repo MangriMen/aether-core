@@ -5,27 +5,27 @@ use crate::{
         auth::Credentials,
         events::{EventEmitter, ProgressService},
         instance::{
-            InstallInstanceUseCase, Instance, InstanceError, InstanceInstallStage, InstanceStorage,
-            InstanceStorageExt,
+            Instance, InstanceError, InstanceInstallStage, InstanceStorage, InstanceStorageExt,
         },
-        java::{JavaInstallationService, JavaStorage},
+        java::{JavaInstallationService, JavaStorage, JreProvider},
         minecraft::{
-            GetMinecraftLaunchCommandParams, GetMinecraftLaunchCommandUseCase, LaunchSettings,
-            MinecraftDownloader, ReadMetadataStorage,
+            app::{GetMinecraftLaunchCommandParams, GetMinecraftLaunchCommandUseCase},
+            LaunchSettings, MetadataStorage, MinecraftDownloader,
         },
         process::{
-            GetProcessMetadataByInstanceIdUseCase, MinecraftProcessMetadata, ProcessStorage,
-            StartProcessUseCase,
+            app::{GetProcessMetadataByInstanceIdUseCase, StartProcessUseCase},
+            MinecraftProcessMetadata, ProcessStorage,
         },
         settings::{DefaultInstanceSettings, DefaultInstanceSettingsStorage, Hooks, LocationInfo},
     },
-    libs::request_client::RequestClient,
     shared::{IoError, SerializableCommand},
 };
 
+use super::InstallInstanceUseCase;
+
 pub struct LaunchInstanceUseCase<
     IS: InstanceStorage,
-    MS: ReadMetadataStorage,
+    MS: MetadataStorage,
     PS: ProcessStorage,
     GISS: DefaultInstanceSettingsStorage,
     E: EventEmitter,
@@ -33,20 +33,20 @@ pub struct LaunchInstanceUseCase<
     PGS: ProgressService,
     JIS: JavaInstallationService,
     JS: JavaStorage,
-    RC: RequestClient,
+    JP: JreProvider,
 > {
     instance_storage: Arc<IS>,
     default_instance_settings_storage: Arc<GISS>,
     location_info: Arc<LocationInfo>,
     get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
-    install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, RC>>,
+    install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, JP>>,
     get_minecraft_launch_command_use_case: GetMinecraftLaunchCommandUseCase<MS, MD, JIS, JS>,
     start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
 }
 
 impl<
         IS: InstanceStorage,
-        MS: ReadMetadataStorage,
+        MS: MetadataStorage,
         PS: ProcessStorage + 'static,
         GISS: DefaultInstanceSettingsStorage,
         E: EventEmitter + 'static,
@@ -54,15 +54,15 @@ impl<
         PGS: ProgressService,
         JIS: JavaInstallationService,
         JS: JavaStorage,
-        RC: RequestClient,
-    > LaunchInstanceUseCase<IS, MS, PS, GISS, E, MD, PGS, JIS, JS, RC>
+        JP: JreProvider,
+    > LaunchInstanceUseCase<IS, MS, PS, GISS, E, MD, PGS, JIS, JS, JP>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         default_instance_settings_storage: Arc<GISS>,
         location_info: Arc<LocationInfo>,
         get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
-        install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, RC>>,
+        install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, JP>>,
         get_minecraft_launch_command_use_case: GetMinecraftLaunchCommandUseCase<MS, MD, JIS, JS>,
         start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
     ) -> Self {

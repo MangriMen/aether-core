@@ -4,19 +4,27 @@ use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::{
         instance::{
-            CreateInstanceUseCase, EditInstance, EditInstanceUseCase, GetInstanceUseCase,
-            InstallInstanceUseCase, Instance, ListInstancesUseCase, NewInstance,
-            RemoveInstanceUseCase, UpdateInstanceUseCase,
+            app::{
+                CreateInstanceUseCase, EditInstance, EditInstanceUseCase, GetInstanceUseCase,
+                InstallInstanceUseCase, ListInstancesUseCase, NewInstance, RemoveInstanceUseCase,
+                UpdateInstanceUseCase,
+            },
+            Instance,
         },
         java::{
+            app::{GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase},
             infra::{AzulJreProvider, FsJavaInstallationService},
-            GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
         },
         minecraft::{
-            AssetsService, ClientService, GetVersionManifestUseCase, InstallMinecraftUseCase,
-            LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
+            app::{GetVersionManifestUseCase, InstallMinecraftUseCase},
+            infra::{
+                AssetsService, ClientService, LibrariesService, MinecraftDownloadResolver,
+                MinecraftDownloadService,
+            },
+            LoaderVersionResolver,
         },
     },
+    shared::FileCache,
 };
 
 #[tracing::instrument]
@@ -35,12 +43,15 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        state.location_info.clone(),
+        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
+            state.location_info.clone(),
+        ))),
     );
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -51,9 +62,9 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         client_service,
         assets_service,
         libraries_service,
-        state.location_info.clone(),
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
 
     let get_java_use_case = Arc::new(GetJavaUseCase::new(
@@ -121,12 +132,15 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        state.location_info.clone(),
+        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
+            state.location_info.clone(),
+        ))),
     );
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -137,9 +151,9 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
         client_service,
         assets_service,
         libraries_service,
-        state.location_info.clone(),
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
 
     let get_java_use_case = Arc::new(GetJavaUseCase::new(

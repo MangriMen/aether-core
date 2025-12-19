@@ -3,14 +3,14 @@ use std::sync::Arc;
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::java::{
-        self,
+        app::{GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase},
         infra::{AzulJreProvider, FsJavaInstallationService},
-        GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
+        Java,
     },
 };
 
 #[tracing::instrument]
-pub async fn install(version: u32) -> crate::Result<java::Java> {
+pub async fn install(version: u32) -> crate::Result<Java> {
     let state = LauncherState::get().await?;
     let lazy_locator = LazyLocator::get().await?;
 
@@ -31,7 +31,7 @@ pub async fn install(version: u32) -> crate::Result<java::Java> {
     Ok(install_java_use_case.execute(version).await?)
 }
 
-pub async fn get(version: u32) -> crate::Result<java::Java> {
+pub async fn get(version: u32) -> crate::Result<Java> {
     let lazy_locator = LazyLocator::get().await?;
 
     let get_java_use_case = GetJavaUseCase::new(

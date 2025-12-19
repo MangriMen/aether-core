@@ -7,7 +7,7 @@ use crate::{
     features::{
         events::{EventEmitter, LauncherEvent},
         instance::InstanceWatcherService,
-        settings::{FsSettingsStorage, LocationInfo, Settings, SettingsStorage},
+        settings::{infra::FsSettingsStorage, LocationInfo, Settings, SettingsStorage},
     },
     shared::domain::FetchSemaphore,
 };

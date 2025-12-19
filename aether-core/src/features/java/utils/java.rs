@@ -1,6 +1,6 @@
 use std::{path::Path, process::Command};
 
-use crate::features::java::JavaError;
+use crate::features::java::JavaDomainError;
 
 #[derive(Debug, Default)]
 pub struct JavaProperties {
@@ -8,13 +8,13 @@ pub struct JavaProperties {
     pub architecture: Option<String>,
 }
 
-pub fn get_java_properties(path: &Path) -> Result<JavaProperties, JavaError> {
+pub fn get_java_properties(path: &Path) -> Result<JavaProperties, JavaDomainError> {
     let output = Command::new(path)
         .arg("-XshowSettings:properties")
         .arg("-version")
         .env_remove("_JAVA_OPTIONS")
         .output()
-        .map_err(|e| JavaError::FailedToGetProperties {
+        .map_err(|e| JavaDomainError::FailedToGetProperties {
             reason: e.to_string(),
         })?;
 
@@ -48,8 +48,8 @@ pub fn get_java_properties(path: &Path) -> Result<JavaProperties, JavaError> {
 /// Examples:
 /// - "1.8.0_361" -> (1, 8)
 /// - "20" -> (1, 20)
-pub fn extract_java_major_minor_version(version: &str) -> Result<(u32, u32), JavaError> {
-    let get_error = || JavaError::InvalidVersion {
+pub fn extract_java_major_minor_version(version: &str) -> Result<(u32, u32), JavaDomainError> {
+    let get_error = || JavaDomainError::InvalidVersion {
         version: version.to_string(),
     };
 

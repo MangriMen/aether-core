@@ -7,9 +7,9 @@ use daedalus::{
 };
 
 use crate::{
-    features::minecraft::{MinecraftError, ModLoader, ReadMetadataStorage},
+    features::minecraft::{MinecraftDomainError, ModLoader, MetadataStorage},
     libs::request_client::{Request, RequestClient, RequestClientExt},
-    shared::{CachedValue, IoError},
+    shared::IoError,
 };
 
 pub const META_URL: &str = "https://launcher-meta.modrinth.com/";
@@ -29,38 +29,33 @@ impl<RC: RequestClient> ModrinthMetadataStorage<RC> {
 }
 
 #[async_trait]
-impl<RC: RequestClient> ReadMetadataStorage for ModrinthMetadataStorage<RC> {
-    async fn get_version_manifest(&self) -> Result<CachedValue<VersionManifest>, MinecraftError> {
+impl<RC: RequestClient> MetadataStorage for ModrinthMetadataStorage<RC> {
+    async fn get_version_manifest(&self) -> Result<VersionManifest, MinecraftDomainError> {
         Ok(self
             .request_client
-            .fetch_json_with_progress(
-                Request::get(daedalus::minecraft::VERSION_MANIFEST_URL),
-                None,
-            )
+            .fetch_json(Request::get(daedalus::minecraft::VERSION_MANIFEST_URL))
             .await
             .map_err(|err| {
                 IoError::IoError(std::io::Error::new(
                     std::io::ErrorKind::NetworkUnreachable,
                     err,
                 ))
-            })
-            .map(CachedValue::new)?)
+            })?)
     }
 
     async fn get_loader_version_manifest(
         &self,
         loader: ModLoader,
-    ) -> Result<CachedValue<modded::Manifest>, MinecraftError> {
+    ) -> Result<modded::Manifest, MinecraftDomainError> {
         Ok(self
             .request_client
-            .fetch_json_with_progress(Request::get(Self::get_loader_manifest_url(loader)), None)
+            .fetch_json(Request::get(Self::get_loader_manifest_url(loader)))
             .await
             .map_err(|err| {
                 IoError::IoError(std::io::Error::new(
                     std::io::ErrorKind::NetworkUnreachable,
                     err,
                 ))
-            })
-            .map(CachedValue::new)?)
+            })?)
     }
 }

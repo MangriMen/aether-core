@@ -7,28 +7,42 @@ use crate::{
     },
     features::{
         auth::Credentials,
-        events::TauriEventEmitter,
+        events::infra::TauriEventEmitter,
         instance::{
-            EventEmittingInstanceStorage, FsInstanceStorage, InstallInstanceUseCase,
-            LaunchInstanceUseCase, LaunchInstanceWithActiveAccountUseCase,
+            app::{
+                InstallInstanceUseCase, LaunchInstanceUseCase,
+                LaunchInstanceWithActiveAccountUseCase,
+            },
+            infra::{EventEmittingInstanceStorage, FsInstanceStorage},
         },
         java::{
+            app::{GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase},
             infra::{AzulJreProvider, FsJavaInstallationService, FsJavaStorage},
-            GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase,
         },
         minecraft::{
-            AssetsService, CachedMetadataStorage, ClientService, FsMetadataStorage,
-            GetMinecraftLaunchCommandUseCase, GetVersionManifestUseCase, InstallMinecraftUseCase,
-            LibrariesService, LoaderVersionResolver, MinecraftDownloadService,
-            ModrinthMetadataStorage,
+            app::{
+                GetMinecraftLaunchCommandUseCase, GetVersionManifestUseCase,
+                InstallMinecraftUseCase,
+            },
+            infra::{
+                AssetsService, CachedMetadataStorage, ClientService, LibrariesService,
+                MinecraftDownloadResolver, MinecraftDownloadService, MinecraftMetadataResolver,
+                ModrinthMetadataStorage,
+            },
+            LoaderVersionResolver,
         },
         process::{
-            GetProcessMetadataByInstanceIdUseCase, InMemoryProcessStorage, ManageProcessUseCase,
-            MinecraftProcessMetadata, StartProcessUseCase, TrackProcessUseCase,
+            app::{
+                GetProcessMetadataByInstanceIdUseCase, ManageProcessUseCase, StartProcessUseCase,
+                TrackProcessUseCase,
+            },
+            infra::InMemoryProcessStorage,
+            MinecraftProcessMetadata,
         },
-        settings::FsDefaultInstanceSettingsStorage,
+        settings::infra::FsDefaultInstanceSettingsStorage,
     },
     libs::request_client::ReqwestClient,
+    shared::FileCache,
 };
 
 async fn get_launch_instance_use_case(
@@ -37,17 +51,22 @@ async fn get_launch_instance_use_case(
 ) -> LaunchInstanceUseCase<
     EventEmittingInstanceStorage<TauriEventEmitter, FsInstanceStorage>,
     CachedMetadataStorage<
-        FsMetadataStorage,
+        FileCache<MinecraftMetadataResolver>,
         ModrinthMetadataStorage<ReqwestClient<ProgressServiceType>>,
     >,
     InMemoryProcessStorage,
     FsDefaultInstanceSettingsStorage,
     TauriEventEmitter,
-    MinecraftDownloadService<ReqwestClient<ProgressServiceType>, ProgressServiceType>,
+    MinecraftDownloadService<
+        ReqwestClient<ProgressServiceType>,
+        ProgressServiceType,
+        FileCache<MinecraftDownloadResolver>,
+        FileCache<MinecraftDownloadResolver>,
+    >,
     ProgressServiceType,
     FsJavaInstallationService,
     FsJavaStorage,
-    ReqwestClient<ProgressServiceType>,
+    AzulJreProvider<ProgressServiceType, ReqwestClient<ProgressServiceType>>,
 > {
     let loader_version_resolver = Arc::new(LoaderVersionResolver::new(
         lazy_locator.get_metadata_storage().await,
@@ -60,12 +79,15 @@ async fn get_launch_instance_use_case(
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        state.location_info.clone(),
+        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
+            state.location_info.clone(),
+        ))),
     );
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -76,9 +98,9 @@ async fn get_launch_instance_use_case(
         client_service,
         assets_service,
         libraries_service,
-        state.location_info.clone(),
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
 
     let get_java_use_case = Arc::new(GetJavaUseCase::new(
@@ -147,12 +169,15 @@ async fn get_launch_instance_use_case(
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        state.location_info.clone(),
+        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
+            state.location_info.clone(),
+        ))),
     );
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -163,9 +188,9 @@ async fn get_launch_instance_use_case(
         client_service,
         assets_service,
         libraries_service,
-        state.location_info.clone(),
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
+        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
     );
 
     let get_minecraft_launch_command_use_case = GetMinecraftLaunchCommandUseCase::new(

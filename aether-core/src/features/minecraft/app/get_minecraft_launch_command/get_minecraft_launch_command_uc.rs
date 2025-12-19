@@ -9,11 +9,12 @@ use tokio::process::Command;
 use crate::{
     features::{
         auth::Credentials,
-        java::{GetJavaUseCase, JavaInstallationService, JavaStorage},
+        java::{app::GetJavaUseCase, JavaInstallationService, JavaStorage},
         minecraft::{
-            get_compatible_java_version, resolve_minecraft_version, GetVersionManifestUseCase,
-            LaunchSettings, LoaderVersionPreference, LoaderVersionResolver, MinecraftDownloader,
-            MinecraftError, ModLoader, ReadMetadataStorage,
+            app::GetVersionManifestUseCase, resolve_minecraft_version,
+            utils::get_compatible_java_version, LaunchSettings, LoaderVersionPreference,
+            LoaderVersionResolver, MetadataStorage, MinecraftDomainError, MinecraftDownloader,
+            ModLoader,
         },
         settings::LocationInfo,
     },
@@ -36,7 +37,7 @@ pub struct GetMinecraftLaunchCommandParams {
 }
 
 pub struct GetMinecraftLaunchCommandUseCase<
-    MS: ReadMetadataStorage,
+    MS: MetadataStorage,
     MD: MinecraftDownloader,
     JIS: JavaInstallationService,
     JS: JavaStorage,
@@ -50,7 +51,7 @@ pub struct GetMinecraftLaunchCommandUseCase<
 }
 
 impl<
-        MS: ReadMetadataStorage,
+        MS: MetadataStorage,
         MD: MinecraftDownloader,
         JIS: JavaInstallationService,
         JS: JavaStorage,
@@ -79,7 +80,7 @@ impl<
         get_minecraft_launch_command_params: GetMinecraftLaunchCommandParams,
         launch_settings: LaunchSettings,
         credentials: Credentials,
-    ) -> Result<Command, MinecraftError> {
+    ) -> Result<Command, MinecraftDomainError> {
         let GetMinecraftLaunchCommandParams {
             game_version,
             loader,
@@ -104,14 +105,14 @@ impl<
 
         let version_info = self
             .minecraft_downloader
-            .download_version_info(&version, loader_version.as_ref(), None, None)
+            .get_version_info(&version, loader_version.as_ref(), None, None)
             .await?;
 
         let java = if let Some(java_path) = java_path.as_ref() {
             self.java_installation_service
                 .locate_java(Path::new(java_path))
                 .await
-                .map_err(|_| MinecraftError::JavaNotFound {
+                .map_err(|_| MinecraftDomainError::JavaNotFound {
                     path: PathBuf::from(java_path),
                 })
         } else {
@@ -119,7 +120,7 @@ impl<
             self.get_java_use_case
                 .execute(compatible_java_version)
                 .await
-                .map_err(|_| MinecraftError::JavaVersionNotFound {
+                .map_err(|_| MinecraftDomainError::JavaVersionNotFound {
                     version: compatible_java_version,
                 })
         }?;

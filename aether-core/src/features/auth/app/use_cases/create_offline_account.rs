@@ -3,13 +3,13 @@ use std::sync::Arc;
 use chrono::{Duration, Utc};
 use uuid::Uuid;
 
-use crate::features::auth::{
-    AccountOutput, AccountType, AuthError, Credentials, CredentialsService, Username,
-};
+use crate::features::auth::{AccountType, AuthError, Credentials, CredentialsService, Username};
 
 pub struct CreateOfflineAccountUseCase<CS: CredentialsService> {
     credentials_service: Arc<CS>,
 }
+
+use super::super::AccountOutput;
 
 impl<CS: CredentialsService> CreateOfflineAccountUseCase<CS> {
     pub fn new(credentials_service: Arc<CS>) -> Self {

@@ -1,1 +1,1 @@
-pub mod java;
+mod java;

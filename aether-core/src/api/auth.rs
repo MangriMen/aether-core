@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::{
     core::domain::LazyLocator,
-    features::auth::{
+    features::auth::app::{
         AccountOutput, CreateOfflineAccountUseCase, GetAccountsUseCase, LogoutUseCase,
         SetActiveAccountUseCase,
     },

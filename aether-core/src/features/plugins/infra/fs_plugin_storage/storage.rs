@@ -10,8 +10,8 @@ use log::debug;
 use crate::{
     features::{
         plugins::{
-            ExtractedPlugin, FsPluginStorageConstants, LoadConfig, Plugin, PluginCapabilities,
-            PluginContent, PluginError, PluginManifest, PluginState, PluginStorage,
+            ExtractedPlugin, LoadConfig, Plugin, PluginCapabilities, PluginContent, PluginError,
+            PluginManifest, PluginState, PluginStorage,
         },
         settings::LocationInfo,
     },
@@ -20,6 +20,8 @@ use crate::{
         sha1_async, IoError,
     },
 };
+
+use super::FsPluginStorageConstants;
 
 pub struct FsPluginStorage {
     location_info: Arc<LocationInfo>,
