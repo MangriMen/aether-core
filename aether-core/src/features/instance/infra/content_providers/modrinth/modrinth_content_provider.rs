@@ -10,8 +10,8 @@ use path_slash::PathBufExt;
 use crate::{
     features::{
         instance::{
-            modrinth::ProjectSearchParams, ContentFile, ContentInstallParams, ContentProvider,
-            ContentSearchParams, ContentSearchResult, InstanceError,
+            ContentFile, ContentInstallParams, ContentProvider, ContentSearchParams,
+            ContentSearchResult, InstanceError,
         },
         settings::LocationInfo,
     },
@@ -21,7 +21,8 @@ use crate::{
 
 use super::{
     get_first_file_from_project_version, modrinth_to_content_response, File, ModrinthApiClient,
-    ModrinthProviderData, ModrinthUpdateData, ProjectVersionResponse, MODRINTH_API_URL,
+    ModrinthProviderData, ModrinthUpdateData, ProjectSearchParams, ProjectVersionResponse,
+    MODRINTH_API_URL,
 };
 
 pub struct ModrinthContentProvider<RC> {

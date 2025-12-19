@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::features::auth::{AccountOutput, AuthError, CredentialsService};
+use crate::features::auth::{AuthError, CredentialsService};
+
+use super::super::AccountOutput;
 
 pub struct GetAccountsUseCase<CS: CredentialsService> {
     credentials_service: Arc<CS>,

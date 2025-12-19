@@ -1,10 +1,10 @@
-pub mod extism;
-pub mod fs_plugin_settings_storage;
-pub mod fs_plugin_storage;
-pub mod memory_importers_registry;
-pub mod plugin_infrastructure_listener;
-pub mod plugin_utils;
-pub mod zip_plugin_extractor;
+mod extism;
+mod fs_plugin_settings_storage;
+mod fs_plugin_storage;
+mod memory_importers_registry;
+mod plugin_infrastructure_listener;
+mod plugin_utils;
+mod zip_plugin_extractor;
 
 pub use extism::*;
 pub use fs_plugin_settings_storage::*;

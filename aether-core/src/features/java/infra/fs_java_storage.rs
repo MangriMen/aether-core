@@ -1,5 +1,5 @@
 use crate::{
-    features::java::{Java, JavaError, JavaStorage},
+    features::java::{Java, JavaStorage, JavaStorageError},
     shared::{read_json_async, write_json_async},
 };
 use async_trait::async_trait;
@@ -16,7 +16,7 @@ impl FsJavaStorage {
         }
     }
 
-    async fn ensure_read(&self) -> Result<Vec<Java>, JavaError> {
+    async fn ensure_read(&self) -> Result<Vec<Java>, JavaStorageError> {
         if !self.java_versions_file.exists() {
             let default = Vec::<Java>::default();
             self.write(&default).await?;
@@ -26,18 +26,18 @@ impl FsJavaStorage {
         Ok(read_json_async(&self.java_versions_file).await?)
     }
 
-    async fn write(&self, data: &Vec<Java>) -> Result<(), JavaError> {
+    async fn write(&self, data: &Vec<Java>) -> Result<(), JavaStorageError> {
         Ok(write_json_async(&self.java_versions_file, &data).await?)
     }
 }
 
 #[async_trait]
 impl JavaStorage for FsJavaStorage {
-    async fn list(&self) -> Result<Vec<Java>, JavaError> {
+    async fn list(&self) -> Result<Vec<Java>, JavaStorageError> {
         self.ensure_read().await
     }
 
-    async fn get(&self, version: u32) -> Result<Option<Java>, JavaError> {
+    async fn get(&self, version: u32) -> Result<Option<Java>, JavaStorageError> {
         Ok(self
             .ensure_read()
             .await?
@@ -46,7 +46,7 @@ impl JavaStorage for FsJavaStorage {
             .cloned())
     }
 
-    async fn upsert(&self, java: &Java) -> Result<(), JavaError> {
+    async fn upsert(&self, java: &Java) -> Result<(), JavaStorageError> {
         let mut java_versions = self.ensure_read().await?;
 
         match java_versions

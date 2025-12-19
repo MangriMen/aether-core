@@ -2,9 +2,11 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::features::{
     events::EventEmitter,
-    plugins::{PluginError, PluginExtractor, PluginLoader, PluginStorage, SyncPluginsUseCase},
+    plugins::{PluginError, PluginExtractor, PluginLoader, PluginStorage},
     settings::SettingsStorage,
 };
+
+use super::SyncPluginsUseCase;
 
 pub struct ImportPluginsUseCase<
     PS: PluginStorage,

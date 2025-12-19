@@ -3,11 +3,9 @@ use dashmap::DashMap;
 use extism::{convert::Msgpack, host_fn};
 use path_slash::PathBufExt;
 
-use crate::{
-    core::LauncherState,
-    features::plugins::extism::{host_functions::PluginContext, mappers::to_extism_res},
-    shared::execute_async,
-};
+use crate::{core::LauncherState, shared::execute_async};
+
+use super::super::{super::mappers::to_extism_res, PluginContext};
 
 host_fn!(
 pub instance_get_dir(user_data: PluginContext; id: String) -> HostResult<String> {

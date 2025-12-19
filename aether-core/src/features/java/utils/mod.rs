@@ -1,6 +1,6 @@
-pub mod java;
+mod java;
 
 #[cfg(test)]
-pub mod __tests__;
+mod __tests__;
 
 pub use java::*;

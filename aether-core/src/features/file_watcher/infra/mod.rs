@@ -1,3 +1,3 @@
-pub mod notify_adapter;
+mod notify_adapter;
 
 pub use notify_adapter::*;

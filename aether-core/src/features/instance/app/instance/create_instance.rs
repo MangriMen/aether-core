@@ -11,19 +11,20 @@ use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProgressService},
         instance::{
-            InstallInstanceUseCase, Instance, InstanceError, InstanceInstallStage, InstanceStorage,
-            InstanceWatcherService, PackInfo,
+            Instance, InstanceError, InstanceInstallStage, InstanceStorage, InstanceWatcherService,
+            PackInfo,
         },
-        java::{JavaInstallationService, JavaStorage},
+        java::{JavaInstallationService, JavaStorage, JreProvider},
         minecraft::{
-            LoaderVersionPreference, LoaderVersionResolver, MinecraftDownloader, ModLoader,
-            ReadMetadataStorage,
+            LoaderVersionPreference, LoaderVersionResolver, MetadataStorage, MinecraftDownloader,
+            ModLoader,
         },
         settings::{Hooks, LocationInfo},
     },
-    libs::request_client::RequestClient,
     shared::create_dir_all,
 };
+
+use super::InstallInstanceUseCase;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,18 +40,18 @@ pub struct NewInstance {
 
 pub struct CreateInstanceUseCase<
     IS: InstanceStorage,
-    MS: ReadMetadataStorage,
+    MS: MetadataStorage,
     E: EventEmitter,
     MD: MinecraftDownloader,
     PS: ProgressService,
     IWS: InstanceWatcherService,
     JIS: JavaInstallationService,
     JS: JavaStorage,
-    RC: RequestClient,
+    JP: JreProvider,
 > {
     instance_storage: Arc<IS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-    install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
+    install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, JP>>,
     location_info: Arc<LocationInfo>,
     event_emitter: Arc<E>,
     instance_watcher_service: Arc<IWS>,
@@ -58,20 +59,20 @@ pub struct CreateInstanceUseCase<
 
 impl<
         IS: InstanceStorage,
-        MS: ReadMetadataStorage,
+        MS: MetadataStorage,
         E: EventEmitter,
         MD: MinecraftDownloader,
         PS: ProgressService,
         IWS: InstanceWatcherService,
         JIS: JavaInstallationService,
         JS: JavaStorage,
-        RC: RequestClient,
-    > CreateInstanceUseCase<IS, MS, E, MD, PS, IWS, JIS, JS, RC>
+        JP: JreProvider,
+    > CreateInstanceUseCase<IS, MS, E, MD, PS, IWS, JIS, JS, JP>
 {
     pub fn new(
         instance_storage: Arc<IS>,
         loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
-        install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>>,
+        install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, JP>>,
         location_info: Arc<LocationInfo>,
         event_emitter: Arc<E>,
         instance_watcher_service: Arc<IWS>,

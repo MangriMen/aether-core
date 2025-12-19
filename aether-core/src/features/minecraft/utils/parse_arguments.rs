@@ -1,15 +1,17 @@
 use daedalus::minecraft;
 
-use crate::features::minecraft::{parse_rules, MinecraftError, TEMPORARY_REPLACE_CHAR};
+use crate::features::minecraft::{MinecraftDomainError, TEMPORARY_REPLACE_CHAR};
+
+use super::parse_rules;
 
 pub fn parse_arguments<F>(
     arguments: &[minecraft::Argument],
     parsed_arguments: &mut Vec<String>,
     parse_function: F,
     java_arch: &str,
-) -> Result<(), MinecraftError>
+) -> Result<(), MinecraftDomainError>
 where
-    F: Fn(&str) -> Result<String, MinecraftError>,
+    F: Fn(&str) -> Result<String, MinecraftDomainError>,
 {
     for argument in arguments {
         match argument {

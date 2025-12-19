@@ -1,9 +1,9 @@
-pub mod capability_registry;
-pub mod plugin_extractor;
-pub mod plugin_instance;
-pub mod plugin_loader;
-pub mod plugin_settings_storage;
-pub mod plugin_storage;
+mod capability_registry;
+mod plugin_extractor;
+mod plugin_instance;
+mod plugin_loader;
+mod plugin_settings_storage;
+mod plugin_storage;
 
 pub use capability_registry::*;
 pub use plugin_extractor::*;

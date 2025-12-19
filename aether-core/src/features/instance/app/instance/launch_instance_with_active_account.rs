@@ -1,21 +1,20 @@
 use std::sync::Arc;
 
-use crate::{
-    features::{
-        auth::CredentialsStorage,
-        events::{EventEmitter, ProgressService},
-        instance::{InstanceError, InstanceStorage, LaunchInstanceUseCase},
-        java::{JavaInstallationService, JavaStorage},
-        minecraft::{MinecraftDownloader, ReadMetadataStorage},
-        process::{MinecraftProcessMetadata, ProcessStorage},
-        settings::DefaultInstanceSettingsStorage,
-    },
-    libs::request_client::RequestClient,
+use crate::features::{
+    auth::CredentialsStorage,
+    events::{EventEmitter, ProgressService},
+    instance::{InstanceError, InstanceStorage},
+    java::{JavaInstallationService, JavaStorage, JreProvider},
+    minecraft::{MetadataStorage, MinecraftDownloader},
+    process::{MinecraftProcessMetadata, ProcessStorage},
+    settings::DefaultInstanceSettingsStorage,
 };
+
+use super::LaunchInstanceUseCase;
 
 pub struct LaunchInstanceWithActiveAccountUseCase<
     IS: InstanceStorage,
-    MS: ReadMetadataStorage,
+    MS: MetadataStorage,
     PS: ProcessStorage,
     CS: CredentialsStorage,
     GISS: DefaultInstanceSettingsStorage,
@@ -24,15 +23,15 @@ pub struct LaunchInstanceWithActiveAccountUseCase<
     PGS: ProgressService,
     JIS: JavaInstallationService,
     JS: JavaStorage,
-    RC: RequestClient,
+    JP: JreProvider,
 > {
     credentials_storage: Arc<CS>,
-    launch_instance_use_case: LaunchInstanceUseCase<IS, MS, PS, GISS, E, MD, PGS, JIS, JS, RC>,
+    launch_instance_use_case: LaunchInstanceUseCase<IS, MS, PS, GISS, E, MD, PGS, JIS, JS, JP>,
 }
 
 impl<
         IS: InstanceStorage,
-        MS: ReadMetadataStorage,
+        MS: MetadataStorage,
         PS: ProcessStorage + 'static,
         CS: CredentialsStorage,
         GISS: DefaultInstanceSettingsStorage,
@@ -41,8 +40,8 @@ impl<
         PGS: ProgressService,
         JIS: JavaInstallationService,
         JS: JavaStorage,
-        RC: RequestClient,
-    > LaunchInstanceWithActiveAccountUseCase<IS, MS, PS, CS, GISS, E, MD, PGS, JIS, JS, RC>
+        JP: JreProvider,
+    > LaunchInstanceWithActiveAccountUseCase<IS, MS, PS, CS, GISS, E, MD, PGS, JIS, JS, JP>
 {
     pub fn new(
         credentials_storage: Arc<CS>,
@@ -56,7 +55,7 @@ impl<
             PGS,
             JIS,
             JS,
-            RC,
+            JP,
         >,
     ) -> Self {
         Self {

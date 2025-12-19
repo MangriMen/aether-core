@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::features::auth::{AccountOutput, AuthError, CredentialsService};
+use crate::features::auth::{AuthError, CredentialsService};
+
+use super::super::AccountOutput;
 
 pub struct SetActiveAccountUseCase<CS: CredentialsService> {
     credentials_service: Arc<CS>,

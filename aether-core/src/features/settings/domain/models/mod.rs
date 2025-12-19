@@ -1,7 +1,7 @@
-pub mod default_instance_settings;
-pub mod error;
-pub mod location_info;
-pub mod settings;
+mod default_instance_settings;
+mod error;
+mod location_info;
+mod settings;
 
 pub use default_instance_settings::*;
 pub use error::*;

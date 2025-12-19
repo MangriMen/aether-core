@@ -1,8 +1,6 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Serialize};
-
-use crate::shared::Cacheable;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CachedValue<T> {
@@ -17,10 +15,8 @@ impl<T> CachedValue<T> {
             updated_at: SystemTime::now(),
         }
     }
-}
 
-impl<T> Cacheable for CachedValue<T> {
-    fn updated_at(&self) -> SystemTime {
-        self.updated_at
+    pub fn is_expired(&self, ttl: Duration) -> bool {
+        SystemTime::now() > self.updated_at + ttl
     }
 }

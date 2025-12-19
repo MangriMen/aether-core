@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProcessEventType},
-        instance::{EventEmittingInstanceStorage, FsInstanceStorage},
+        instance::infra::{EventEmittingInstanceStorage, FsInstanceStorage},
         process::{ProcessError, ProcessStorage},
         settings::LocationInfo,
     },

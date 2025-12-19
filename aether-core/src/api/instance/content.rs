@@ -5,11 +5,13 @@ use dashmap::DashMap;
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::instance::{
-        ChangeContentState, ChangeContentStateUseCase, ContentFile, ContentInstallParams,
-        ContentSearchParams, ContentSearchResult, ContentStateAction, ContentType,
-        GetProviderMetadataUseCase, ImportContent, ImportContentUseCase, InstallContentUseCase,
-        ListContentUseCase, ListProvidersUseCase, RemoveContent, RemoveContentUseCase,
-        SearchContentUseCase,
+        app::{
+            ChangeContentState, ChangeContentStateUseCase, ContentStateAction,
+            GetProviderMetadataUseCase, ImportContent, ImportContentUseCase, InstallContentUseCase,
+            ListContentUseCase, ListProvidersUseCase, RemoveContent, RemoveContentUseCase,
+            SearchContentUseCase,
+        },
+        ContentFile, ContentInstallParams, ContentSearchParams, ContentSearchResult, ContentType,
     },
 };
 

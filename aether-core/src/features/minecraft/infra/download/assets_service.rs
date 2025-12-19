@@ -2,39 +2,64 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures::StreamExt;
+use serde::de::DeserializeOwned;
 
 use crate::{
     features::{
         events::{
-            try_for_each_concurrent_with_progress, ProgressBarId, ProgressConfig,
-            ProgressConfigWithMessage, ProgressService, ProgressServiceExt,
+            utils::{try_for_each_concurrent_with_progress, ProgressConfigWithMessage},
+            ProgressBarId, ProgressConfig, ProgressService, ProgressServiceExt,
         },
-        minecraft::MinecraftError,
+        minecraft::MinecraftDomainError,
         settings::LocationInfo,
     },
     libs::request_client::{Request, RequestClient, RequestClientExt},
-    shared::{read_json_async, write_async, write_json_async, IoError},
+    shared::{write_async, Cache, InfinityCachedResource, IoError},
 };
+
+use super::assets_index_key;
 
 const MINECRAFT_RESOURCES_BASE_URL: &str = "https://resources.download.minecraft.net/";
 
-pub struct AssetsService<RC: RequestClient, PS: ProgressService> {
+pub struct AssetsService<RC: RequestClient, PS: ProgressService, C: Cache> {
     progress_service: Arc<PS>,
     request_client: Arc<RC>,
     location_info: Arc<LocationInfo>,
+    cached_resource: InfinityCachedResource<C>,
 }
 
-impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
+impl<RC: RequestClient, PS: ProgressService, C: Cache> AssetsService<RC, PS, C> {
     pub fn new(
         progress_service: Arc<PS>,
         request_client: Arc<RC>,
         location_info: Arc<LocationInfo>,
+        cache: C,
     ) -> Self {
         Self {
             progress_service,
             request_client,
             location_info,
+            cached_resource: InfinityCachedResource::new(cache),
         }
+    }
+
+    async fn fetch_json<T: DeserializeOwned>(&self, url: &str) -> Result<T, IoError> {
+        self.request_client
+            .fetch_json(Request::get(url))
+            .await
+            .map_err(|err| {
+                IoError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::NetworkUnreachable,
+                    err,
+                ))
+            })
+    }
+
+    async fn fetch_assets_index(
+        &self,
+        version_info: &daedalus::minecraft::VersionInfo,
+    ) -> Result<daedalus::minecraft::AssetsIndex, MinecraftDomainError> {
+        Ok(self.fetch_json(&version_info.asset_index.id).await?)
     }
 
     pub async fn download_assets(
@@ -43,11 +68,11 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
         with_legacy: bool,
         force: bool,
         progress_config: Option<&ProgressConfig<'_>>,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         log::info!("Downloading assets");
 
         let assets_stream = futures::stream::iter(index.objects.iter())
-            .map(Ok::<(&String, &daedalus::minecraft::Asset), MinecraftError>);
+            .map(Ok::<(&String, &daedalus::minecraft::Asset), MinecraftDomainError>);
 
         let futures_count = index.objects.len();
 
@@ -66,18 +91,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
             futures_count,
             progress_config.as_ref(),
             |(name, asset)| async move {
-                log::debug!("Downloading asset \"{}\"", name);
-                let res = self.download_asset(name, asset, with_legacy, force).await;
-                match res {
-                    Ok(res) => {
-                        log::debug!("Downloaded asset \"{}\"", name);
-                        Ok(res)
-                    }
-                    Err(err) => {
-                        log::error!("Failed downloading asset \"{}\". err: {}", name, err);
-                        Err(err)
-                    }
-                }
+                self.download_asset(name, asset, with_legacy, force).await
             },
         )
         .await?;
@@ -93,7 +107,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
         asset: &daedalus::minecraft::Asset,
         with_legacy: bool,
         force: bool,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         let hash = &asset.hash;
         let url = format!(
             "{MINECRAFT_RESOURCES_BASE_URL}{sub_hash}/{hash}",
@@ -121,7 +135,7 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                     write_async(&asset_path, &asset_resource).await?;
                 }
 
-                Ok::<(), MinecraftError>(())
+                Ok::<(), MinecraftDomainError>(())
             },
             // Download legacy asset
             async {
@@ -140,54 +154,36 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                     write_async(&legacy_path, &asset_resource).await?;
                 }
 
-                Ok::<(), MinecraftError>(())
+                Ok::<(), MinecraftDomainError>(())
             }
         };
 
-        match res {
-            Ok(_) => {
-                log::debug!("Downloaded asset \"{}\"", name);
-                Ok(())
-            }
-            Err(err) => {
-                log::error!("Failed downloading asset \"{}\". err: {}", name, err);
-                Ok(Err(IoError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::NetworkUnreachable,
-                    err,
-                )))?)
-            }
+        if let Err(err) = res {
+            log::error!("Failed downloading asset \"{}\". err: {}", name, err);
+            Err(IoError::IoError(std::io::Error::new(
+                std::io::ErrorKind::NetworkUnreachable,
+                err,
+            )))?
         }
+
+        Ok(())
     }
 
-    pub async fn download_assets_index(
+    pub async fn get_assets_index(
         &self,
         version_info: &daedalus::minecraft::VersionInfo,
         force: bool,
         loading_bar: Option<&ProgressBarId>,
-    ) -> Result<daedalus::minecraft::AssetsIndex, MinecraftError> {
-        let path = self
-            .location_info
-            .assets_index_dir()
-            .join(format!("{}.json", &version_info.asset_index.id));
-
-        let res = if path.exists() && !force {
-            read_json_async(path).await
-        } else {
-            let assets_index = self
-                .request_client
-                .fetch_json(Request::get(&version_info.asset_index.url))
-                .await
-                .map_err(|err| {
-                    IoError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::NetworkUnreachable,
-                        err,
-                    ))
-                })?;
-
-            write_json_async(&path, &assets_index).await?;
-
-            Ok(assets_index)
-        }?;
+    ) -> Result<daedalus::minecraft::AssetsIndex, MinecraftDomainError> {
+        let assets_index = self
+            .cached_resource
+            .get_cached(
+                || assets_index_key(version_info.asset_index.id.to_string()),
+                self.fetch_assets_index(version_info),
+                || format!("assets index {}", version_info.asset_index.id),
+                force,
+            )
+            .await?;
 
         if let Some(loading_bar) = loading_bar {
             self.progress_service
@@ -195,6 +191,6 @@ impl<RC: RequestClient, PS: ProgressService> AssetsService<RC, PS> {
                 .await;
         }
 
-        Ok(res)
+        Ok(assets_index)
     }
 }

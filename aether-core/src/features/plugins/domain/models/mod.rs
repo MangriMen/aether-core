@@ -1,15 +1,15 @@
-pub mod capabilities;
-pub mod constants;
-pub mod extracted_plugin;
-pub mod manifest_error;
-pub mod plugin;
-pub mod plugin_capabilities;
-pub mod plugin_dtos;
-pub mod plugin_error;
-pub mod plugin_internal_event;
-pub mod plugin_manifest;
-pub mod plugin_settings;
-pub mod serializable_output;
+mod capabilities;
+mod constants;
+mod extracted_plugin;
+mod manifest_error;
+mod plugin;
+mod plugin_capabilities;
+mod plugin_dtos;
+mod plugin_error;
+mod plugin_internal_event;
+mod plugin_manifest;
+mod plugin_settings;
+mod serializable_output;
 
 pub use capabilities::*;
 pub use constants::*;

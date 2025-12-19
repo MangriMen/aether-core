@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use crate::features::minecraft::{
-    LoaderVersionPreference, MinecraftError, ModLoader, ReadMetadataStorage,
+    LoaderVersionPreference, MinecraftDomainError, ModLoader, MetadataStorage,
 };
 
 pub struct LoaderVersionResolver<MS> {
     metadata_storage: Arc<MS>,
 }
 
-impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
+impl<MS: MetadataStorage> LoaderVersionResolver<MS> {
     pub fn new(metadata_storage: Arc<MS>) -> Self {
         Self { metadata_storage }
     }
@@ -18,20 +18,19 @@ impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
         game_version: &str,
         loader: &ModLoader,
         loader_version: Option<&LoaderVersionPreference>,
-    ) -> Result<Option<daedalus::modded::LoaderVersion>, MinecraftError> {
+    ) -> Result<Option<daedalus::modded::LoaderVersion>, MinecraftDomainError> {
         if matches!(loader, ModLoader::Vanilla) {
             return Ok(None);
         }
 
         let Some(loader_version) = loader_version else {
-            return Err(MinecraftError::LoaderVersionNotSpecified);
+            return Err(MinecraftDomainError::LoaderVersionNotSpecified);
         };
 
         let loader_version_manifest = self
             .metadata_storage
             .get_loader_version_manifest(*loader)
-            .await?
-            .value;
+            .await?;
 
         resolve_loader_version(
             game_version,
@@ -46,7 +45,7 @@ impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
         &self,
         game_version: &str,
         loader: &ModLoader,
-    ) -> Result<Option<LoaderVersionPreference>, MinecraftError> {
+    ) -> Result<Option<LoaderVersionPreference>, MinecraftDomainError> {
         if matches!(loader, ModLoader::Vanilla) {
             return Ok(None);
         }
@@ -54,8 +53,7 @@ impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
         let loader_version_manifest = self
             .metadata_storage
             .get_loader_version_manifest(*loader)
-            .await?
-            .value;
+            .await?;
 
         let default_preferences = [
             LoaderVersionPreference::Stable,
@@ -71,7 +69,7 @@ impl<MS: ReadMetadataStorage> LoaderVersionResolver<MS> {
             }
         }
 
-        Err(MinecraftError::DefaultLoaderVersionNotFound)
+        Err(MinecraftDomainError::DefaultLoaderVersionNotFound)
     }
 }
 
@@ -80,7 +78,7 @@ pub async fn resolve_loader_version(
     loader: &ModLoader,
     loader_version_preference: &LoaderVersionPreference,
     loader_version_manifest: &daedalus::modded::Manifest,
-) -> Result<Option<daedalus::modded::LoaderVersion>, MinecraftError> {
+) -> Result<Option<daedalus::modded::LoaderVersion>, MinecraftDomainError> {
     if matches!(loader, ModLoader::Vanilla) {
         return Ok(None);
     }
@@ -91,7 +89,7 @@ pub async fn resolve_loader_version(
         .find(|x| {
             x.id.replace(daedalus::modded::DUMMY_REPLACE_STRING, game_version) == game_version
         })
-        .ok_or(MinecraftError::MinecraftVersionForLoaderNotFoundError {
+        .ok_or(MinecraftDomainError::MinecraftVersionForLoaderNotFoundError {
             loader_version_preference: loader_version_preference.clone(),
         })?;
 
@@ -103,13 +101,13 @@ pub async fn resolve_loader_version(
 fn find_loader_version<'a>(
     loaders: &'a [daedalus::modded::LoaderVersion],
     preference: &LoaderVersionPreference,
-) -> Result<&'a daedalus::modded::LoaderVersion, MinecraftError> {
+) -> Result<&'a daedalus::modded::LoaderVersion, MinecraftDomainError> {
     match preference {
         LoaderVersionPreference::Latest => loaders.first(),
         LoaderVersionPreference::Stable => loaders.iter().find(|x| x.stable),
         LoaderVersionPreference::Exact(id) => loaders.iter().find(|x| x.id == *id),
     }
-    .ok_or(MinecraftError::LoaderVersionNotFoundError {
+    .ok_or(MinecraftDomainError::LoaderVersionNotFoundError {
         loader_version_preference: preference.clone(),
     })
 }

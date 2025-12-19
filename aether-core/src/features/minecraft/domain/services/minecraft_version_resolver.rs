@@ -1,15 +1,15 @@
-use crate::features::minecraft::MinecraftError;
+use crate::features::minecraft::MinecraftDomainError;
 
 pub fn resolve_minecraft_version(
     game_version: &str,
     version_manifest: daedalus::minecraft::VersionManifest,
-) -> Result<(daedalus::minecraft::Version, bool), MinecraftError> {
+) -> Result<(daedalus::minecraft::Version, bool), MinecraftDomainError> {
     let (index, version) = version_manifest
         .versions
         .iter()
         .enumerate()
         .find(|(_, v)| v.id == game_version)
-        .ok_or(MinecraftError::VersionNotFoundError {
+        .ok_or(MinecraftDomainError::VersionNotFound {
             version: game_version.to_owned(),
         })?;
 

@@ -1,3 +1,3 @@
-pub mod cacheable;
+mod cache;
 
-pub use cacheable::*;
+pub use cache::*;

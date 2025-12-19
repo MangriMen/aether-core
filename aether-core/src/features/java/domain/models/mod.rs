@@ -1,7 +1,5 @@
-pub mod error;
-pub mod java;
-pub mod unpack_error;
+mod error;
+mod java;
 
 pub use error::*;
 pub use java::*;
-pub use unpack_error::*;

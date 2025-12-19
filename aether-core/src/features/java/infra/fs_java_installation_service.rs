@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::{
     features::java::{
         utils::{extract_java_major_minor_version, get_java_properties, JavaProperties},
-        Java, JavaError, JavaInstallationService,
+        Java, JavaDomainError, JavaInstallationService,
     },
     shared,
 };
@@ -19,7 +19,7 @@ impl FsJavaInstallationService {
     ///
     /// If the provided path does not already end with `JAVA_WINDOW_BIN`,
     /// this function appends it to the path. Otherwise, it returns the path unchanged.
-    fn get_java_window_bin_path(path: PathBuf) -> Result<PathBuf, JavaError> {
+    fn get_java_window_bin_path(path: PathBuf) -> Result<PathBuf, JavaDomainError> {
         match path.file_name() {
             Some(file_name) => {
                 if file_name.to_string_lossy() != JAVA_WINDOW_BIN {
@@ -28,7 +28,7 @@ impl FsJavaInstallationService {
                     Ok(path)
                 }
             }
-            None => Err(JavaError::InvalidPath { path }),
+            None => Err(JavaDomainError::InvalidPath { path }),
         }
     }
 }
@@ -38,16 +38,17 @@ impl JavaInstallationService for FsJavaInstallationService {
     /// Attempts to resolve the given file path and retrieve the Java version located at this path.
     ///
     /// Returns `None` if the path does not exist or if a valid Java installation is not found at the specified path.
-    async fn locate_java(&self, path: &Path) -> Result<Java, JavaError> {
+    async fn locate_java(&self, path: &Path) -> Result<Java, JavaDomainError> {
         // Attempt to canonicalize the potential Java filepath
         // If it fails, return None (Java is not here)
-        let canonical_path = shared::canonicalize(path).map_err(|_| JavaError::InvalidPath {
-            path: path.to_path_buf(),
-        })?;
+        let canonical_path =
+            shared::canonicalize(path).map_err(|_| JavaDomainError::InvalidPath {
+                path: path.to_path_buf(),
+            })?;
 
         let java_window_bin_path = Self::get_java_window_bin_path(canonical_path)?;
         if !java_window_bin_path.exists() {
-            return Err(JavaError::InvalidPath {
+            return Err(JavaDomainError::InvalidPath {
                 path: path.to_path_buf(),
             });
         }
@@ -70,7 +71,7 @@ impl JavaInstallationService for FsJavaInstallationService {
                 architecture: architecture.to_string(),
             })
         } else {
-            Err(JavaError::InvalidPath {
+            Err(JavaDomainError::InvalidPath {
                 path: path.to_path_buf(),
             })
         }

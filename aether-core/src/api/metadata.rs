@@ -1,6 +1,9 @@
 use crate::{
     core::domain::LazyLocator,
-    features::minecraft::{GetLoaderVersionManifestUseCase, GetVersionManifestUseCase, ModLoader},
+    features::minecraft::{
+        app::{GetLoaderVersionManifestUseCase, GetVersionManifestUseCase},
+        ModLoader,
+    },
 };
 
 pub async fn get_version_manifest() -> crate::Result<daedalus::minecraft::VersionManifest> {

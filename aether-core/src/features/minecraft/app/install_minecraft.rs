@@ -5,19 +5,18 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    features::{
-        events::{ProgressBarId, ProgressService},
-        java::{GetJavaUseCase, InstallJavaUseCase, Java, JavaInstallationService, JavaStorage},
-        minecraft::{
-            get_compatible_java_version, resolve_minecraft_version, ForgeProcessor,
-            GetVersionManifestUseCase, LoaderVersionPreference, LoaderVersionResolver,
-            MinecraftDownloader, MinecraftError, ModLoader, ModLoaderProcessor,
-            ReadMetadataStorage,
-        },
-        settings::LocationInfo,
+use crate::features::{
+    events::{ProgressBarId, ProgressService},
+    java::{
+        app::{GetJavaUseCase, InstallJavaUseCase},
+        Java, JavaInstallationService, JavaStorage, JreProvider,
     },
-    libs::request_client::RequestClient,
+    minecraft::{
+        app::GetVersionManifestUseCase, infra::ForgeProcessor, resolve_minecraft_version,
+        utils::get_compatible_java_version, LoaderVersionPreference, LoaderVersionResolver,
+        MetadataStorage, MinecraftDomainError, MinecraftDownloader, ModLoader, ModLoaderProcessor,
+    },
+    settings::LocationInfo,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,12 +29,12 @@ pub struct InstallMinecraftParams {
 }
 
 pub struct InstallMinecraftUseCase<
-    MS: ReadMetadataStorage,
+    MS: MetadataStorage,
     MD: MinecraftDownloader,
     PS: ProgressService,
     JIS: JavaInstallationService,
     JS: JavaStorage,
-    RC: RequestClient,
+    JP: JreProvider,
 > {
     progress_service: Arc<PS>,
     loader_version_resolver: Arc<LoaderVersionResolver<MS>>,
@@ -44,17 +43,17 @@ pub struct InstallMinecraftUseCase<
     minecraft_download_service: MD,
     java_installation_service: JIS,
     get_java_use_case: Arc<GetJavaUseCase<JS, JIS>>,
-    install_java_use_case: Arc<InstallJavaUseCase<JS, JIS, PS, RC>>,
+    install_java_use_case: Arc<InstallJavaUseCase<JS, JIS, JP>>,
 }
 
 impl<
-        MS: ReadMetadataStorage,
+        MS: MetadataStorage,
         MD: MinecraftDownloader,
         PS: ProgressService,
         JIS: JavaInstallationService,
         JS: JavaStorage,
-        RC: RequestClient,
-    > InstallMinecraftUseCase<MS, MD, PS, JIS, JS, RC>
+        JP: JreProvider,
+    > InstallMinecraftUseCase<MS, MD, PS, JIS, JS, JP>
 {
     // TODO: try to decrease arguments count
     #[allow(clippy::too_many_arguments)]
@@ -66,7 +65,7 @@ impl<
         minecraft_download_service: MD,
         java_installation_service: JIS,
         get_java_use_case: Arc<GetJavaUseCase<JS, JIS>>,
-        install_java_use_case: Arc<InstallJavaUseCase<JS, JIS, PS, RC>>,
+        install_java_use_case: Arc<InstallJavaUseCase<JS, JIS, JP>>,
     ) -> Self {
         Self {
             progress_service,
@@ -91,7 +90,7 @@ impl<
         version_info: &mut daedalus::minecraft::VersionInfo,
         java_version: &Java,
         loading_bar: Option<&ProgressBarId>,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         match loader {
             ModLoader::Vanilla => Ok(()),
             ModLoader::Forge => {
@@ -117,7 +116,7 @@ impl<
         install_minecraft_params: InstallMinecraftParams,
         loading_bar: Option<&ProgressBarId>,
         force: bool,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         let InstallMinecraftParams {
             game_version,
             loader,
@@ -143,14 +142,14 @@ impl<
 
         let mut version_info = self
             .minecraft_download_service
-            .download_version_info(&version, loader_version.as_ref(), Some(force), loading_bar)
+            .get_version_info(&version, loader_version.as_ref(), Some(force), loading_bar)
             .await?;
 
         let java = if let Some(java_path) = java_path.as_ref() {
             self.java_installation_service
                 .locate_java(Path::new(java_path))
                 .await
-                .map_err(|_| MinecraftError::JavaNotFound {
+                .map_err(|_| MinecraftDomainError::JavaNotFound {
                     path: PathBuf::from(java_path),
                 })
         } else {
@@ -167,7 +166,7 @@ impl<
                     .install_java_use_case
                     .execute(compatible_java_version)
                     .await
-                    .map_err(|err| MinecraftError::JavaInstallationFailed(err.to_string())),
+                    .map_err(|err| MinecraftDomainError::JavaInstallationFailed(err.to_string())),
             }
         }?;
 

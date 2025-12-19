@@ -26,11 +26,11 @@ pub enum ErrorKind {
 
     #[error(transparent)]
     #[serialize_error]
-    JavaError(#[from] java::JavaError),
+    JavaError(#[from] java::app::JavaApplicationError),
 
     #[error(transparent)]
     #[serialize_error]
-    MinecraftError(#[from] minecraft::MinecraftError),
+    MinecraftError(#[from] minecraft::MinecraftDomainError),
 
     #[error(transparent)]
     #[serialize_error]

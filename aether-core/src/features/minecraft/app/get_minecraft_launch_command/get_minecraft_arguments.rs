@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::{
     features::{
         auth::Credentials,
-        minecraft::{parse_arguments, MinecraftError},
+        minecraft::{utils::parse_arguments, MinecraftDomainError},
         settings::WindowSize,
     },
     shared::canonicalize,
@@ -26,7 +26,7 @@ pub fn get_minecraft_arguments(
     version_type: &daedalus::minecraft::VersionType,
     resolution: WindowSize,
     java_arch: &str,
-) -> Result<Vec<String>, MinecraftError> {
+) -> Result<Vec<String>, MinecraftDomainError> {
     if let Some(arguments) = arguments {
         let mut parsed_arguments = Vec::new();
 
@@ -85,10 +85,10 @@ fn replace_placeholders_in_argument_string(
     assets_directory: &Path,
     version_type: &daedalus::minecraft::VersionType,
     resolution: WindowSize,
-) -> Result<String, MinecraftError> {
-    fn resolve_path(path: &Path, name: &str) -> Result<String, MinecraftError> {
+) -> Result<String, MinecraftDomainError> {
+    fn resolve_path(path: &Path, name: &str) -> Result<String, MinecraftDomainError> {
         Ok(canonicalize(path)
-            .map_err(|_| MinecraftError::PathNotFoundError {
+            .map_err(|_| MinecraftDomainError::PathNotFound {
                 path: path.to_path_buf(),
                 entity_type: name.to_owned(),
             })?

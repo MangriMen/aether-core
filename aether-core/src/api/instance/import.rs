@@ -1,6 +1,6 @@
 use crate::{
     core::domain::LazyLocator,
-    features::instance::{ImportInstance, ImportInstanceUseCase},
+    features::instance::app::{ImportInstance, ImportInstanceUseCase},
 };
 
 #[tracing::instrument]

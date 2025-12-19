@@ -11,8 +11,8 @@ use tokio::sync::Mutex;
 use crate::{
     features::{
         plugins::{
-            plugin_utils::get_default_allowed_paths, LoadConfig, PathMapping, PluginError,
-            PluginInstance, PluginLoader, PluginManifest, PluginSettings,
+            LoadConfig, PathMapping, PluginError, PluginInstance, PluginLoader, PluginManifest,
+            PluginSettings,
         },
         settings::LocationInfo,
     },
@@ -23,6 +23,8 @@ use super::{
     host_functions::get_host_functions,
     models::{ExtismPluginInstance, WasmCache, WasmCacheConfig},
 };
+
+use super::super::plugin_utils::get_default_allowed_paths;
 
 pub struct ExtismPluginLoader {
     location_info: Arc<LocationInfo>,

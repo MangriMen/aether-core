@@ -1,47 +1,44 @@
 use std::sync::Arc;
 
-use crate::{
-    features::{
-        events::{ProgressEventType, ProgressService, ProgressServiceExt},
-        instance::{Instance, InstanceError, InstanceInstallStage, InstanceStorage},
-        java::{JavaInstallationService, JavaStorage},
-        minecraft::{
-            InstallMinecraftParams, InstallMinecraftUseCase, MinecraftDownloader,
-            ReadMetadataStorage,
-        },
-        settings::LocationInfo,
+use crate::features::{
+    events::{ProgressEventType, ProgressService, ProgressServiceExt},
+    instance::{Instance, InstanceError, InstanceInstallStage, InstanceStorage},
+    java::{JavaInstallationService, JavaStorage, JreProvider},
+    minecraft::{
+        app::{InstallMinecraftParams, InstallMinecraftUseCase},
+        MetadataStorage, MinecraftDownloader,
     },
-    libs::request_client::RequestClient,
+    settings::LocationInfo,
 };
 
 pub struct InstallInstanceUseCase<
     IS: InstanceStorage,
-    MS: ReadMetadataStorage,
+    MS: MetadataStorage,
     MD: MinecraftDownloader,
     PS: ProgressService,
     JIS: JavaInstallationService,
     JS: JavaStorage,
-    RC: RequestClient,
+    JP: JreProvider,
 > {
     instance_storage: Arc<IS>,
-    install_minecraft_use_case: Arc<InstallMinecraftUseCase<MS, MD, PS, JIS, JS, RC>>,
+    install_minecraft_use_case: Arc<InstallMinecraftUseCase<MS, MD, PS, JIS, JS, JP>>,
     progress_service: Arc<PS>,
     location_info: Arc<LocationInfo>,
 }
 
 impl<
         IS: InstanceStorage,
-        MS: ReadMetadataStorage,
+        MS: MetadataStorage,
         MD: MinecraftDownloader,
         PS: ProgressService,
         JIS: JavaInstallationService,
         JS: JavaStorage,
-        RC: RequestClient,
-    > InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, RC>
+        JP: JreProvider,
+    > InstallInstanceUseCase<IS, MS, MD, PS, JIS, JS, JP>
 {
     pub fn new(
         instance_storage: Arc<IS>,
-        install_minecraft_use_case: Arc<InstallMinecraftUseCase<MS, MD, PS, JIS, JS, RC>>,
+        install_minecraft_use_case: Arc<InstallMinecraftUseCase<MS, MD, PS, JIS, JS, JP>>,
         progress_service: Arc<PS>,
         location_info: Arc<LocationInfo>,
     ) -> Self {

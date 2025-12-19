@@ -2,16 +2,14 @@ use aether_core_plugin_api::v0::{CommandDto, OutputDto};
 use extism::host_fn;
 use extism_convert::Msgpack;
 
-use crate::{
-    core::LauncherState,
-    features::plugins::{
-        extism::{
-            host_functions::PluginContext,
-            mappers::{to_extism_res, OutputDtoExt},
-        },
-        plugin_utils,
+use crate::{core::LauncherState, shared::execute_async};
+
+use super::super::{
+    super::{
+        super::plugin_utils,
+        mappers::{to_extism_res, OutputDtoExt},
     },
-    shared::execute_async,
+    PluginContext,
 };
 
 host_fn!(

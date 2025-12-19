@@ -5,12 +5,9 @@ use serr::SerializeError;
 use crate::{features::minecraft::LoaderVersionPreference, shared::IoError};
 
 #[derive(Debug, thiserror::Error, SerializeError)]
-pub enum MinecraftError {
-    #[error("Storage failure: {0}")]
-    StorageFailure(#[from] IoError),
-
-    #[error("Minecraft version {version} not found")]
-    VersionNotFoundError { version: String },
+pub enum MinecraftDomainError {
+    #[error("Minecraft version \"{version}\" not found")]
+    VersionNotFound { version: String },
 
     // TODO: maybe specify message in which case it throws
     #[error("Minecraft version not found for loader version {loader_version_preference:?}")]
@@ -28,23 +25,14 @@ pub enum MinecraftError {
     )]
     LoaderVersionNotSpecified,
 
-    #[error("Stable or latest loader version not found")]
+    #[error("Stable or latest loader could not be resolved")]
     DefaultLoaderVersionNotFound,
 
+    #[error("Modloader processor failed: {reason}")]
+    ModLoaderProcessorFailed { reason: String },
+
     #[error("Path not found: {path:?}")]
-    PathNotFoundError { path: PathBuf, entity_type: String },
-
-    #[error("Error while parsing libraries: {0}")]
-    ParseError(#[from] daedalus::Error),
-
-    #[error("Failed to execute pre-launch command")]
-    PreLaunchCommandError { code: i32 },
-
-    #[error("Failed to execute post-launch command")]
-    PostLaunchCommandError { code: i32 },
-
-    #[error("Modloader processor error: {0}")]
-    ModLoaderProcessorError(String),
+    PathNotFound { path: PathBuf, entity_type: String },
 
     #[error("No java found at path: {path:?}")]
     JavaNotFound { path: PathBuf },
@@ -54,4 +42,18 @@ pub enum MinecraftError {
 
     #[error("Java auto installation failed: {0}")]
     JavaInstallationFailed(String),
+
+    #[error("Failed to execute pre-launch command")]
+    PreLaunchCommandFailed { code: i32 },
+
+    #[error("Failed to execute post-launch command")]
+    PostLaunchCommandFailed { code: i32 },
+
+    // External
+    #[error("Error while parsing libraries: {0}")]
+    LibraryParse(#[from] daedalus::Error),
+
+    // Infrastructure
+    #[error("Storage failure: {0}")]
+    StorageFailure(#[from] IoError),
 }

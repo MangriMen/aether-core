@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    time::{self, Duration},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::policies::ExponentialBackoff;
@@ -10,37 +6,48 @@ use tokio::sync::OnceCell;
 
 use crate::{
     features::{
-        auth::{CredentialsServiceImpl, FsCredentialsStorage},
-        events::{InMemoryProgressBarStorage, ProgressServiceImpl, TauriEventEmitter},
-        file_watcher::NotifyFileWatcher,
+        auth::{app::CredentialsServiceImpl, infra::FsCredentialsStorage},
+        events::{
+            infra::{InMemoryProgressBarStorage, TauriEventEmitter},
+            ProgressServiceImpl,
+        },
+        file_watcher::infra::NotifyFileWatcher,
         instance::{
-            ContentProviderRegistry, EventEmittingInstanceStorage, FsInstanceStorage,
-            FsPackStorage, InstanceEventHandler, InstanceWatcherServiceImpl,
-            ModrinthContentProvider,
+            infra::{
+                EventEmittingInstanceStorage, FsInstanceStorage, FsPackStorage,
+                InstanceEventHandler, ModrinthContentProvider,
+            },
+            ContentProviderRegistry, InstanceWatcherServiceImpl,
         },
         java::infra::FsJavaStorage,
-        minecraft::{CachedMetadataStorage, FsMetadataStorage, ModrinthMetadataStorage},
-        plugins::{
-            ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage, ImporterCapability,
-            LoadConfigType, MemoryCapabilityRegistry, PluginInfrastructureListener,
-            PluginLoaderRegistry, PluginRegistry, UpdaterCapability, ZipPluginExtractor,
+        minecraft::infra::{
+            CachedMetadataStorage, MinecraftMetadataResolver, ModrinthMetadataStorage,
         },
-        process::InMemoryProcessStorage,
-        settings::{FsDefaultInstanceSettingsStorage, FsSettingsStorage},
+        plugins::{
+            infra::{
+                ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage,
+                MemoryCapabilityRegistry, PluginInfrastructureListener, ZipPluginExtractor,
+            },
+            ImporterCapability, LoadConfigType, PluginLoaderRegistry, PluginRegistry,
+            UpdaterCapability,
+        },
+        process::infra::InMemoryProcessStorage,
+        settings::infra::{FsDefaultInstanceSettingsStorage, FsSettingsStorage},
     },
     libs::request_client::ReqwestClient,
+    shared::FileCache,
 };
 
 use super::{ErrorKind, LauncherState};
 
 static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 
-const CACHE_TTL: Duration = Duration::from_secs(120);
-
 pub type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgressBarStorage>;
 
 pub type ImporterRegistry = MemoryCapabilityRegistry<ImporterCapability>;
 pub type UpdaterRegistry = MemoryCapabilityRegistry<UpdaterCapability>;
+
+pub type MinecraftMetadataCache = FileCache<MinecraftMetadataResolver>;
 
 pub struct LazyLocator {
     state: Arc<LauncherState>,
@@ -58,7 +65,7 @@ pub struct LazyLocator {
     metadata_storage: OnceCell<
         Arc<
             CachedMetadataStorage<
-                FsMetadataStorage,
+                MinecraftMetadataCache,
                 ModrinthMetadataStorage<ReqwestClient<ProgressServiceType>>,
             >,
         >,
@@ -88,9 +95,10 @@ pub struct LazyLocator {
 
 fn get_reqwest_client() -> Arc<ClientWithMiddleware> {
     const FETCH_ATTEMPTS: u32 = 5;
+    const TCP_KEEP_ALIVE_TIME: std::time::Duration = std::time::Duration::from_secs(10);
 
     let client = reqwest::Client::builder()
-        .tcp_keepalive(Some(time::Duration::from_secs(10)))
+        .tcp_keepalive(Some(TCP_KEEP_ALIVE_TIME))
         .build()
         .expect("Failed to build reqwest client");
 
@@ -275,14 +283,16 @@ impl LazyLocator {
         &self,
     ) -> Arc<
         CachedMetadataStorage<
-            FsMetadataStorage,
+            MinecraftMetadataCache,
             ModrinthMetadataStorage<ReqwestClient<ProgressServiceType>>,
         >,
     > {
         self.metadata_storage
             .get_or_init(|| async {
                 Arc::new(CachedMetadataStorage::new(
-                    FsMetadataStorage::new(&self.state.location_info.cache_dir(), Some(CACHE_TTL)),
+                    FileCache::new(MinecraftMetadataResolver::new(
+                        self.state.location_info.clone(),
+                    )),
                     ModrinthMetadataStorage::new(self.get_request_client().await),
                 ))
             })
