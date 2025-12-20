@@ -59,7 +59,7 @@ impl<RC: RequestClient, PS: ProgressService, C: Cache> AssetsService<RC, PS, C> 
         &self,
         version_info: &daedalus::minecraft::VersionInfo,
     ) -> Result<daedalus::minecraft::AssetsIndex, MinecraftDomainError> {
-        Ok(self.fetch_json(&version_info.asset_index.id).await?)
+        Ok(self.fetch_json(&version_info.asset_index.url).await?)
     }
 
     pub async fn download_assets(
