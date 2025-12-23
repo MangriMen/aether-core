@@ -1,5 +1,8 @@
-pub mod app;
-pub mod domain;
-pub mod infra;
+pub mod adapters;
+pub mod core;
 
-pub use domain::*;
+pub use adapters::*;
+pub use core::*;
+
+#[cfg(test)]
+mod tests;

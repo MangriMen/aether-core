@@ -11,10 +11,11 @@ use crate::{
         auth::Credentials,
         java::{app::GetJavaUseCase, JavaInstallationService, JavaStorage},
         minecraft::{
-            app::GetVersionManifestUseCase, resolve_minecraft_version,
-            utils::get_compatible_java_version, LaunchSettings, LoaderVersionPreference,
-            LoaderVersionResolver, MetadataStorage, MinecraftDomainError, MinecraftDownloader,
-            ModLoader,
+            app::{GetVersionManifestUseCase, MinecraftApplicationError},
+            resolve_minecraft_version,
+            utils::get_compatible_java_version,
+            LaunchSettings, LoaderVersionPreference, LoaderVersionResolver, MetadataStorage,
+            MinecraftDomainError, MinecraftDownloader, ModLoader,
         },
         settings::LocationInfo,
     },
@@ -80,7 +81,7 @@ impl<
         get_minecraft_launch_command_params: GetMinecraftLaunchCommandParams,
         launch_settings: LaunchSettings,
         credentials: Credentials,
-    ) -> Result<Command, MinecraftDomainError> {
+    ) -> Result<Command, MinecraftApplicationError> {
         let GetMinecraftLaunchCommandParams {
             game_version,
             loader,

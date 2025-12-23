@@ -8,7 +8,7 @@ use crate::{
         minecraft::MinecraftDomainError,
     },
     libs::request_client::{Request, RequestClient},
-    shared::{FileStore, IoError},
+    shared::{FileStore, InfinityCachedResource, IoError},
 };
 
 use super::version_jar_key;
@@ -16,7 +16,7 @@ use super::version_jar_key;
 pub struct ClientService<RC: RequestClient, PS: ProgressService, FS: FileStore> {
     progress_service: Arc<PS>,
     request_client: Arc<RC>,
-    file_store: Arc<FS>,
+    cached_resource: InfinityCachedResource<FS>,
 }
 
 impl<RC: RequestClient, PS: ProgressService, FS: FileStore> ClientService<RC, PS, FS> {
@@ -24,32 +24,39 @@ impl<RC: RequestClient, PS: ProgressService, FS: FileStore> ClientService<RC, PS
         Self {
             progress_service,
             request_client,
-            file_store,
+            cached_resource: InfinityCachedResource {
+                cache: file_store.clone(),
+            },
         }
     }
 
-    async fn download_client(
-        &self,
-        version_id: &String,
-        version_info: &daedalus::minecraft::VersionInfo,
-    ) -> Result<Bytes, MinecraftDomainError> {
-        let client_download_url = version_info
+    fn get_client_download<'a>(
+        version_id: &str,
+        version_info: &'a daedalus::minecraft::VersionInfo,
+    ) -> Result<&'a daedalus::minecraft::Download, MinecraftDomainError> {
+        version_info
             .downloads
             .get(&daedalus::minecraft::DownloadType::Client)
             .ok_or(MinecraftDomainError::VersionNotFound {
                 version: version_id.to_owned(),
-            })?;
+            })
+    }
 
-        Ok(self
-            .request_client
-            .fetch_bytes(Request::get(&client_download_url.url))
+    async fn fetch_bytes(&self, url: &str) -> Result<Bytes, IoError> {
+        self.request_client
+            .fetch_bytes(Request::get(url))
             .await
-            .map_err(|err| {
-                IoError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::NetworkUnreachable,
-                    err,
-                ))
-            })?)
+            .map_err(get_network_error)
+    }
+
+    async fn download_client(
+        &self,
+        version_id: &str,
+        version_info: &daedalus::minecraft::VersionInfo,
+    ) -> Result<Bytes, MinecraftDomainError> {
+        let client_download_url = Self::get_client_download(version_id, version_info)?;
+
+        Ok(self.fetch_bytes(&client_download_url.url).await?)
     }
 
     pub async fn ensure_client_download(
@@ -58,16 +65,16 @@ impl<RC: RequestClient, PS: ProgressService, FS: FileStore> ClientService<RC, PS
         force: bool,
         loading_bar: Option<&ProgressBarId>,
     ) -> Result<(), MinecraftDomainError> {
-        log::info!("Downloading client {}", version_info.id);
-
         let version_id = &version_info.id;
 
-        let key = version_jar_key(version_id.to_string());
-
-        if !self.file_store.exists(&key).await || force {
-            let bytes = self.download_client(version_id, version_info).await?;
-            self.file_store.write(&key, bytes).await;
-        }
+        self.cached_resource
+            .ensure(
+                || version_jar_key(version_id.to_string()),
+                self.download_client(version_id, version_info),
+                || format!("Client {version_id}"),
+                force,
+            )
+            .await?;
 
         if let Some(loading_bar) = loading_bar {
             self.progress_service
@@ -75,8 +82,16 @@ impl<RC: RequestClient, PS: ProgressService, FS: FileStore> ClientService<RC, PS
                 .await;
         }
 
-        log::info!("Downloaded client {} successfully", version_info.id);
-
         Ok(())
     }
+}
+
+fn get_network_error<E>(error: E) -> IoError
+where
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    IoError::IoError(std::io::Error::new(
+        std::io::ErrorKind::NetworkUnreachable,
+        error,
+    ))
 }

@@ -16,8 +16,8 @@ use crate::{
         },
         java::{JavaInstallationService, JavaStorage, JreProvider},
         minecraft::{
-            LoaderVersionPreference, LoaderVersionResolver, MetadataStorage, MinecraftDownloader,
-            ModLoader,
+            app::MinecraftApplicationError, LoaderVersionPreference, LoaderVersionResolver,
+            MetadataStorage, MinecraftDownloader, ModLoader,
         },
         settings::{Hooks, LocationInfo},
     },
@@ -129,13 +129,15 @@ impl<
         let loader_version = if mod_loader != ModLoader::Vanilla && loader_version.is_some() {
             self.loader_version_resolver
                 .resolve(&game_version, &mod_loader, loader_version.as_ref())
-                .await?;
+                .await
+                .map_err(MinecraftApplicationError::Domain)?;
 
             loader_version
         } else if mod_loader != ModLoader::Vanilla && loader_version.is_none() {
             self.loader_version_resolver
                 .try_get_default(&game_version, &mod_loader)
-                .await?
+                .await
+                .map_err(MinecraftApplicationError::Domain)?
         } else {
             None
         };

@@ -40,18 +40,21 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         lazy_locator.get_metadata_storage().await,
     ));
 
+    let minecraft_cache = Arc::new(FileCache::new(MinecraftDownloadResolver::new(
+        state.location_info.clone(),
+    )));
+
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
-            state.location_info.clone(),
-        ))),
+        minecraft_cache.clone(),
     );
+
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -64,7 +67,7 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         libraries_service,
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
 
     let get_java_use_case = Arc::new(GetJavaUseCase::new(
@@ -129,18 +132,21 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
         lazy_locator.get_metadata_storage().await,
     ));
 
+    let minecraft_cache = Arc::new(FileCache::new(MinecraftDownloadResolver::new(
+        state.location_info.clone(),
+    )));
+
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
-            state.location_info.clone(),
-        ))),
+        minecraft_cache.clone(),
     );
+
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -153,7 +159,7 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
         libraries_service,
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
 
     let get_java_use_case = Arc::new(GetJavaUseCase::new(

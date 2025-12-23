@@ -13,7 +13,7 @@ use crate::{
     shared::{Cache, FileStore, InfinityCachedResource, IoError},
 };
 
-use super::{version_info_key, version_jar_key, AssetsService, ClientService, LibrariesService};
+use super::{version_info_key, AssetsService, ClientService, LibrariesService};
 
 pub struct MinecraftDownloadService<RC: RequestClient, PS: ProgressService, C: Cache, FS: FileStore>
 {
@@ -34,7 +34,7 @@ impl<RC: RequestClient, PS: ProgressService, C: Cache, FS: FileStore>
         libraries_service: LibrariesService<RC, PS>,
         request_client: Arc<RC>,
         progress_service: Arc<PS>,
-        cache: C,
+        cache: Arc<C>,
     ) -> Self {
         Self {
             client_service,
@@ -131,10 +131,6 @@ impl<RC: RequestClient, PS: ProgressService, C: Cache, FS: FileStore> MinecraftD
         let force = force.unwrap_or(false);
 
         let version_id = get_version_id(version, loader);
-
-        self.cached_resource
-            .pick_cached(|| version_jar_key(version_id.to_string()))
-            .await;
 
         let version_info = self
             .cached_resource
