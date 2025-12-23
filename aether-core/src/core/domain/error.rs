@@ -10,7 +10,7 @@ use crate::{
 pub enum ErrorKind {
     #[error(transparent)]
     #[serialize_error]
-    AuthError(#[from] auth::AuthError),
+    AuthError(#[from] auth::AuthApplicationError),
 
     #[error(transparent)]
     #[serialize_error]
@@ -30,7 +30,7 @@ pub enum ErrorKind {
 
     #[error(transparent)]
     #[serialize_error]
-    MinecraftError(#[from] minecraft::MinecraftDomainError),
+    MinecraftError(#[from] minecraft::app::MinecraftApplicationError),
 
     #[error(transparent)]
     #[serialize_error]

@@ -76,18 +76,21 @@ async fn get_launch_instance_use_case(
         lazy_locator.get_metadata_storage().await,
     ));
 
+    let minecraft_cache = Arc::new(FileCache::new(MinecraftDownloadResolver::new(
+        state.location_info.clone(),
+    )));
+
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
-            state.location_info.clone(),
-        ))),
+        minecraft_cache.clone(),
     );
+
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -100,7 +103,7 @@ async fn get_launch_instance_use_case(
         libraries_service,
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
 
     let get_java_use_case = Arc::new(GetJavaUseCase::new(
@@ -169,15 +172,13 @@ async fn get_launch_instance_use_case(
     let client_service = ClientService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
-        Arc::new(FileCache::new(MinecraftDownloadResolver::new(
-            state.location_info.clone(),
-        ))),
+        minecraft_cache.clone(),
     );
     let assets_service = AssetsService::new(
         lazy_locator.get_progress_service().await,
         lazy_locator.get_request_client().await,
         state.location_info.clone(),
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
     let libraries_service = LibrariesService::new(
         lazy_locator.get_progress_service().await,
@@ -190,7 +191,7 @@ async fn get_launch_instance_use_case(
         libraries_service,
         lazy_locator.get_request_client().await,
         lazy_locator.get_progress_service().await,
-        FileCache::new(MinecraftDownloadResolver::new(state.location_info.clone())),
+        minecraft_cache.clone(),
     );
 
     let get_minecraft_launch_command_use_case = GetMinecraftLaunchCommandUseCase::new(

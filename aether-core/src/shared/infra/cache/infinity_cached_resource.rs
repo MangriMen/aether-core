@@ -1,15 +1,16 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
+use bytes::Bytes;
 use tracing::debug;
 
-use crate::shared::{Cache, CacheKey};
+use crate::shared::{Cache, CacheKey, FileStore};
 
-pub struct InfinityCachedResource<C: Cache> {
-    pub cache: C,
+pub struct InfinityCachedResource<C> {
+    pub cache: Arc<C>,
 }
 
 impl<C: Cache> InfinityCachedResource<C> {
-    pub fn new(cache: C) -> Self {
+    pub fn new(cache: Arc<C>) -> Self {
         Self { cache }
     }
 
@@ -29,27 +30,46 @@ impl<C: Cache> InfinityCachedResource<C> {
         let key = key_fn();
 
         if !force {
-            debug!("Get {} from cache", context_fn());
             if let Some(value) = self.cache.get::<T>(&key).await {
+                debug!("Get {} from cache", context_fn());
                 return Ok(value);
             }
         }
 
-        debug!("Fetching {}", context_fn());
         let value = fetch_fn.await?;
+        debug!("Fetched {}", context_fn());
 
         self.cache.set(&key, &value, Duration::ZERO).await;
 
         Ok(value)
     }
+}
 
-    pub async fn pick_cached<T, KeyFn>(&self, key_fn: KeyFn) -> bool
+impl<FS: FileStore> InfinityCachedResource<FS> {
+    pub async fn ensure<Fut, KeyFn, ContextFn, E>(
+        &self,
+        key_fn: KeyFn,
+        fetch_fn: Fut,
+        context_fn: ContextFn,
+        force: bool,
+    ) -> Result<(), E>
     where
-        T: Send + Sync + 'static,
-        KeyFn: Fn() -> CacheKey<T>,
+        Fut: std::future::Future<Output = Result<Bytes, E>>,
+        KeyFn: Fn() -> CacheKey<()>,
+        ContextFn: Fn() -> String,
     {
         let key = key_fn();
 
-        self.cache.exists(&key).await
+        if !force && self.cache.exists(&key).await {
+            debug!("{} already downloaded", context_fn());
+            return Ok(());
+        }
+
+        let value = fetch_fn.await?;
+        debug!("{} fetched", context_fn());
+
+        self.cache.write(&key, value).await;
+
+        Ok(())
     }
 }

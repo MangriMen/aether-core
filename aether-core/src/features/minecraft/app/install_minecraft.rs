@@ -12,9 +12,12 @@ use crate::features::{
         Java, JavaInstallationService, JavaStorage, JreProvider,
     },
     minecraft::{
-        app::GetVersionManifestUseCase, infra::ForgeProcessor, resolve_minecraft_version,
-        utils::get_compatible_java_version, LoaderVersionPreference, LoaderVersionResolver,
-        MetadataStorage, MinecraftDomainError, MinecraftDownloader, ModLoader, ModLoaderProcessor,
+        app::{GetVersionManifestUseCase, MinecraftApplicationError},
+        infra::ForgeProcessor,
+        resolve_minecraft_version,
+        utils::get_compatible_java_version,
+        LoaderVersionPreference, LoaderVersionResolver, MetadataStorage, MinecraftDomainError,
+        MinecraftDownloader, ModLoader, ModLoaderProcessor,
     },
     settings::LocationInfo,
 };
@@ -116,7 +119,7 @@ impl<
         install_minecraft_params: InstallMinecraftParams,
         loading_bar: Option<&ProgressBarId>,
         force: bool,
-    ) -> Result<(), MinecraftDomainError> {
+    ) -> Result<(), MinecraftApplicationError> {
         let InstallMinecraftParams {
             game_version,
             loader,

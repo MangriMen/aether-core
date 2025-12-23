@@ -6,7 +6,7 @@ use tokio::sync::OnceCell;
 
 use crate::{
     features::{
-        auth::{app::CredentialsServiceImpl, infra::FsCredentialsStorage},
+        auth::FsCredentialsStorage,
         events::{
             infra::{InMemoryProgressBarStorage, TauriEventEmitter},
             ProgressServiceImpl,
@@ -56,7 +56,6 @@ pub struct LazyLocator {
     request_client: OnceCell<Arc<ReqwestClient<ProgressServiceType>>>,
     api_client: OnceCell<Arc<ReqwestClient<ProgressServiceType>>>,
     credentials_storage: OnceCell<Arc<FsCredentialsStorage>>,
-    credentials_service: OnceCell<Arc<CredentialsServiceImpl<FsCredentialsStorage>>>,
     settings_storage: OnceCell<Arc<FsSettingsStorage>>,
     process_storage: OnceCell<Arc<InMemoryProcessStorage>>,
     instance_storage:
@@ -126,7 +125,6 @@ impl LazyLocator {
                     request_client: OnceCell::new(),
                     api_client: OnceCell::new(),
                     credentials_storage: OnceCell::new(),
-                    credentials_service: OnceCell::new(),
                     settings_storage: OnceCell::new(),
                     process_storage: OnceCell::new(),
                     instance_storage: OnceCell::new(),
@@ -219,19 +217,6 @@ impl LazyLocator {
             .get_or_init(|| async {
                 Arc::new(FsCredentialsStorage::new(
                     &self.state.location_info.settings_dir,
-                ))
-            })
-            .await
-            .clone()
-    }
-
-    pub async fn get_credentials_service(
-        &self,
-    ) -> Arc<CredentialsServiceImpl<FsCredentialsStorage>> {
-        self.credentials_service
-            .get_or_init(|| async {
-                Arc::new(CredentialsServiceImpl::new(
-                    self.get_credentials_storage().await,
                 ))
             })
             .await
