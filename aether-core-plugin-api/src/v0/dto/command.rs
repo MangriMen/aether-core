@@ -28,3 +28,28 @@ impl FromStr for CommandDto {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_command_from_str() {
+        let cmd = CommandDto::from_str("git commit -m 'hello'").unwrap();
+        assert_eq!(cmd.program, "git");
+        assert_eq!(cmd.args, vec!["commit", "-m", "'hello'"]);
+        assert!(cmd.current_dir.is_none());
+    }
+
+    #[test]
+    fn test_command_serialization() {
+        let cmd = CommandDto {
+            program: "ls".to_string(),
+            args: vec!["-la".to_string()],
+            current_dir: None,
+        };
+        let json = serde_json::to_string(&cmd).unwrap();
+        assert!(json.contains(r#""program":"ls""#));
+    }
+}
