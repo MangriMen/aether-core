@@ -64,11 +64,13 @@ impl JavaInstallationService for FsJavaInstallationService {
 
         // Extract version and architecture information
         if let (Some(version), Some(architecture)) = (version, architecture) {
-            extract_java_major_minor_version(&version).map(|(_, major_version)| Java {
-                major_version,
-                path: java_window_bin_path.to_string_lossy().to_string(),
-                version: version.to_string(),
-                architecture: architecture.to_string(),
+            extract_java_major_minor_version(&version).map(|(_, major_version)| {
+                Java::new(
+                    major_version,
+                    version.to_string(),
+                    architecture.to_string(),
+                    java_window_bin_path.to_string_lossy().to_string(),
+                )
             })
         } else {
             Err(JavaDomainError::InvalidPath {

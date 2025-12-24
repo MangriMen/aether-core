@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::java::{
-        app::{GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase},
+        app::{GetJavaUseCase, InstallJavaUseCase},
         infra::{AzulJreProvider, FsJavaInstallationService},
         Java,
     },
@@ -19,12 +19,10 @@ pub async fn install(version: u32) -> crate::Result<Java> {
         lazy_locator.get_request_client().await,
     ));
 
-    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
-
     let install_java_use_case = InstallJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
-        install_jre_use_case,
+        jre_provider,
         state.location_info.clone(),
     );
 

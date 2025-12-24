@@ -11,7 +11,7 @@ use serde::Deserialize;
 use crate::{
     features::{
         events::{ProgressBarId, ProgressEventType, ProgressService, ProgressServiceExt},
-        java::{ports::JreProvider, JavaDomainError},
+        java::{JavaDomainError, JreProvider},
     },
     libs::request_client::{Request, RequestClient, RequestClientExt, RequestError},
     shared::remove_dir_all,

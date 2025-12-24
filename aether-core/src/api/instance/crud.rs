@@ -12,7 +12,7 @@ use crate::{
             Instance,
         },
         java::{
-            app::{GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase},
+            app::{GetJavaUseCase, InstallJavaUseCase},
             infra::{AzulJreProvider, FsJavaInstallationService},
         },
         minecraft::{
@@ -80,12 +80,10 @@ pub async fn create(new_instance: NewInstance) -> crate::Result<String> {
         lazy_locator.get_request_client().await,
     ));
 
-    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
-
     let install_java_use_case = Arc::new(InstallJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
-        install_jre_use_case,
+        jre_provider,
         state.location_info.clone(),
     ));
 
@@ -172,12 +170,10 @@ pub async fn install(instance_id: String, force: bool) -> crate::Result<()> {
         lazy_locator.get_request_client().await,
     ));
 
-    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
-
     let install_java_use_case = Arc::new(InstallJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
-        install_jre_use_case,
+        jre_provider,
         state.location_info.clone(),
     ));
 

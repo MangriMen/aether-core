@@ -5,13 +5,12 @@ use crate::features::{
     settings::LocationInfo,
 };
 
-use super::InstallJreUseCase;
-use super::JavaApplicationError;
+use super::super::JavaApplicationError;
 
 pub struct InstallJavaUseCase<JS: JavaStorage, JIS: JavaInstallationService, JP: JreProvider> {
     storage: Arc<JS>,
     java_installation_service: JIS,
-    install_jre_use_case: Arc<InstallJreUseCase<JP>>,
+    provider: Arc<JP>,
     location_info: Arc<LocationInfo>,
 }
 
@@ -21,21 +20,21 @@ impl<JS: JavaStorage, JIS: JavaInstallationService, JP: JreProvider>
     pub fn new(
         storage: Arc<JS>,
         java_installation_service: JIS,
-        install_jre_use_case: Arc<InstallJreUseCase<JP>>,
+        provider: Arc<JP>,
         location_info: Arc<LocationInfo>,
     ) -> Self {
         Self {
             storage,
             java_installation_service,
-            install_jre_use_case,
+            provider,
             location_info,
         }
     }
 
     pub async fn execute(&self, version: u32) -> Result<Java, JavaApplicationError> {
         let installed_jre_path = self
-            .install_jre_use_case
-            .execute(version, self.location_info.java_dir())
+            .provider
+            .install(version, &self.location_info.java_dir())
             .await?;
 
         let java = self
@@ -43,8 +42,6 @@ impl<JS: JavaStorage, JIS: JavaInstallationService, JP: JreProvider>
             .locate_java(&installed_jre_path)
             .await?;
 
-        self.storage.upsert(&java).await?;
-
-        Ok(java)
+        Ok(self.storage.upsert(java).await?)
     }
 }
