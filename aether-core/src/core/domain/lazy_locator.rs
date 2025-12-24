@@ -6,7 +6,7 @@ use tokio::sync::OnceCell;
 
 use crate::{
     features::{
-        auth::FsCredentialsStorage,
+        auth::infra::FsCredentialsStorage,
         events::{
             infra::{InMemoryProgressBarStorage, TauriEventEmitter},
             ProgressServiceImpl,

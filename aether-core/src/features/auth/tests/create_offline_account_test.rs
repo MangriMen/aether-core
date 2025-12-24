@@ -15,8 +15,8 @@ async fn test_create_offline_account_sets_active_if_none() {
     assert!(account.active);
     assert_eq!(account.username.as_str(), "TestUser");
 
-    let active = storage.get_active().await.unwrap();
-    assert_eq!(active.id, account.id);
+    let active = storage.find_active().await.unwrap().unwrap();
+    assert_eq!(active.id(), account.id);
 }
 
 #[tokio::test]
