@@ -176,7 +176,7 @@ impl<
         self.minecraft_download_service
             .download_minecraft(
                 &version_info,
-                &java.architecture,
+                java.architecture(),
                 force,
                 minecraft_updated,
                 loading_bar,

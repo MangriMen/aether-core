@@ -33,13 +33,13 @@ pub fn get_minecraft_jvm_arguments(
             libraries_dir,
             version_info.libraries.as_slice(),
             client_path,
-            &java_version.architecture,
+            java_version.architecture(),
             minecraft_updated,
         )?,
         &version_jar,
         memory,
         java_args,
-        &java_version.architecture,
+        java_version.architecture(),
     )?
     .into_iter()
     .collect::<Vec<_>>())

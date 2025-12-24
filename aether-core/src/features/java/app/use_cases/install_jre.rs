@@ -1,8 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
-use crate::features::java::ports::JreProvider;
+use crate::features::java::JreProvider;
 
-use super::JavaApplicationError;
+use super::super::JavaApplicationError;
 
 pub struct InstallJreUseCase<JP: JreProvider> {
     provider: Arc<JP>,

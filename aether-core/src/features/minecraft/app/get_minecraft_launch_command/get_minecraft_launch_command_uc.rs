@@ -166,16 +166,16 @@ impl<
             &self.location_info.assets_dir(),
             &version.type_,
             launch_settings.game_resolution,
-            &java.architecture,
+            java.architecture(),
         )?
         .into_iter()
         .collect::<Vec<_>>();
 
         let mut command = match &launch_settings.hooks.wrapper {
             Some(hook) => {
-                with_mut_ref!(it = tokio::process::Command::new(hook) => {it.arg(&java.path)})
+                with_mut_ref!(it = tokio::process::Command::new(hook) => {it.arg(java.path())})
             }
-            None => tokio::process::Command::new(&java.path),
+            None => tokio::process::Command::new(java.path()),
         };
 
         command

@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use crate::features::java::{Java, JavaDomainError, JavaInstallationService, JavaStorage};
 
-use super::JavaApplicationError;
+use super::super::JavaApplicationError;
 
 pub struct GetJavaUseCase<JS: JavaStorage, JIS: JavaInstallationService> {
     storage: Arc<JS>,
@@ -26,7 +26,7 @@ impl<JS: JavaStorage, JIS: JavaInstallationService> GetJavaUseCase<JS, JIS> {
 
         Ok(self
             .java_installation_service
-            .locate_java(Path::new(&java.path))
+            .locate_java(Path::new(java.path()))
             .await?)
     }
 }

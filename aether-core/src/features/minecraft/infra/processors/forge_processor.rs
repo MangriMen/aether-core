@@ -50,7 +50,7 @@ impl<PS: ProgressService> ForgeProcessor<PS> {
         });
 
         let class_path_arg =
-            get_class_paths_jar(libraries_dir, &class_path, &java_version.architecture)?;
+            get_class_paths_jar(libraries_dir, &class_path, java_version.architecture())?;
 
         let processor_jar_path = get_lib_path(libraries_dir, &processor.jar, false)?;
         let processor_main_class = get_processor_main_class(processor_jar_path).await?.ok_or({
@@ -61,14 +61,14 @@ impl<PS: ProgressService> ForgeProcessor<PS> {
 
         let processor_args = get_processor_arguments(libraries_dir, &processor.args, data)?;
 
-        let output = Command::new(&java_version.path)
+        let output = Command::new(java_version.path())
             .arg("-cp")
             .arg(class_path_arg)
             .arg(processor_main_class)
             .args(processor_args)
             .output()
             .await
-            .map_err(|e| IoError::with_path(e, &java_version.path))
+            .map_err(|e| IoError::with_path(e, java_version.path()))
             .map_err(|err| MinecraftDomainError::ModLoaderProcessorFailed {
                 reason: format!("Error running processor: {err}"),
             })?;

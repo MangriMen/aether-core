@@ -16,7 +16,7 @@ use crate::{
             infra::{EventEmittingInstanceStorage, FsInstanceStorage},
         },
         java::{
-            app::{GetJavaUseCase, InstallJavaUseCase, InstallJreUseCase},
+            app::{GetJavaUseCase, InstallJavaUseCase},
             infra::{AzulJreProvider, FsJavaInstallationService, FsJavaStorage},
         },
         minecraft::{
@@ -116,12 +116,10 @@ async fn get_launch_instance_use_case(
         lazy_locator.get_request_client().await,
     ));
 
-    let install_jre_use_case = Arc::new(InstallJreUseCase::new(jre_provider));
-
     let install_java_use_case = Arc::new(InstallJavaUseCase::new(
         lazy_locator.get_java_storage().await,
         FsJavaInstallationService,
-        install_jre_use_case,
+        jre_provider,
         state.location_info.clone(),
     ));
 
