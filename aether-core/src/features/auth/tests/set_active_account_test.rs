@@ -28,12 +28,12 @@ async fn test_set_active_account() {
     assert!(active_account.active);
     assert_eq!(active_account.id, cred2_id);
 
-    let currently_active = storage.get_active().await.unwrap();
-    assert_eq!(currently_active.id, cred2_id);
+    let currently_active = storage.find_active().await.unwrap().unwrap();
+    assert_eq!(currently_active.id(), cred2_id);
 
     // Verify previous active account was deactivated by ActiveAccountHelper
     let cred1 = storage.get(cred1_id).await.unwrap();
-    assert!(!cred1.active);
+    assert!(!cred1.is_active());
 }
 
 #[tokio::test]

@@ -1,5 +1,4 @@
 use crate::features::auth::{AccountType, Credentials, Username};
-use chrono::Utc;
 use uuid::Uuid;
 
 /// Builder for constructing test Credentials with customizable fields.
@@ -32,14 +31,20 @@ impl CredentialsBuilder {
     }
 
     pub fn build(self) -> Credentials {
-        Credentials {
-            id: self.id,
-            username: Username::parse(&self.username).expect("Invalid username in test builder"),
-            active: self.active,
-            account_type: self.account_type,
-            access_token: String::new(),
-            refresh_token: String::new(),
-            expires: Utc::now(),
+        let mut credentials = match self.account_type {
+            AccountType::Offline => Credentials::new_offline(
+                self.id,
+                Username::parse(&self.username).expect("Invalid username in test builder"),
+            ),
+            AccountType::Microsoft => panic!("Unsupported account type"),
+        };
+
+        if self.active {
+            credentials
+                .activate()
+                .expect("Failed to activate credentials in builder");
         }
+
+        credentials
     }
 }

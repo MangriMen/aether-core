@@ -1,11 +1,11 @@
-mod application_services;
+mod dtos;
 mod error;
-mod model;
 mod ports;
+mod services;
 mod use_cases;
 
-pub use application_services::*;
+pub use dtos::*;
 pub use error::*;
-pub use model::*;
 pub use ports::*;
+pub use services::*;
 pub use use_cases::*;

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::features::auth::{ActiveAccountHelper, AuthApplicationError, CredentialsStorage};
 
-use super::AccountData;
+use super::super::AccountData;
 
 pub struct SetActiveAccountUseCase<CS: CredentialsStorage> {
     credentials_storage: Arc<CS>,

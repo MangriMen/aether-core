@@ -36,8 +36,19 @@ impl CredentialsStorage for MockCredentialsStorage {
         self.store
             .lock()
             .unwrap()
-            .insert(credentials.id, credentials.clone());
+            .insert(credentials.id(), credentials.clone());
         Ok(credentials)
+    }
+
+    async fn upsert_all(
+        &self,
+        credentials_list: Vec<Credentials>,
+    ) -> Result<(), AuthApplicationError> {
+        let mut store = self.store.lock().unwrap();
+        for c in credentials_list {
+            store.insert(c.id(), c);
+        }
+        Ok(())
     }
 
     async fn remove(&self, id: Uuid) -> Result<(), AuthApplicationError> {
@@ -50,47 +61,18 @@ impl CredentialsStorage for MockCredentialsStorage {
         Ok(())
     }
 
-    async fn get_first(&self) -> Result<Credentials, AuthApplicationError> {
-        self.store
-            .lock()
-            .unwrap()
-            .values()
-            .next()
-            .cloned()
-            .ok_or(AuthApplicationError::Domain(
-                AuthDomainError::NoActiveCredentials,
-            ))
-    }
-
-    async fn get_active(&self) -> Result<Credentials, AuthApplicationError> {
-        self.store
-            .lock()
-            .unwrap()
-            .values()
-            .find(|c| c.active)
-            .cloned()
-            .ok_or(AuthApplicationError::Domain(
-                AuthDomainError::NoActiveCredentials,
-            ))
-    }
-
-    async fn set_active(&self, id: Uuid) -> Result<Credentials, AuthApplicationError> {
-        let mut store = self.store.lock().unwrap();
-        for c in store.values_mut() {
-            if c.id == id {
-                c.active = true;
-                return Ok(c.clone());
-            }
-        }
-        Err(AuthApplicationError::Domain(
-            AuthDomainError::CredentialsNotFound { id },
-        ))
-    }
-
-    async fn deactivate_all(&self) -> Result<(), AuthApplicationError> {
-        for c in self.store.lock().unwrap().values_mut() {
-            c.active = false;
-        }
+    async fn clear(&self) -> Result<(), AuthApplicationError> {
+        self.store.lock().unwrap().clear();
         Ok(())
+    }
+
+    async fn find_active(&self) -> Result<Option<Credentials>, AuthApplicationError> {
+        Ok(self
+            .store
+            .lock()
+            .unwrap()
+            .values()
+            .find(|c| c.is_active())
+            .cloned())
     }
 }

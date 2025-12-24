@@ -36,9 +36,9 @@ pub fn get_minecraft_arguments(
             |arg| {
                 replace_placeholders_in_argument_string(
                     arg,
-                    &credentials.access_token,
-                    credentials.username.as_str(),
-                    credentials.id,
+                    credentials.access_token(),
+                    credentials.username.as_ref(),
+                    credentials.id(),
                     version,
                     asset_index_name,
                     game_directory,
@@ -56,9 +56,9 @@ pub fn get_minecraft_arguments(
         for x in legacy_arguments.split(' ') {
             parsed_arguments.push(replace_placeholders_in_argument_string(
                 &x.replace(' ', TEMPORARY_REPLACE_CHAR),
-                &credentials.access_token,
-                credentials.username.as_str(),
-                credentials.id,
+                credentials.access_token(),
+                credentials.username.as_ref(),
+                credentials.id(),
                 version,
                 asset_index_name,
                 game_directory,

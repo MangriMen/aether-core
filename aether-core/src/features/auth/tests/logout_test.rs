@@ -30,8 +30,8 @@ async fn test_logout_sets_new_active() {
     let use_case = LogoutUseCase::new(storage.clone());
     use_case.execute(cred1_id).await.unwrap();
 
-    let active = storage.get_active().await.unwrap();
-    assert_eq!(active.id, cred2_id);
+    let active = storage.find_active().await.unwrap().unwrap();
+    assert_eq!(active.id(), cred2_id);
 }
 
 #[tokio::test]
@@ -51,13 +51,21 @@ async fn test_logout_last_account() {
 
     let use_case = LogoutUseCase::new(storage.clone());
 
-    // Logout must fail when trying to remove the last active account
     let result = use_case.execute(cred_id).await;
-    assert!(result.is_err());
+    assert!(
+        result.is_ok(),
+        "Logout should succeed even for the last account"
+    );
+
+    let list = storage.list().await.unwrap();
+    assert!(list.is_empty());
 
     // Account should be removed since logout succeeded in removing it
     let result = storage.get(cred_id).await;
     assert!(result.is_err());
+
+    let active = storage.find_active().await.unwrap();
+    assert!(active.is_none());
 }
 
 #[tokio::test]

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::features::{
-    auth::CredentialsStorage,
+    auth::{ActiveAccountHelper, CredentialsStorage},
     events::{EventEmitter, ProgressService},
     instance::{InstanceError, InstanceStorage},
     java::{JavaInstallationService, JavaStorage, JreProvider},
@@ -68,7 +68,8 @@ impl<
         &self,
         instance_id: String,
     ) -> Result<MinecraftProcessMetadata, InstanceError> {
-        let default_account = self.credentials_storage.get_active().await?;
+        let default_account =
+            ActiveAccountHelper::ensure_active(self.credentials_storage.as_ref()).await?;
 
         self.launch_instance_use_case
             .execute(instance_id, default_account)
