@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use uuid::Uuid;
 
 use crate::features::auth::{
@@ -25,9 +25,9 @@ impl<CS: CredentialsService> CreateOfflineAccountUseCase<CS> {
             .upsert(Credentials {
                 id: Uuid::new_v4(),
                 username,
-                access_token: String::new(),
-                refresh_token: String::new(),
-                expires: Utc::now(),
+                access_token: "null".to_string(),
+                refresh_token: "null".to_string(),
+                expires: Utc::now() + Duration::days(365 * 99),
                 active: true,
                 account_type: AccountType::Offline,
             })
