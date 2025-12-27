@@ -1,1 +1,1 @@
-mod java;
+mod extract_java_major_minor_version;
