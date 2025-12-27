@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use tokio::sync::{OnceCell, Semaphore};
 
@@ -80,27 +80,21 @@ impl LauncherState {
         let settings = if let Ok(settings) = settings_storage.get().await {
             settings
         } else {
-            let settings = Settings {
-                launcher_dir: launcher_dir.clone(),
-                metadata_dir,
-                max_concurrent_downloads: 10,
-                enabled_plugins: HashSet::default(),
-            };
-
+            let settings = Settings::from_dirs(launcher_dir.clone(), metadata_dir);
             settings_storage.upsert(settings).await?
         };
 
-        let location_info = Arc::new(LocationInfo {
-            settings_dir: settings.launcher_dir.clone(),
-            config_dir: settings.metadata_dir.clone(),
-        });
+        let location_info = Arc::new(LocationInfo::new(
+            settings.launcher_dir().to_path_buf(),
+            settings.metadata_dir().to_path_buf(),
+        ));
 
         let fetch_semaphore = Arc::new(FetchSemaphore(Semaphore::new(
-            settings.max_concurrent_downloads,
+            settings.max_concurrent_downloads(),
         )));
 
         let api_semaphore = Arc::new(FetchSemaphore(Semaphore::new(
-            settings.max_concurrent_downloads,
+            settings.max_concurrent_downloads(),
         )));
 
         log::info!("State initialized");

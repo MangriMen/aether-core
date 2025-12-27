@@ -7,13 +7,29 @@ pub const PLUGINS_FOLDER_NAME: &str = "plugins";
 
 #[derive(Debug)]
 pub struct LocationInfo {
-    pub settings_dir: PathBuf, // Base settings directory - app database
-
+    settings_dir: PathBuf, // Base settings directory - app database
     /// Changeable through settings
-    pub config_dir: PathBuf, // Config directory - instances, minecraft files, etc.
+    config_dir: PathBuf, // Config directory - instances, minecraft files, etc.
 }
 
 impl LocationInfo {
+    pub fn new(settings_dir: PathBuf, config_dir: PathBuf) -> Self {
+        Self {
+            settings_dir,
+            config_dir,
+        }
+    }
+
+    #[inline]
+    pub fn settings_dir(&self) -> &Path {
+        &self.settings_dir
+    }
+
+    #[inline]
+    pub fn config_dir(&self) -> &Path {
+        &self.config_dir
+    }
+
     /// Get the Minecraft instance metadata directory
     #[inline]
     pub fn metadata_dir(&self) -> PathBuf {

@@ -171,7 +171,7 @@ impl<
         .into_iter()
         .collect::<Vec<_>>();
 
-        let mut command = match &launch_settings.hooks.wrapper {
+        let mut command = match &launch_settings.hooks.wrapper() {
             Some(hook) => {
                 with_mut_ref!(it = tokio::process::Command::new(hook) => {it.arg(java.path())})
             }

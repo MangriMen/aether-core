@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use crate::features::{
-    events::EventEmitter,
-    plugins::{
-        LoadConfigType, PluginError, PluginLoader, PluginLoaderRegistry, PluginManifest,
-        PluginRegistry, PluginSettingsStorage, PluginState,
+use crate::{
+    features::{
+        events::EventEmitter,
+        plugins::{
+            LoadConfigType, PluginError, PluginLoader, PluginLoaderRegistry, PluginManifest,
+            PluginRegistry, PluginSettingsStorage, PluginState,
+        },
+        settings::SettingsStorage,
     },
-    settings::SettingsStorage,
+    shared::UpdateAction,
 };
 
 pub struct EnablePluginUseCase<
@@ -116,12 +119,15 @@ impl<PSS: PluginSettingsStorage, SS: SettingsStorage, PL: PluginLoader, E: Event
     }
 
     async fn add_to_enabled_plugins(&self, plugin_id: &str) -> Result<(), PluginError> {
-        let mut settings = self.settings_storage.get().await?;
-
-        if !settings.enabled_plugins.contains(plugin_id) {
-            settings.enabled_plugins.insert(plugin_id.to_string());
-            self.settings_storage.upsert(settings).await?;
-        }
+        self.settings_storage
+            .upsert_with(|settings| {
+                if settings.enable_plugin(plugin_id) {
+                    UpdateAction::Save(())
+                } else {
+                    UpdateAction::NoChanges(())
+                }
+            })
+            .await?;
 
         Ok(())
     }

@@ -2,8 +2,8 @@ use crate::{
     core::domain::LazyLocator,
     features::settings::{
         app::{
-            EditDefaultInstanceSettings, EditDefaultInstanceSettingsUseCase, EditSettingsUseCase,
-            GetDefaultInstanceSettingsUseCase, GetSettingsUseCase,
+            EditDefaultInstanceSettings, EditDefaultInstanceSettingsUseCase, EditSettings,
+            EditSettingsUseCase, GetDefaultInstanceSettingsUseCase, GetSettingsUseCase,
         },
         DefaultInstanceSettings, Settings,
     },
@@ -19,12 +19,12 @@ pub async fn get() -> crate::Result<Settings> {
     )
 }
 
-pub async fn upsert(settings: Settings) -> crate::Result<Settings> {
+pub async fn edit(edit_settings: EditSettings) -> crate::Result<Settings> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
         EditSettingsUseCase::new(lazy_locator.get_settings_storage().await)
-            .execute(settings)
+            .execute(edit_settings)
             .await?,
     )
 }

@@ -2,13 +2,16 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
-use crate::features::{
-    events::EventEmitter,
-    plugins::{
-        LoadConfigType, PluginError, PluginInstance, PluginLoader, PluginLoaderRegistry,
-        PluginManifest, PluginRegistry, PluginState,
+use crate::{
+    features::{
+        events::EventEmitter,
+        plugins::{
+            LoadConfigType, PluginError, PluginInstance, PluginLoader, PluginLoaderRegistry,
+            PluginManifest, PluginRegistry, PluginState,
+        },
+        settings::SettingsStorage,
     },
-    settings::SettingsStorage,
+    shared::UpdateAction,
 };
 
 pub struct DisablePluginUseCase<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> {
@@ -111,12 +114,15 @@ impl<SS: SettingsStorage, PL: PluginLoader, E: EventEmitter> DisablePluginUseCas
     }
 
     async fn remove_from_enabled_plugins(&self, plugin_id: &str) -> Result<(), PluginError> {
-        let mut settings = self.settings_storage.get().await?;
-
-        if settings.enabled_plugins.contains(plugin_id) {
-            settings.enabled_plugins.remove(plugin_id);
-            self.settings_storage.upsert(settings).await?;
-        }
+        self.settings_storage
+            .upsert_with(|settings| {
+                if settings.disable_plugin(plugin_id) {
+                    UpdateAction::Save(())
+                } else {
+                    UpdateAction::NoChanges(())
+                }
+            })
+            .await?;
 
         Ok(())
     }

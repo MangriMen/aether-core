@@ -216,7 +216,7 @@ impl LazyLocator {
         self.credentials_storage
             .get_or_init(|| async {
                 Arc::new(FsCredentialsStorage::new(
-                    &self.state.location_info.settings_dir,
+                    self.state.location_info.settings_dir(),
                 ))
             })
             .await
@@ -227,7 +227,7 @@ impl LazyLocator {
         self.settings_storage
             .get_or_init(|| async {
                 Arc::new(FsSettingsStorage::new(
-                    &self.state.location_info.settings_dir,
+                    self.state.location_info.settings_dir(),
                 ))
             })
             .await
@@ -412,7 +412,7 @@ impl LazyLocator {
         self.default_instance_settings_storage
             .get_or_init(|| async {
                 Arc::new(FsDefaultInstanceSettingsStorage::new(
-                    &self.state.location_info.settings_dir,
+                    self.state.location_info.settings_dir(),
                 ))
             })
             .await
