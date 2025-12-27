@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::features::{
     instance::{Instance, InstanceError, InstanceStorage},
-    settings::{EditHooks, MemorySettings, WindowSize},
+    settings::{app::EditHooks, MemorySettings, WindowSize},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -104,17 +104,7 @@ fn apply_edit_changes(instance: &mut Instance, edit_instance: &EditInstance) {
     }
 
     if let Some(hooks) = hooks {
-        if let Some(pre_launch) = &hooks.pre_launch {
-            instance.hooks.pre_launch = pre_launch.clone();
-        }
-
-        if let Some(wrapper) = &hooks.wrapper {
-            instance.hooks.wrapper = wrapper.clone();
-        }
-
-        if let Some(post_exit) = &hooks.post_exit {
-            instance.hooks.post_exit = post_exit.clone();
-        }
+        hooks.apply_to(&mut instance.hooks);
     }
 
     instance.modified = Utc::now();

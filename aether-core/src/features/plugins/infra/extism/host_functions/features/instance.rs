@@ -13,7 +13,7 @@ pub instance_get_dir(user_data: PluginContext; id: String) -> HostResult<String>
         execute_async(async move {
             let state =  LauncherState::get().await?;
             let dir = crate::api::instance::get_dir(&id).await?;
-            let relative_path = dir.strip_prefix(&state.location_info.config_dir)
+            let relative_path = dir.strip_prefix(state.location_info.config_dir())
                 .map_err(|_| crate::ErrorKind::CoreError("Strip prefix error".to_owned()))?
                 .to_path_buf();
 
@@ -33,7 +33,7 @@ pub instance_plugin_get_dir(user_data: PluginContext; instance_id: String) -> Ho
 
             let dir = state.location_info.instance_plugin_dir(&instance_id, &id);
 
-            let dir = dir.strip_prefix(&state.location_info.config_dir)
+            let dir = dir.strip_prefix(state.location_info.config_dir())
                 .map_err(|_| crate::ErrorKind::CoreError("Strip prefix error".to_owned()))?
                 .to_path_buf();
 

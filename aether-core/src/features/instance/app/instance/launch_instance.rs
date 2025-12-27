@@ -85,36 +85,36 @@ impl<
             launch_args: instance
                 .launch_args
                 .clone()
-                .unwrap_or_else(|| settings.launch_args.clone()),
+                .unwrap_or_else(|| settings.launch_args().to_vec()),
 
             env_vars: instance
                 .env_vars
                 .clone()
-                .unwrap_or_else(|| settings.env_vars.clone()),
+                .unwrap_or_else(|| settings.env_vars().to_vec()),
 
-            memory: instance.memory.unwrap_or(settings.memory),
+            memory: instance.memory.unwrap_or(settings.memory()),
 
-            game_resolution: instance.game_resolution.unwrap_or(settings.game_resolution),
+            game_resolution: instance
+                .game_resolution
+                .unwrap_or(settings.game_resolution()),
 
-            hooks: Hooks {
-                pre_launch: instance
+            hooks: Hooks::new(
+                instance
                     .hooks
-                    .pre_launch
-                    .clone()
-                    .or_else(|| settings.hooks.pre_launch.clone()),
-
-                wrapper: instance
+                    .pre_launch()
+                    .cloned()
+                    .or_else(|| settings.hooks().pre_launch().cloned()),
+                instance
                     .hooks
-                    .wrapper
-                    .clone()
-                    .or_else(|| settings.hooks.wrapper.clone()),
-
-                post_exit: instance
+                    .wrapper()
+                    .cloned()
+                    .or_else(|| settings.hooks().wrapper().cloned()),
+                instance
                     .hooks
-                    .post_exit
-                    .clone()
-                    .or_else(|| settings.hooks.post_exit.clone()),
-            },
+                    .post_exit()
+                    .cloned()
+                    .or_else(|| settings.hooks().post_exit().cloned()),
+            ),
         }
     }
 
@@ -158,9 +158,8 @@ impl<
 
         let pre_launch_command = instance
             .hooks
-            .pre_launch
-            .as_ref()
-            .or(launch_settings.hooks.pre_launch.as_ref());
+            .pre_launch()
+            .or(launch_settings.hooks.pre_launch());
 
         let instance_path = self.location_info.instance_dir(&instance.id);
 
@@ -227,7 +226,7 @@ impl<
             .execute(
                 instance.id.clone(),
                 command,
-                launch_settings.hooks.post_exit.clone(),
+                launch_settings.hooks.post_exit().cloned(),
             )
             .await;
 
