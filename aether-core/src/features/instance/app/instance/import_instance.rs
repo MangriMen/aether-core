@@ -1,6 +1,5 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
-use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 
 use crate::features::{
@@ -92,7 +91,7 @@ impl<E: EventEmitter, IR: CapabilityRegistry<ImporterCapability>> ImportInstance
                 import_handler,
                 PluginImportInstance {
                     importer_id: importer_id.to_owned(),
-                    path: PathBuf::from(path).to_slash_lossy().to_string(),
+                    path: path.to_owned(),
                 },
             )
             .map_err(|err| {
