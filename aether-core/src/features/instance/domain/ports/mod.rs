@@ -1,7 +1,7 @@
-pub mod content_provider;
-pub mod instance_storage;
-pub mod instance_watcher_service;
-pub mod pack_storage;
+mod content_provider;
+mod instance_storage;
+mod instance_watcher_service;
+mod pack_storage;
 
 pub use content_provider::*;
 pub use instance_storage::*;

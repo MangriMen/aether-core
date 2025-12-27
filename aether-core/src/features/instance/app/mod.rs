@@ -1,7 +1,3 @@
-mod content;
-mod content_provider;
-mod instance;
+mod use_cases;
 
-pub use content::*;
-pub use content_provider::*;
-pub use instance::*;
+pub use use_cases::*;

@@ -1,13 +1,13 @@
-pub mod create_instance;
-pub mod edit_instance;
-pub mod get_instance;
-pub mod import_instance;
-pub mod install_instance;
-pub mod launch_instance;
-pub mod launch_instance_with_active_account;
-pub mod list_instances;
-pub mod remove_instance;
-pub mod update_instance;
+mod create_instance;
+mod edit_instance;
+mod get_instance;
+mod import_instance;
+mod install_instance;
+mod launch_instance;
+mod launch_instance_with_active_account;
+mod list_instances;
+mod remove_instance;
+mod update_instance;
 
 pub use create_instance::*;
 pub use edit_instance::*;
