@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Serialize};
 
 use crate::features::{
     instance::{ContentItem, ContentSearchParams, ContentType},
@@ -214,8 +214,12 @@ impl TryFrom<Hit> for ContentItem {
     type Error = serde_json::Error;
 
     fn try_from(value: Hit) -> Result<Self, Self::Error> {
-        let content_type =
-            ContentType::from_string(&value.project_type).unwrap_or(ContentType::Mod);
+        let content_type = ContentType::from_string(&value.project_type).ok_or_else(|| {
+            serde_json::Error::unknown_field(
+                "project_type",
+                &["mod", "datapack", "resourcepack", "shader"],
+            )
+        })?;
         let url = format!("https://modrinth.com/mod/{}", value.slug);
 
         let provider_data = Some(serde_json::to_value(&ModrinthProviderData {
