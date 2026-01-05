@@ -105,7 +105,7 @@ impl ContentType {
             "mod" => Some(ContentType::Mod),
             "datapack" => Some(ContentType::DataPack),
             "resourcepack" => Some(ContentType::ResourcePack),
-            "shaderpack" => Some(ContentType::ShaderPack),
+            "shader" => Some(ContentType::ShaderPack),
             _ => None,
         }
     }
