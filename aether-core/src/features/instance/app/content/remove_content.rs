@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use crate::{
     features::{
@@ -49,6 +52,16 @@ impl<E: EventEmitter, PS: PackStorage> RemoveContentUseCase<E, PS> {
         }
     }
 
+    pub fn get_real_content_path(&self, instance_dir: &Path, content_path: &str) -> PathBuf {
+        let mut absolute_path = instance_dir.join(content_path);
+
+        if !absolute_path.exists() {
+            absolute_path.add_extension("disabled");
+        }
+
+        absolute_path
+    }
+
     pub async fn execute(&self, input: RemoveContent) -> Result<(), InstanceError> {
         let RemoveContent {
             instance_id,
@@ -58,7 +71,9 @@ impl<E: EventEmitter, PS: PackStorage> RemoveContentUseCase<E, PS> {
         let instance_dir = self.location_info.instance_dir(&instance_id);
 
         for content_path in content_paths.iter() {
-            remove_file(instance_dir.join(content_path)).await?;
+            let real_content_path = self.get_real_content_path(&instance_dir, content_path);
+
+            remove_file(real_content_path).await?;
         }
 
         self.pack_storage

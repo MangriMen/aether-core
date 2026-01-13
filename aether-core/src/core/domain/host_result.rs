@@ -1,5 +1,5 @@
 use extism::ToBytes;
-use extism_convert::{encoding, Msgpack};
+use extism_convert::Msgpack;
 use serde::{Deserialize, Serialize};
 use serr::{SerializedError, ToSerializedError};
 
