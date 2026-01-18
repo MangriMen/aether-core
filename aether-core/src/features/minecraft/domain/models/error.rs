@@ -2,58 +2,44 @@ use std::path::PathBuf;
 
 use serr::SerializeError;
 
-use crate::{features::minecraft::LoaderVersionPreference, shared::IoError};
+use super::LoaderVersionPreference;
 
 #[derive(Debug, thiserror::Error, SerializeError)]
 pub enum MinecraftDomainError {
     #[error("Minecraft version \"{version}\" not found")]
     VersionNotFound { version: String },
 
-    // TODO: maybe specify message in which case it throws
     #[error("Minecraft version not found for loader version {loader_version_preference:?}")]
-    MinecraftVersionForLoaderNotFoundError {
+    VersionForLoaderNotFound {
         loader_version_preference: LoaderVersionPreference,
     },
 
     #[error("Loader version {loader_version_preference:?} not found")]
-    LoaderVersionNotFoundError {
+    LoaderNotFound {
         loader_version_preference: LoaderVersionPreference,
     },
 
-    #[error(
-        "Loader version not specified. If loader is not vanilla, loader version must be specified"
-    )]
-    LoaderVersionNotSpecified,
+    #[error("Loader version not specified for non-vanilla loader")]
+    LoaderVersionRequired,
 
     #[error("Stable or latest loader could not be resolved")]
-    DefaultLoaderVersionNotFound,
+    DefaultLoaderNotFound,
 
     #[error("Modloader processor failed: {reason}")]
-    ModLoaderProcessorFailed { reason: String },
+    ProcessorFailed { reason: String },
 
-    #[error("Path not found: {path:?}")]
+    #[error("Failed to execute pre-launch command: exit code {code}")]
+    PreLaunchFailed { code: i32 },
+
+    #[error("Failed to execute post-launch command: exit code {code}")]
+    PostLaunchFailed { code: i32 },
+
+    #[error("Path not found: {path:?} ({entity_type})")]
     PathNotFound { path: PathBuf, entity_type: String },
 
-    #[error("No java found at path: {path:?}")]
-    JavaNotFound { path: PathBuf },
+    #[error("Error while parsing libraries: {reason}")]
+    ParseFailed { reason: String },
 
-    #[error("Java version {version} not found")]
-    JavaVersionNotFound { version: u32 },
-
-    #[error("Java auto installation failed: {0}")]
-    JavaInstallationFailed(String),
-
-    #[error("Failed to execute pre-launch command")]
-    PreLaunchCommandFailed { code: i32 },
-
-    #[error("Failed to execute post-launch command")]
-    PostLaunchCommandFailed { code: i32 },
-
-    // External
-    #[error("Error while parsing libraries: {0}")]
-    LibraryParse(#[from] daedalus::Error),
-
-    // Infrastructure
-    #[error("Storage failure: {0}")]
-    StorageFailure(#[from] IoError),
+    #[error("Storage failure: {reason}")]
+    StorageFailure { reason: String },
 }

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::features::{
     events::{ProgressBarId, ProgressService},
     java::{
-        app::{GetJavaUseCase, InstallJavaUseCase},
+        app::{GetJavaUseCase, InstallJavaUseCase, JavaApplicationError},
         Java, JavaInstallationService, JavaStorage, JreProvider,
     },
     minecraft::{
@@ -152,8 +152,8 @@ impl<
             self.java_installation_service
                 .locate_java(Path::new(java_path))
                 .await
-                .map_err(|_| MinecraftDomainError::JavaNotFound {
-                    path: PathBuf::from(java_path),
+                .map_err(|err| {
+                    MinecraftApplicationError::JavaError(JavaApplicationError::Domain(err))
                 })
         } else {
             let compatible_java_version = get_compatible_java_version(&version_info);
@@ -169,7 +169,7 @@ impl<
                     .install_java_use_case
                     .execute(compatible_java_version)
                     .await
-                    .map_err(|err| MinecraftDomainError::JavaInstallationFailed(err.to_string())),
+                    .map_err(Into::into),
             }
         }?;
 

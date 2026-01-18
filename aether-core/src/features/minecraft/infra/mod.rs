@@ -1,4 +1,5 @@
 pub mod download;
+mod error;
 mod metadata;
 pub mod processors;
 

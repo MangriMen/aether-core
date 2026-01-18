@@ -170,3 +170,11 @@ pub fn get_lib_path(
 
     Ok(path.to_string_lossy().to_string())
 }
+
+impl From<daedalus::Error> for MinecraftDomainError {
+    fn from(value: daedalus::Error) -> Self {
+        match value {
+            daedalus::Error::ParseError(err) => MinecraftDomainError::ParseFailed { reason: err },
+        }
+    }
+}

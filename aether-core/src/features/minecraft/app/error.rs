@@ -1,7 +1,7 @@
 use serr::SerializeError;
 
 use crate::{
-    features::{java::JavaDomainError, minecraft::MinecraftDomainError},
+    features::{java::app::JavaApplicationError, minecraft::MinecraftDomainError},
     shared::IoError,
 };
 
@@ -11,10 +11,7 @@ pub enum MinecraftApplicationError {
     Domain(#[from] MinecraftDomainError),
 
     #[error(transparent)]
-    JavaError(#[from] JavaDomainError),
-
-    #[error("Failed to parse libraries: {0}")]
-    LibraryParse(#[from] daedalus::Error),
+    JavaError(#[from] JavaApplicationError),
 
     #[error("Storage operation failed: {0}")]
     Storage(#[from] IoError),

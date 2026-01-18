@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::features::minecraft::{
-    LoaderVersionPreference, MinecraftDomainError, ModLoader, MetadataStorage,
+    LoaderVersionPreference, MetadataStorage, MinecraftDomainError, ModLoader,
 };
 
 pub struct LoaderVersionResolver<MS> {
@@ -24,7 +24,7 @@ impl<MS: MetadataStorage> LoaderVersionResolver<MS> {
         }
 
         let Some(loader_version) = loader_version else {
-            return Err(MinecraftDomainError::LoaderVersionNotSpecified);
+            return Err(MinecraftDomainError::LoaderVersionRequired);
         };
 
         let loader_version_manifest = self
@@ -69,7 +69,7 @@ impl<MS: MetadataStorage> LoaderVersionResolver<MS> {
             }
         }
 
-        Err(MinecraftDomainError::DefaultLoaderVersionNotFound)
+        Err(MinecraftDomainError::DefaultLoaderNotFound)
     }
 }
 
@@ -89,7 +89,7 @@ pub async fn resolve_loader_version(
         .find(|x| {
             x.id.replace(daedalus::modded::DUMMY_REPLACE_STRING, game_version) == game_version
         })
-        .ok_or(MinecraftDomainError::MinecraftVersionForLoaderNotFoundError {
+        .ok_or(MinecraftDomainError::VersionForLoaderNotFound {
             loader_version_preference: loader_version_preference.clone(),
         })?;
 
@@ -107,7 +107,7 @@ fn find_loader_version<'a>(
         LoaderVersionPreference::Stable => loaders.iter().find(|x| x.stable),
         LoaderVersionPreference::Exact(id) => loaders.iter().find(|x| x.id == *id),
     }
-    .ok_or(MinecraftDomainError::LoaderVersionNotFoundError {
+    .ok_or(MinecraftDomainError::LoaderNotFound {
         loader_version_preference: preference.clone(),
     })
 }

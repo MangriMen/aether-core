@@ -175,9 +175,9 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
             }
         }
 
-        Err(MinecraftDomainError::StorageFailure(IoError::IoError(
-            std::io::Error::new(std::io::ErrorKind::NotFound, "No artifact URL found"),
-        )))
+        Err(MinecraftDomainError::StorageFailure {
+            reason: "No artifact URL found".to_owned(),
+        })
     }
 
     async fn download_from_fallback_url(
@@ -204,13 +204,8 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         library: &daedalus::minecraft::Library,
         force: bool,
     ) -> Result<(), MinecraftDomainError> {
-        let library_path_part = daedalus::get_path_from_artifact(&library.name).map_err(|e| {
-            error!("Failed to parse library path for {}: {:?}", library.name, e);
-            MinecraftDomainError::StorageFailure(IoError::IoError(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                e,
-            )))
-        })?;
+        let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
+
         let library_path = self.location_info.libraries_dir().join(&library_path_part);
 
         if library_path.exists() && !force {

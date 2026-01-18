@@ -9,13 +9,16 @@ use tokio::process::Command;
 use crate::{
     features::{
         auth::Credentials,
-        java::{app::GetJavaUseCase, JavaInstallationService, JavaStorage},
+        java::{
+            app::{GetJavaUseCase, JavaApplicationError},
+            JavaInstallationService, JavaStorage,
+        },
         minecraft::{
             app::{GetVersionManifestUseCase, MinecraftApplicationError},
             resolve_minecraft_version,
             utils::get_compatible_java_version,
             LaunchSettings, LoaderVersionPreference, LoaderVersionResolver, MetadataStorage,
-            MinecraftDomainError, MinecraftDownloader, ModLoader,
+            MinecraftDownloader, ModLoader,
         },
         settings::LocationInfo,
     },
@@ -113,17 +116,15 @@ impl<
             self.java_installation_service
                 .locate_java(Path::new(java_path))
                 .await
-                .map_err(|_| MinecraftDomainError::JavaNotFound {
-                    path: PathBuf::from(java_path),
+                .map_err(|err| {
+                    MinecraftApplicationError::JavaError(JavaApplicationError::Domain(err))
                 })
         } else {
             let compatible_java_version = get_compatible_java_version(&version_info);
             self.get_java_use_case
                 .execute(compatible_java_version)
                 .await
-                .map_err(|_| MinecraftDomainError::JavaVersionNotFound {
-                    version: compatible_java_version,
-                })
+                .map_err(Into::into)
         }?;
 
         // TODO: refactor

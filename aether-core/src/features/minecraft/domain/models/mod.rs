@@ -1,6 +1,6 @@
-pub mod error;
-pub mod loader_version;
-pub mod mod_loader;
+mod error;
+mod loader_version;
+mod mod_loader;
 
 pub use error::*;
 pub use loader_version::*;
