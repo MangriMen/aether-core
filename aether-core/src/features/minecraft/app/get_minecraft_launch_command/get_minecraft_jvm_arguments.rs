@@ -8,7 +8,6 @@ use crate::features::{
         utils::{get_class_paths, get_jvm_arguments},
         MinecraftDomainError,
     },
-    settings::MemorySettings,
 };
 
 // TODO: Wrap arguments in struct
@@ -21,7 +20,7 @@ pub fn get_minecraft_jvm_arguments(
     client_path: &Path,
     version_jar: String,
     java_version: &Java,
-    memory: MemorySettings,
+    max_memory: u32,
     java_args: &[String],
     minecraft_updated: bool,
 ) -> Result<Vec<String>, MinecraftDomainError> {
@@ -37,7 +36,7 @@ pub fn get_minecraft_jvm_arguments(
             minecraft_updated,
         )?,
         &version_jar,
-        memory,
+        max_memory,
         java_args,
         java_version.architecture(),
     )?

@@ -151,7 +151,7 @@ impl<
             &client_path,
             version_jar,
             &java,
-            launch_settings.memory,
+            launch_settings.memory.maximum,
             &launch_settings.launch_args,
             minecraft_updated,
         )?;

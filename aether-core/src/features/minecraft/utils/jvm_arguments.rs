@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::Path};
 use daedalus::minecraft;
 
 use crate::{
-    features::{minecraft::MinecraftDomainError, settings::MemorySettings},
+    features::minecraft::MinecraftDomainError,
     shared::{canonicalize, utils::get_classpath_separator},
 };
 
@@ -17,7 +17,7 @@ pub fn get_jvm_arguments(
     libraries_path: &Path,
     class_paths: &str,
     version_name: &str,
-    memory: MemorySettings,
+    max_memory: u32,
     custom_args: &[String],
     java_arch: &str,
 ) -> Result<Vec<String>, MinecraftDomainError> {
@@ -52,7 +52,7 @@ pub fn get_jvm_arguments(
         parsed_arguments.push("-cp".to_string());
         parsed_arguments.push(class_paths.to_string());
     }
-    parsed_arguments.push(format!("-Xmx{}M", memory.maximum));
+    parsed_arguments.push(format!("-Xmx{}M", max_memory));
     for arg in custom_args {
         if !arg.is_empty() {
             parsed_arguments.push(arg.clone());
