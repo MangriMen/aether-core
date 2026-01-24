@@ -1,8 +1,8 @@
 mod error;
-pub mod get_loader_version_manifest;
-pub mod get_minecraft_launch_command;
-pub mod get_version_manifest;
-pub mod install_minecraft;
+mod get_loader_version_manifest;
+mod get_minecraft_launch_command;
+mod get_version_manifest;
+mod install_minecraft;
 
 pub use error::*;
 pub use get_loader_version_manifest::*;
