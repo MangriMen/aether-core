@@ -1,9 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
-use serde::{Deserialize, Serialize};
+use std::{path::Path, sync::Arc};
 
 use crate::features::{
     events::{ProgressBarId, ProgressService},
@@ -12,24 +7,15 @@ use crate::features::{
         Java, JavaInstallationService, JavaStorage, JreProvider,
     },
     minecraft::{
-        app::{GetVersionManifestUseCase, MinecraftApplicationError},
+        app::{GetVersionManifestUseCase, InstallMinecraftParams, MinecraftApplicationError},
         infra::ForgeProcessor,
         resolve_minecraft_version,
         utils::get_compatible_java_version,
-        LoaderVersionPreference, LoaderVersionResolver, MetadataStorage, MinecraftDomainError,
-        MinecraftDownloader, ModLoader, ModLoaderProcessor,
+        LoaderVersionResolver, MetadataStorage, MinecraftDomainError, MinecraftDownloader,
+        ModLoader, ModLoaderProcessor,
     },
     settings::LocationInfo,
 };
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InstallMinecraftParams {
-    pub game_version: String,
-    pub loader: ModLoader,
-    pub loader_version: Option<LoaderVersionPreference>,
-    pub install_dir: PathBuf,
-    pub java_path: Option<String>,
-}
 
 pub struct InstallMinecraftUseCase<
     MS: MetadataStorage,
