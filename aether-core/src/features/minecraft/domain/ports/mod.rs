@@ -1,6 +1,6 @@
-pub mod metadata_storage;
-pub mod minecraft_downloader;
-pub mod mod_loader_processor;
+mod metadata_storage;
+mod minecraft_downloader;
+mod mod_loader_processor;
 
 pub use metadata_storage::*;
 pub use minecraft_downloader::*;

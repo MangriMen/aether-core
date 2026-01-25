@@ -2,23 +2,25 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::features::auth::{AccountOutput, AuthError, CredentialsService};
+use crate::features::auth::{ActiveAccountHelper, AuthApplicationError, CredentialsStorage};
 
-pub struct SetActiveAccountUseCase<CS: CredentialsService> {
-    credentials_service: Arc<CS>,
+use super::super::AccountData;
+
+pub struct SetActiveAccountUseCase<CS: CredentialsStorage> {
+    credentials_storage: Arc<CS>,
 }
 
-impl<CS: CredentialsService> SetActiveAccountUseCase<CS> {
-    pub fn new(credentials_service: Arc<CS>) -> Self {
+impl<CS: CredentialsStorage> SetActiveAccountUseCase<CS> {
+    pub fn new(credentials_storage: Arc<CS>) -> Self {
         Self {
-            credentials_service,
+            credentials_storage,
         }
     }
 
-    pub async fn execute(&self, account_id: Uuid) -> Result<AccountOutput, AuthError> {
-        self.credentials_service
-            .set_active(account_id)
-            .await
-            .map(AccountOutput::from)
+    pub async fn execute(&self, account_id: Uuid) -> Result<AccountData, AuthApplicationError> {
+        let account =
+            ActiveAccountHelper::set_active(self.credentials_storage.as_ref(), account_id).await?;
+
+        Ok(AccountData::from(account))
     }
 }

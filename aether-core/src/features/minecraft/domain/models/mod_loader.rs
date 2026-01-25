@@ -1,4 +1,5 @@
-use daedalus::modded;
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize, Serialize)]
@@ -31,21 +32,19 @@ impl ModLoader {
             Self::NeoForge => "neo",
         }
     }
-
-    pub fn from_string(val: &str) -> Self {
-        match val {
-            "vanilla" => Self::Vanilla,
-            "forge" => Self::Forge,
-            "fabric" => Self::Fabric,
-            "quilt" => Self::Quilt,
-            "neoforge" => Self::NeoForge,
-            _ => Self::Vanilla,
-        }
-    }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ModLoaderManifest {
-    pub loader: ModLoader,
-    pub manifest: modded::Manifest,
+impl FromStr for ModLoader {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "vanilla" => Ok(Self::Vanilla),
+            "forge" => Ok(Self::Forge),
+            "fabric" => Ok(Self::Fabric),
+            "quilt" => Ok(Self::Quilt),
+            "neoforge" | "neo" => Ok(Self::NeoForge),
+            _ => Err(()),
+        }
+    }
 }

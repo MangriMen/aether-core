@@ -1,18 +1,20 @@
-use std::sync::Arc;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
+use bytes::Bytes;
 use futures::StreamExt;
+use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     features::{
         events::{
-            try_for_each_concurrent_with_progress, ProgressConfig, ProgressConfigWithMessage,
-            ProgressService,
+            utils::{try_for_each_concurrent_with_progress, ProgressConfigWithMessage},
+            ProgressConfig, ProgressService,
         },
-        minecraft::{parse_rules, MinecraftError},
+        minecraft::{utils::parse_rules, MinecraftDomainError},
         settings::LocationInfo,
     },
     libs::request_client::{Request, RequestClient},
-    shared::{write_async, IoError},
+    shared::{create_dir_all, write_async, IoError},
 };
 
 const MINECRAFT_LIBRARIES_BASE_URL: &str = "https://libraries.minecraft.net/";
@@ -36,6 +38,34 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         }
     }
 
+    async fn fetch_bytes(&self, url: &str) -> Result<Bytes, IoError> {
+        self.request_client
+            .fetch_bytes(Request::get(url))
+            .await
+            .map_err(get_network_error)
+    }
+
+    async fn create_libraries_directories(
+        &self,
+        version_id: &str,
+    ) -> Result<(), MinecraftDomainError> {
+        trace!("Creating library directories for version: {}", version_id);
+
+        tokio::try_join! {
+            create_dir_all(self.location_info.libraries_dir()),
+            create_dir_all(self.location_info.version_natives_dir(version_id)),
+        }
+        .map_err(|e| {
+            error!(
+                "Failed to create library directories for version {}: {:?}",
+                version_id, e
+            );
+            e
+        })?;
+
+        Ok(())
+    }
+
     pub async fn download_libraries(
         &self,
         libraries: &[daedalus::minecraft::Library],
@@ -44,19 +74,10 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         force: bool,
         minecraft_updated: bool,
         progress_config: Option<&ProgressConfig<'_>>,
-    ) -> Result<(), MinecraftError> {
-        log::info!("Downloading libraries for {}", version_info.id);
+    ) -> Result<(), MinecraftDomainError> {
+        info!("Downloading libraries for version: {}", version_info.id);
 
-        tokio::try_join! {
-            tokio::fs::create_dir_all(self.location_info.libraries_dir()),
-            tokio::fs::create_dir_all(self.location_info.version_natives_dir(&version_info.id)),
-        }
-        .map_err(IoError::from)?;
-
-        let libraries_stream = futures::stream::iter(libraries.iter())
-            .map(Ok::<&daedalus::minecraft::Library, MinecraftError>);
-
-        let futures_count = libraries.len();
+        self.create_libraries_directories(&version_info.id).await?;
 
         let progress_config = progress_config
             .as_ref()
@@ -66,11 +87,14 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
                 progress_message: None,
             });
 
+        let libraries_stream = futures::stream::iter(libraries.iter())
+            .map(Ok::<&daedalus::minecraft::Library, MinecraftDomainError>);
+
         try_for_each_concurrent_with_progress(
             self.progress_service.clone(),
             libraries_stream,
             None,
-            futures_count,
+            libraries.len(),
             progress_config.as_ref(),
             |library| async move {
                 self.download_library(library, version_info, java_arch, force, minecraft_updated)
@@ -79,9 +103,32 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         )
         .await?;
 
-        log::info!("Downloaded libraries for {} successfully", version_info.id);
+        info!(
+            "Successfully downloaded libraries for version: {}",
+            version_info.id
+        );
 
         Ok(())
+    }
+
+    fn should_download_library(
+        library: &daedalus::minecraft::Library,
+        java_arch: &str,
+        minecraft_updated: bool,
+    ) -> bool {
+        if let Some(rules) = &library.rules {
+            if !parse_rules(rules, java_arch, minecraft_updated) {
+                trace!("Library {} skipped due to rules", library.name);
+                return false;
+            }
+        }
+
+        if !library.downloadable {
+            trace!("Library {} is not downloadable", library.name);
+            return false;
+        }
+
+        true
     }
 
     pub async fn download_library(
@@ -91,21 +138,63 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         java_arch: &str,
         force: bool,
         minecraft_updated: bool,
-    ) -> Result<(), MinecraftError> {
-        if let Some(rules) = &library.rules {
-            if !parse_rules(rules, java_arch, minecraft_updated) {
-                return Ok(());
-            }
-        }
-
-        if !library.downloadable {
+    ) -> Result<(), MinecraftDomainError> {
+        if !Self::should_download_library(library, java_arch, minecraft_updated) {
             return Ok(());
         }
 
+        trace!("Processing library: {}", library.name);
+
         tokio::try_join! {
-            self.download_java_library( library, force),
-            self.download_native_library_files( library, version_info, java_arch, force)
+            self.download_java_library(library, force),
+            async {
+
+                if let Err(err) = self.download_native_library_files(library, version_info, java_arch, force).await {
+                    warn!("Failed to download native library {}: {:?}", library.name, err);
+                }
+
+                Ok(())
+            }
         }?;
+
+        Ok(())
+    }
+
+    async fn try_download_from_artifact(
+        &self,
+        library: &daedalus::minecraft::Library,
+        library_path: &PathBuf,
+    ) -> Result<(), MinecraftDomainError> {
+        if let Some(downloads) = &library.downloads {
+            if let Some(artifact) = &downloads.artifact {
+                if !artifact.url.is_empty() {
+                    let bytes = self.fetch_bytes(&artifact.url).await?;
+                    write_async(library_path, &bytes).await?;
+                    return Ok(());
+                }
+            }
+        }
+
+        Err(MinecraftDomainError::StorageFailure {
+            reason: "No artifact URL found".to_owned(),
+        })
+    }
+
+    async fn download_from_fallback_url(
+        &self,
+        library: &daedalus::minecraft::Library,
+        library_path: &PathBuf,
+        path_part: &str,
+    ) -> Result<(), MinecraftDomainError> {
+        let base_url = library
+            .url
+            .as_deref()
+            .unwrap_or(MINECRAFT_LIBRARIES_BASE_URL);
+
+        let url = format!("{}{}", base_url, path_part);
+
+        let bytes = self.fetch_bytes(&url).await?;
+        write_async(library_path, &bytes).await?;
 
         Ok(())
     }
@@ -114,74 +203,85 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         &self,
         library: &daedalus::minecraft::Library,
         force: bool,
-    ) -> Result<(), MinecraftError> {
-        log::debug!("Downloading java library \"{}\"", &library.name);
-
+    ) -> Result<(), MinecraftDomainError> {
         let library_path_part = daedalus::get_path_from_artifact(&library.name)?;
+
         let library_path = self.location_info.libraries_dir().join(&library_path_part);
 
         if library_path.exists() && !force {
+            trace!("Library {} already exists, skipping", library.name);
             return Ok(());
         }
 
+        debug!("Downloading java library \"{}\"", &library.name);
+
         // Get library by artifact url
-        if let Some(daedalus::minecraft::LibraryDownloads {
-            artifact: Some(ref artifact),
-            ..
-        }) = library.downloads
+        match self
+            .try_download_from_artifact(library, &library_path)
+            .await
         {
-            if !artifact.url.is_empty() {
-                let bytes = self
-                    .request_client
-                    .fetch_bytes(Request::get(&artifact.url))
-                    .await
-                    .map_err(|err| {
-                        IoError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::NetworkUnreachable,
-                            err,
-                        ))
-                    })?;
-                write_async(&library_path, &bytes).await?;
-                return Ok(());
-            }
-        }
-        log::debug!(
-            "Library {}, part {}",
-            library
-                .url
-                .as_deref()
-                .unwrap_or(MINECRAFT_LIBRARIES_BASE_URL),
-            library_path_part
-        );
+            Ok(_) => return Ok(()),
+            Err(err) => warn!(
+                "Failed to download {} from artifact, trying fallback: {:?}",
+                library.name, err
+            ),
+        };
 
-        // Else get library by library.url or default library url
-        let url = [
-            library
-                .url
-                .as_deref()
-                .unwrap_or(MINECRAFT_LIBRARIES_BASE_URL),
-            &library_path_part,
-        ]
-        .concat();
+        self.download_from_fallback_url(library, &library_path, &library_path_part)
+            .await
+            .map_err(|e| {
+                error!(
+                    "Failed to download {} from fallback URL: {:?}",
+                    library.name, e
+                );
+                e
+            })?;
 
-        log::debug!("Library url {}", url);
+        Ok(())
+    }
 
-        let bytes = self.request_client.fetch_bytes(Request::get(&url)).await;
+    fn get_native_classifiers<'a>(
+        &self,
+        library: &'a daedalus::minecraft::Library,
+        java_arch: &str,
+    ) -> Option<(
+        &'a str,
+        &'a HashMap<String, daedalus::minecraft::LibraryDownload>,
+    )> {
+        use crate::shared::OsExt;
+        use daedalus::minecraft::Os;
 
-        match bytes {
-            Ok(bytes) => {
-                write_async(&library_path, &bytes).await?;
-                log::debug!("Downloaded java library \"{}\" successfully", &library.name);
-                Ok(())
-            }
-            Err(err) => {
-                log::error!("Failed downloading java library \"{}\"", &library.name,);
-                Ok(Err(IoError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::NetworkUnreachable,
-                    err,
-                )))?)
-            }
-        }
+        let native_os = Os::native_arch(java_arch);
+        let natives = library.natives.as_ref()?;
+        let os_key = natives.get(&native_os)?;
+        let classifiers = library.downloads.as_ref()?.classifiers.as_ref()?;
+
+        Some((os_key, classifiers))
+    }
+
+    async fn extract_native_library(
+        &self,
+        bytes: Bytes,
+        version_info: &daedalus::minecraft::VersionInfo,
+    ) -> Result<(), MinecraftDomainError> {
+        let reader = std::io::Cursor::new(&bytes);
+
+        let mut archive = zip::ZipArchive::new(reader).map_err(|err| {
+            error!("Failed to create zip archive: {:?}", err);
+            IoError::IoError(std::io::Error::new(std::io::ErrorKind::InvalidData, err))
+        })?;
+
+        let extract_path = self.location_info.version_natives_dir(&version_info.id);
+
+        archive.extract(&extract_path).map_err(|err| {
+            error!(
+                "Failed to extract zip archive to {:?}: {:?}",
+                extract_path, err
+            );
+            IoError::IoError(std::io::Error::other(err))
+        })?;
+
+        Ok(())
     }
 
     pub async fn download_native_library_files(
@@ -190,56 +290,43 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         version_info: &daedalus::minecraft::VersionInfo,
         java_arch: &str,
         _force: bool,
-    ) -> Result<(), MinecraftError> {
-        use crate::shared::OsExt;
-        use daedalus::minecraft::Os;
+    ) -> Result<(), MinecraftDomainError> {
+        let Some((os_key, classifiers)) = self.get_native_classifiers(library, java_arch) else {
+            trace!("No native classifiers found for library: {}", library.name);
+            return Ok(());
+        };
 
-        log::debug!("Downloading native library \"{}\"", &library.name);
+        let parsed_key = os_key.replace("${arch}", crate::shared::ARCH_WIDTH);
 
-        if let Some((os_key, classifiers)) = None.or_else(|| {
-            Some((
-                library.natives.as_ref()?.get(&Os::native_arch(java_arch))?,
-                library.downloads.as_ref()?.classifiers.as_ref()?,
-            ))
-        }) {
-            let parsed_key = os_key.replace("${arch}", crate::shared::ARCH_WIDTH);
+        let Some(native) = classifiers.get(&parsed_key) else {
+            trace!("No native found for key: {}", parsed_key);
+            return Ok(());
+        };
 
-            if let Some(native) = classifiers.get(&parsed_key) {
-                let bytes = self
-                    .request_client
-                    .fetch_bytes(Request::get(&native.url))
-                    .await
-                    .map_err(|err| {
-                        IoError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::NetworkUnreachable,
-                            err,
-                        ))
-                    })?;
-                let reader = std::io::Cursor::new(&bytes);
+        debug!("Downloading native library \"{}\"", &library.name);
 
-                if let Ok(mut archive) = zip::ZipArchive::new(reader) {
-                    match archive.extract(self.location_info.version_natives_dir(&version_info.id))
-                    {
-                        Ok(_) => log::debug!("Extracted native library {}", &library.name),
-                        Err(err) => {
-                            log::error!(
-                                "Failed extracting native library {}. err: {}",
-                                &library.name,
-                                err
-                            )
-                        }
-                    }
-                } else {
-                    log::error!("Failed extracting native library {}", &library.name)
-                }
-            }
-        }
+        let bytes = self.fetch_bytes(&native.url).await.map_err(|e| {
+            error!("Failed to fetch native library {}: {:?}", library.name, e);
+            e
+        })?;
 
-        log::debug!(
-            "Downloaded native library \"{}\" successfully",
-            &library.name
-        );
+        self.extract_native_library(bytes, version_info)
+            .await
+            .map_err(|e| {
+                error!("Failed to extract native library {}: {:?}", library.name, e);
+                e
+            })?;
 
         Ok(())
     }
+}
+
+fn get_network_error<E>(error: E) -> IoError
+where
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    IoError::IoError(std::io::Error::new(
+        std::io::ErrorKind::NetworkUnreachable,
+        error,
+    ))
 }

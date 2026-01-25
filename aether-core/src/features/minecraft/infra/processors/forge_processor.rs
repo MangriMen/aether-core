@@ -13,7 +13,10 @@ use crate::{
     features::{
         events::{ProgressBarId, ProgressService, ProgressServiceExt},
         java::Java,
-        minecraft::{self, MinecraftError, ModLoaderProcessor},
+        minecraft::{
+            utils::{get_class_paths_jar, get_lib_path},
+            MinecraftDomainError, ModLoaderProcessor,
+        },
         settings::LocationInfo,
     },
     processor_rules,
@@ -39,7 +42,7 @@ impl<PS: ProgressService> ForgeProcessor<PS> {
         data: &HashMap<String, daedalus::modded::SidedDataEntry>,
         libraries_dir: &Path,
         java_version: &Java,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         log::debug!("Running forge processor {}", processor.jar);
 
         let class_path: Vec<String> = with_mut_ref!(cp = processor.classpath.clone() => {
@@ -47,35 +50,36 @@ impl<PS: ProgressService> ForgeProcessor<PS> {
         });
 
         let class_path_arg =
-            minecraft::get_class_paths_jar(libraries_dir, &class_path, &java_version.architecture)?;
+            get_class_paths_jar(libraries_dir, &class_path, java_version.architecture())?;
 
-        let processor_jar_path = minecraft::get_lib_path(libraries_dir, &processor.jar, false)?;
+        let processor_jar_path = get_lib_path(libraries_dir, &processor.jar, false)?;
         let processor_main_class = get_processor_main_class(processor_jar_path).await?.ok_or({
-            MinecraftError::ModLoaderProcessorError(format!(
-                "Could not find processor main class for {}",
-                processor.jar
-            ))
+            MinecraftDomainError::ProcessorFailed {
+                reason: format!("Could not find processor main class for {}", processor.jar),
+            }
         })?;
 
         let processor_args = get_processor_arguments(libraries_dir, &processor.args, data)?;
 
-        let output = Command::new(&java_version.path)
+        let output = Command::new(java_version.path())
             .arg("-cp")
             .arg(class_path_arg)
             .arg(processor_main_class)
             .args(processor_args)
             .output()
             .await
-            .map_err(|e| IoError::with_path(e, &java_version.path))
-            .map_err(|err| {
-                MinecraftError::ModLoaderProcessorError(format!("Error running processor: {err}"))
+            .map_err(|e| IoError::with_path(e, java_version.path()))
+            .map_err(|err| MinecraftDomainError::ProcessorFailed {
+                reason: format!("Error running processor: {err}"),
             })?;
 
         if !output.status.success() {
-            return Err(MinecraftError::ModLoaderProcessorError(format!(
-                "Processor error: {}",
-                String::from_utf8_lossy(&output.stderr)
-            )));
+            return Err(MinecraftDomainError::ProcessorFailed {
+                reason: format!(
+                    "Processor error: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ),
+            });
         }
 
         Ok(())
@@ -92,7 +96,7 @@ impl<PS: ProgressService> ModLoaderProcessor for ForgeProcessor<PS> {
         version_info: &mut VersionInfo,
         java_version: &Java,
         loading_bar: Option<&ProgressBarId>,
-    ) -> Result<(), MinecraftError> {
+    ) -> Result<(), MinecraftDomainError> {
         let Some(processors) = &version_info.processors else {
             return Ok(());
         };
@@ -160,13 +164,13 @@ fn process_argument(
     libraries_path: &Path,
     argument: &str,
     data: &HashMap<String, daedalus::modded::SidedDataEntry>,
-) -> Result<String, MinecraftError> {
+) -> Result<String, MinecraftDomainError> {
     if argument.starts_with('{') {
         let key = &argument[1..argument.len() - 1];
         data.get(key)
             .map(|entry| {
                 if entry.client.starts_with('[') {
-                    minecraft::get_lib_path(
+                    get_lib_path(
                         libraries_path,
                         &entry.client[1..entry.client.len() - 1],
                         true,
@@ -176,15 +180,12 @@ fn process_argument(
                 }
             })
             .transpose()?
-            .ok_or_else(|| {
-                MinecraftError::ModLoaderProcessorError(format!(
-                    "Missing data entry for key: {}",
-                    key
-                ))
+            .ok_or_else(|| MinecraftDomainError::ProcessorFailed {
+                reason: format!("Missing data entry for key: {}", key),
             })
     } else if argument.starts_with('[') {
         let lib_path = &argument[1..argument.len() - 1];
-        minecraft::get_lib_path(libraries_path, lib_path, true)
+        get_lib_path(libraries_path, lib_path, true)
     } else {
         Ok(argument.to_string())
     }
@@ -194,25 +195,27 @@ pub fn get_processor_arguments<T: AsRef<str>>(
     libraries_path: &Path,
     arguments: &[T],
     data: &HashMap<String, daedalus::modded::SidedDataEntry>,
-) -> Result<Vec<String>, MinecraftError> {
+) -> Result<Vec<String>, MinecraftDomainError> {
     arguments
         .iter()
         .map(|arg| process_argument(libraries_path, arg.as_ref(), data))
         .collect()
 }
 
-pub async fn get_processor_main_class(path: String) -> Result<Option<String>, MinecraftError> {
+pub async fn get_processor_main_class(
+    path: String,
+) -> Result<Option<String>, MinecraftDomainError> {
     tokio::task::spawn_blocking(move || {
         let file = std::fs::File::open(&path).map_err(|e| IoError::with_path(e, &path))?;
-        let mut archive = zip::ZipArchive::new(file).map_err(|_| {
-            MinecraftError::ModLoaderProcessorError(format!("Cannot read processor at {}", path))
-        })?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|_| MinecraftDomainError::ProcessorFailed {
+                reason: format!("Cannot read processor at {}", path),
+            })?;
 
         let manifest = archive.by_name("META-INF/MANIFEST.MF").map_err(|_| {
-            MinecraftError::ModLoaderProcessorError(format!(
-                "Cannot read processor manifest at {}",
-                path
-            ))
+            MinecraftDomainError::ProcessorFailed {
+                reason: format!("Cannot read processor manifest at {}", path),
+            }
         })?;
 
         let reader = BufReader::new(manifest);
@@ -229,5 +232,7 @@ pub async fn get_processor_main_class(path: String) -> Result<Option<String>, Mi
         Ok(None)
     })
     .await
-    .map_err(|err| MinecraftError::ModLoaderProcessorError(err.to_string()))?
+    .map_err(|err| MinecraftDomainError::ProcessorFailed {
+        reason: err.to_string(),
+    })?
 }

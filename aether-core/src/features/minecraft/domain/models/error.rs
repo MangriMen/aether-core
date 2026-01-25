@@ -2,56 +2,44 @@ use std::path::PathBuf;
 
 use serr::SerializeError;
 
-use crate::{features::minecraft::LoaderVersionPreference, shared::IoError};
+use super::LoaderVersionPreference;
 
 #[derive(Debug, thiserror::Error, SerializeError)]
-pub enum MinecraftError {
-    #[error("Storage failure: {0}")]
-    StorageFailure(#[from] IoError),
+pub enum MinecraftDomainError {
+    #[error("Minecraft version \"{version}\" not found")]
+    VersionNotFound { version: String },
 
-    #[error("Minecraft version {version} not found")]
-    VersionNotFoundError { version: String },
-
-    // TODO: maybe specify message in which case it throws
     #[error("Minecraft version not found for loader version {loader_version_preference:?}")]
-    MinecraftVersionForLoaderNotFoundError {
+    VersionForLoaderNotFound {
         loader_version_preference: LoaderVersionPreference,
     },
 
     #[error("Loader version {loader_version_preference:?} not found")]
-    LoaderVersionNotFoundError {
+    LoaderNotFound {
         loader_version_preference: LoaderVersionPreference,
     },
 
-    #[error(
-        "Loader version not specified. If loader is not vanilla, loader version must be specified"
-    )]
-    LoaderVersionNotSpecified,
+    #[error("Loader version not specified for non-vanilla loader")]
+    LoaderVersionRequired,
 
-    #[error("Stable or latest loader version not found")]
-    DefaultLoaderVersionNotFound,
+    #[error("Stable or latest loader could not be resolved")]
+    DefaultLoaderNotFound,
 
-    #[error("Path not found: {path:?}")]
-    PathNotFoundError { path: PathBuf, entity_type: String },
+    #[error("Modloader processor failed: {reason}")]
+    ProcessorFailed { reason: String },
 
-    #[error("Error while parsing libraries: {0}")]
-    ParseError(#[from] daedalus::Error),
+    #[error("Failed to execute pre-launch command: exit code {code}")]
+    PreLaunchFailed { code: i32 },
 
-    #[error("Failed to execute pre-launch command")]
-    PreLaunchCommandError { code: i32 },
+    #[error("Failed to execute post-launch command: exit code {code}")]
+    PostLaunchFailed { code: i32 },
 
-    #[error("Failed to execute post-launch command")]
-    PostLaunchCommandError { code: i32 },
+    #[error("Path not found: {path:?} ({entity_type})")]
+    PathNotFound { path: PathBuf, entity_type: String },
 
-    #[error("Modloader processor error: {0}")]
-    ModLoaderProcessorError(String),
+    #[error("Error while parsing libraries: {reason}")]
+    ParseFailed { reason: String },
 
-    #[error("No java found at path: {path:?}")]
-    JavaNotFound { path: PathBuf },
-
-    #[error("Java version {version} not found")]
-    JavaVersionNotFound { version: u32 },
-
-    #[error("Java auto installation failed: {0}")]
-    JavaInstallationFailed(String),
+    #[error("Storage failure: {reason}")]
+    StorageFailure { reason: String },
 }

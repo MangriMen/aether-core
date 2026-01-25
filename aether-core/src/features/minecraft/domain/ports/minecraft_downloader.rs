@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::features::{events::ProgressBarId, minecraft::MinecraftError};
+use crate::features::{events::ProgressBarId, minecraft::MinecraftDomainError};
 
 #[async_trait]
 pub trait MinecraftDownloader: Send + Sync {
@@ -11,13 +11,13 @@ pub trait MinecraftDownloader: Send + Sync {
         force: bool,
         minecraft_updated: bool,
         loading_bar: Option<&ProgressBarId>,
-    ) -> Result<(), MinecraftError>;
+    ) -> Result<(), MinecraftDomainError>;
 
-    async fn download_version_info(
+    async fn get_version_info(
         &self,
         version: &daedalus::minecraft::Version,
         loader: Option<&daedalus::modded::LoaderVersion>,
         force: Option<bool>,
         loading_bar: Option<&ProgressBarId>,
-    ) -> Result<daedalus::minecraft::VersionInfo, MinecraftError>;
+    ) -> Result<daedalus::minecraft::VersionInfo, MinecraftDomainError>;
 }

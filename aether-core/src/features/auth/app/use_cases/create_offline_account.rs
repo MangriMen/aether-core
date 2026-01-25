@@ -1,37 +1,32 @@
 use std::sync::Arc;
 
-use chrono::{Duration, Utc};
 use uuid::Uuid;
 
-use crate::features::auth::{
-    AccountOutput, AccountType, AuthError, Credentials, CredentialsService, Username,
-};
-
-pub struct CreateOfflineAccountUseCase<CS: CredentialsService> {
-    credentials_service: Arc<CS>,
+pub struct CreateOfflineAccountUseCase<CS: CredentialsStorage> {
+    credentials_storage: Arc<CS>,
 }
 
-impl<CS: CredentialsService> CreateOfflineAccountUseCase<CS> {
-    pub fn new(credentials_service: Arc<CS>) -> Self {
+use crate::features::auth::{
+    ActiveAccountHelper, AuthApplicationError, Credentials, CredentialsStorage, Username,
+};
+
+use super::super::AccountData;
+
+impl<CS: CredentialsStorage> CreateOfflineAccountUseCase<CS> {
+    pub fn new(credentials_storage: Arc<CS>) -> Self {
         Self {
-            credentials_service,
+            credentials_storage,
         }
     }
 
-    pub async fn execute(&self, username: String) -> Result<AccountOutput, AuthError> {
+    pub async fn execute(&self, username: String) -> Result<AccountData, AuthApplicationError> {
         let username = Username::parse(&username)?;
+        let credentials = Credentials::new_offline(Uuid::new_v4(), username);
 
-        self.credentials_service
-            .upsert(Credentials {
-                id: Uuid::new_v4(),
-                username,
-                access_token: "null".to_string(),
-                refresh_token: "null".to_string(),
-                expires: Utc::now() + Duration::days(365 * 99),
-                active: true,
-                account_type: AccountType::Offline,
-            })
-            .await
-            .map(AccountOutput::from)
+        self.credentials_storage.upsert(credentials).await?;
+
+        let account = ActiveAccountHelper::ensure_active(self.credentials_storage.as_ref()).await?;
+
+        Ok(AccountData::from(account))
     }
 }

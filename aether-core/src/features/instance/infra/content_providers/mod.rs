@@ -1,3 +1,3 @@
-pub mod modrinth;
+mod modrinth;
 
 pub use modrinth::ModrinthContentProvider;

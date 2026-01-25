@@ -1,3 +1,3 @@
-mod fs_credentials_storage;
+mod adapters;
 
-pub use fs_credentials_storage::FsCredentialsStorage;
+pub use adapters::*;

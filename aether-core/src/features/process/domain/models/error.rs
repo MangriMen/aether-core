@@ -4,12 +4,12 @@ use crate::shared::IoError;
 
 #[derive(Debug, thiserror::Error, SerializeError)]
 pub enum ProcessError {
-    #[error("Error when killing process with id: {id}")]
+    #[error("Failed to kill process {id}")]
     KillError { id: String },
 
-    #[error("Error while waiting process with id: {id}")]
+    #[error("Failed to wait process {id}")]
     WaitError { id: String },
 
-    #[error("Error while spawning process: {0}")]
-    SpawnError(#[from] IoError),
+    #[error(transparent)]
+    Io(#[from] IoError),
 }
