@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::{
     features::{
         events::{EventEmitter, EventEmitterExt, ProcessEventType},
-        instance::infra::{EventEmittingInstanceStorage, FsInstanceStorage},
+        instance::InstanceStorage,
         process::{ProcessError, ProcessStorage},
         settings::LocationInfo,
     },
@@ -20,21 +20,18 @@ pub struct ManageProcessParams {
     pub post_exit_command: Option<String>,
 }
 
-pub struct ManageProcessUseCase<E: EventEmitter, PS: ProcessStorage> {
+pub struct ManageProcessUseCase<E: EventEmitter, PS: ProcessStorage, IS: InstanceStorage> {
     event_emitter: Arc<E>,
     process_storage: Arc<PS>,
-    track_process_use_case:
-        Arc<TrackProcessUseCase<PS, EventEmittingInstanceStorage<E, FsInstanceStorage>>>,
+    track_process_use_case: Arc<TrackProcessUseCase<PS, IS>>,
     location_info: Arc<LocationInfo>,
 }
 
-impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
+impl<E: EventEmitter, PS: ProcessStorage, IS: InstanceStorage> ManageProcessUseCase<E, PS, IS> {
     pub fn new(
         event_emitter: Arc<E>,
         process_storage: Arc<PS>,
-        track_process_use_case: Arc<
-            TrackProcessUseCase<PS, EventEmittingInstanceStorage<E, FsInstanceStorage>>,
-        >,
+        track_process_use_case: Arc<TrackProcessUseCase<PS, IS>>,
         location_info: Arc<LocationInfo>,
     ) -> Self {
         Self {
@@ -59,7 +56,7 @@ impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
             })
             .await;
 
-        self.process_storage.remove(process_uuid).await;
+        self.process_storage.remove(process_uuid).await?;
 
         self.event_emitter
             .emit_process_safe(
@@ -71,16 +68,22 @@ impl<E: EventEmitter, PS: ProcessStorage> ManageProcessUseCase<E, PS> {
             .await;
 
         if mc_exit_status.success() {
-            if let Some(command) = post_exit_command {
-                let instance_dir = self.location_info.instance_dir(&instance_id);
-                if let Ok(cmd) = SerializableCommand::from_string(&command, Some(&instance_dir)) {
-                    cmd.to_tokio_command()
-                        .spawn()
-                        .map_err(|e| IoError::with_path(e, instance_dir))?;
-                }
+            if let Some(command_str) = post_exit_command {
+                self.run_post_exit(&command_str, &instance_id)?;
             }
         }
 
+        Ok(())
+    }
+
+    fn run_post_exit(&self, command: &str, instance_id: &str) -> Result<(), ProcessError> {
+        let instance_dir = self.location_info.instance_dir(instance_id);
+
+        if let Ok(cmd) = SerializableCommand::from_string(command, Some(&instance_dir)) {
+            cmd.to_tokio_command()
+                .spawn()
+                .map_err(|e| IoError::with_path(e, instance_dir))?;
+        }
         Ok(())
     }
 }

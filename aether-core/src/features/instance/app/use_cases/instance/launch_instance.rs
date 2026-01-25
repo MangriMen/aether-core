@@ -41,11 +41,11 @@ pub struct LaunchInstanceUseCase<
     get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
     install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, JP>>,
     get_minecraft_launch_command_use_case: GetMinecraftLaunchCommandUseCase<MS, MD, JIS, JS>,
-    start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
+    start_process_use_case: Arc<StartProcessUseCase<E, PS, IS>>,
 }
 
 impl<
-        IS: InstanceStorage,
+        IS: InstanceStorage + 'static,
         MS: MetadataStorage,
         PS: ProcessStorage + 'static,
         GISS: DefaultInstanceSettingsStorage,
@@ -64,7 +64,7 @@ impl<
         get_process_by_instance_id_use_case: Arc<GetProcessMetadataByInstanceIdUseCase<PS>>,
         install_instance_use_case: Arc<InstallInstanceUseCase<IS, MS, MD, PGS, JIS, JS, JP>>,
         get_minecraft_launch_command_use_case: GetMinecraftLaunchCommandUseCase<MS, MD, JIS, JS>,
-        start_process_use_case: Arc<StartProcessUseCase<E, PS>>,
+        start_process_use_case: Arc<StartProcessUseCase<E, PS, IS>>,
     ) -> Self {
         Self {
             instance_storage,
@@ -141,12 +141,12 @@ impl<
         if let Some(process) = self
             .get_process_by_instance_id_use_case
             .execute(instance.id.clone())
-            .await
+            .await?
             .first()
         {
             return Err(InstanceError::InstanceAlreadyRunning {
                 instance_id,
-                process_id: process.uuid,
+                process_id: process.uuid(),
             });
         }
 

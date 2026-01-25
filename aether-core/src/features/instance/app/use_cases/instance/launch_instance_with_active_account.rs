@@ -30,7 +30,7 @@ pub struct LaunchInstanceWithActiveAccountUseCase<
 }
 
 impl<
-        IS: InstanceStorage,
+        IS: InstanceStorage + 'static,
         MS: MetadataStorage,
         PS: ProcessStorage + 'static,
         CS: CredentialsStorage,
