@@ -82,7 +82,7 @@ impl<
     ) -> Result<(), MinecraftDomainError> {
         match loader {
             ModLoader::Vanilla => Ok(()),
-            ModLoader::Forge => {
+            ModLoader::NeoForge | ModLoader::Forge => {
                 ForgeProcessor::new(self.progress_service.clone(), self.location_info.clone())
                     .run(
                         game_version,
@@ -96,7 +96,6 @@ impl<
             }
             ModLoader::Fabric => Ok(()),
             ModLoader::Quilt => Ok(()),
-            ModLoader::NeoForge => Ok(()),
         }
     }
 

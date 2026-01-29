@@ -111,7 +111,7 @@ impl<RC: RequestClient, PS: ProgressService, C: Cache, FS: FileStore> MinecraftD
         });
 
         tokio::try_join! {
-            self.client_service.ensure_client_download(version_info, force, progress_bar_id),
+            self.client_service.download_client(version_info, force, progress_bar_id),
             self.assets_service.download_assets(&assets_index, version_info.assets == "legacy", force, progress_config.as_ref()),
             self.libraries_service.download_libraries( version_info.libraries.as_slice(), version_info, java_arch, force, minecraft_updated, progress_config.as_ref())
         }?;

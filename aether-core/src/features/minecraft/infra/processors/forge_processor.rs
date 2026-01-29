@@ -165,32 +165,45 @@ fn process_argument(
     argument: &str,
     data: &HashMap<String, daedalus::modded::SidedDataEntry>,
 ) -> Result<String, MinecraftDomainError> {
-    if argument.starts_with('{') {
-        let key = &argument[1..argument.len() - 1];
-        data.get(key)
-            .map(|entry| {
-                if entry.client.starts_with('[') {
-                    get_lib_path(
-                        libraries_path,
-                        &entry.client[1..entry.client.len() - 1],
-                        true,
-                    )
-                } else {
-                    Ok(entry.client.clone())
-                }
-            })
-            .transpose()?
-            .ok_or_else(|| MinecraftDomainError::ProcessorFailed {
-                reason: format!("Missing data entry for key: {}", key),
-            })
-    } else if argument.starts_with('[') {
-        let lib_path = &argument[1..argument.len() - 1];
-        get_lib_path(libraries_path, lib_path, true)
-    } else {
-        Ok(argument.to_string())
+    // Arguments in [] are resolved to the path of a previously downloaded library
+    // Check if the argument is a direct library reference [group:artifact:version]
+    if let Some(stripped) = argument.strip_prefix('[') {
+        if let Some(lib_key) = stripped.strip_suffix(']') {
+            return get_lib_path(libraries_path, lib_key, true);
+        }
     }
-}
 
+    let mut result = argument.to_string();
+
+    // Arguments may contain {KEY} placeholders. We use a naive find-and-replace
+    // to support composite values like "{ROOT}/libraries/".
+    for (key, entry) in data {
+        let placeholder = format!("{{{}}}", key);
+
+        if result.contains(&placeholder) {
+            let replacement = if let Some(inner) = entry.client.strip_prefix('[') {
+                if let Some(lib_key) = inner.strip_suffix(']') {
+                    // Resolve library path if the data value itself is a lib key
+                    get_lib_path(libraries_path, lib_key, true)?
+                } else {
+                    entry.client.clone()
+                }
+            } else {
+                entry.client.clone()
+            };
+
+            result = result.replace(&placeholder, &replacement);
+        }
+    }
+
+    if result.contains('{') && result.contains('}') {
+        return Err(MinecraftDomainError::ProcessorFailed {
+            reason: format!("Argument contains unresolved placeholders: {}", result),
+        });
+    }
+
+    Ok(result)
+}
 pub fn get_processor_arguments<T: AsRef<str>>(
     libraries_path: &Path,
     arguments: &[T],
