@@ -174,7 +174,7 @@ impl TryFrom<ContentSearchParams> for ProjectSearchParams {
         let categories = match value.content_type {
             ContentType::Mod => match value.loader {
                 ModLoader::Vanilla => None,
-                loader => Some(get_facet("categories", &[loader.as_meta_str().to_owned()])),
+                loader => Some(get_facet("categories", &[loader.as_str().to_owned()])),
             },
             _ => None,
         };
