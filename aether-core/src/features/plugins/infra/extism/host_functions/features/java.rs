@@ -1,10 +1,9 @@
 use aether_core_plugin_api::v0::JavaDto;
 use extism::host_fn;
 
-use crate::{
-    features::plugins::extism::{host_functions::PluginContext, mappers::to_extism_res},
-    shared::execute_async,
-};
+use crate::shared::execute_async;
+
+use super::super::{super::mappers::to_extism_res, PluginContext};
 
 host_fn!(
 pub get_java(user_data: PluginContext; version: u32) -> HostResult<JavaDto> {

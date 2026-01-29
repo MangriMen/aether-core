@@ -1,6 +1,6 @@
-pub mod java;
+mod extract_java_major_minor_version;
 
 #[cfg(test)]
-pub mod __tests__;
+mod __tests__;
 
-pub use java::*;
+pub use extract_java_major_minor_version::*;

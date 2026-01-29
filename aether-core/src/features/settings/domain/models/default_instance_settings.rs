@@ -1,15 +1,57 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DefaultInstanceSettings {
-    pub launch_args: Vec<String>,
-    pub env_vars: Vec<(String, String)>,
+    launch_args: Vec<String>,
+    env_vars: Vec<(String, String)>,
 
-    pub memory: MemorySettings,
-    pub game_resolution: WindowSize,
+    memory: MemorySettings,
+    game_resolution: WindowSize,
 
-    pub hooks: Hooks,
+    hooks: Hooks,
+}
+
+impl DefaultInstanceSettings {
+    pub fn launch_args(&self) -> &[String] {
+        &self.launch_args
+    }
+
+    pub fn env_vars(&self) -> &[(String, String)] {
+        &self.env_vars
+    }
+
+    pub fn memory(&self) -> MemorySettings {
+        self.memory
+    }
+
+    pub fn game_resolution(&self) -> WindowSize {
+        self.game_resolution
+    }
+
+    pub fn hooks(&self) -> &Hooks {
+        &self.hooks
+    }
+
+    pub fn hooks_mut(&mut self) -> &mut Hooks {
+        &mut self.hooks
+    }
+
+    pub fn set_launch_args(&mut self, launch_args: Vec<String>) {
+        self.launch_args = launch_args;
+    }
+
+    pub fn set_env_vars(&mut self, env_vars: Vec<(String, String)>) {
+        self.env_vars = env_vars;
+    }
+
+    pub fn set_memory(&mut self, memory: MemorySettings) {
+        self.memory = memory;
+    }
+
+    pub fn set_resolution(&mut self, resolution: WindowSize) {
+        self.game_resolution = resolution;
+    }
 }
 
 /// Memory usage settings for Java.
@@ -56,30 +98,41 @@ impl Default for WindowSize {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Hooks {
-    pub pre_launch: Option<String>,
-    pub wrapper: Option<String>,
-    pub post_exit: Option<String>,
+    pre_launch: Option<String>,
+    wrapper: Option<String>,
+    post_exit: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EditHooks {
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "::serde_with::rust::double_option"
-    )]
-    pub pre_launch: Option<Option<String>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "::serde_with::rust::double_option"
-    )]
-    pub wrapper: Option<Option<String>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "::serde_with::rust::double_option"
-    )]
-    pub post_exit: Option<Option<String>>,
+impl Hooks {
+    pub fn new(
+        pre_launch: Option<String>,
+        wrapper: Option<String>,
+        post_exit: Option<String>,
+    ) -> Self {
+        Self {
+            pre_launch,
+            wrapper,
+            post_exit,
+        }
+    }
+
+    pub fn pre_launch(&self) -> Option<&String> {
+        self.pre_launch.as_ref()
+    }
+    pub fn wrapper(&self) -> Option<&String> {
+        self.wrapper.as_ref()
+    }
+    pub fn post_exit(&self) -> Option<&String> {
+        self.post_exit.as_ref()
+    }
+
+    pub fn update_pre_launch(&mut self, val: Option<String>) {
+        self.pre_launch = val;
+    }
+    pub fn update_wrapper(&mut self, val: Option<String>) {
+        self.wrapper = val;
+    }
+    pub fn update_post_exit(&mut self, val: Option<String>) {
+        self.post_exit = val;
+    }
 }

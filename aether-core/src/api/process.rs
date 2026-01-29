@@ -3,8 +3,11 @@ use uuid::Uuid;
 use crate::{
     core::domain::LazyLocator,
     features::process::{
-        GetProcessMetadataByInstanceIdUseCase, KillProcessUseCase, ListProcessMetadataUseCase,
-        MinecraftProcessMetadata, WaitForProcessUseCase,
+        app::{
+            GetProcessMetadataByInstanceIdUseCase, KillProcessUseCase, ListProcessMetadataUseCase,
+            WaitForProcessUseCase,
+        },
+        MinecraftProcessMetadata,
     },
 };
 
@@ -14,7 +17,7 @@ pub async fn list() -> crate::Result<Vec<MinecraftProcessMetadata>> {
     Ok(
         ListProcessMetadataUseCase::new(lazy_locator.get_process_storage().await)
             .execute()
-            .await,
+            .await?,
     )
 }
 
@@ -27,7 +30,7 @@ pub async fn get_by_instance_id(
     Ok(
         GetProcessMetadataByInstanceIdUseCase::new(lazy_locator.get_process_storage().await)
             .execute(instance_id)
-            .await,
+            .await?,
     )
 }
 

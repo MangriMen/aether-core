@@ -1,5 +1,5 @@
-pub mod error;
-pub mod minecraft_process;
+mod error;
+mod minecraft_process_metadata;
 
 pub use error::*;
-pub use minecraft_process::*;
+pub use minecraft_process_metadata::*;

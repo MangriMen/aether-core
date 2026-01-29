@@ -1,7 +1,7 @@
-pub mod get_compatible_java_version;
-pub mod jvm_arguments;
-pub mod parse_arguments;
-pub mod rules;
+mod get_compatible_java_version;
+mod jvm_arguments;
+mod parse_arguments;
+mod rules;
 
 pub use get_compatible_java_version::*;
 pub use jvm_arguments::*;

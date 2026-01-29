@@ -105,52 +105,52 @@ pub struct Hashes {
     pub sha512: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ModrinthProjectResponse {
-    pub client_side: String,
-    pub server_side: String,
-    pub game_versions: Vec<String>,
-    pub id: String,
-    pub slug: String,
-    pub project_type: String,
-    pub team: String,
-    pub organization: Option<serde_json::Value>,
-    pub title: String,
-    pub description: String,
-    pub body: String,
-    pub body_url: Option<serde_json::Value>,
-    pub published: String,
-    pub updated: String,
-    pub approved: String,
-    pub queued: Option<serde_json::Value>,
-    pub status: String,
-    pub requested_status: Option<serde_json::Value>,
-    pub moderator_message: Option<serde_json::Value>,
-    pub license: License,
-    pub downloads: i64,
-    pub followers: i64,
-    pub categories: Vec<String>,
-    pub additional_categories: Vec<Option<serde_json::Value>>,
-    pub loaders: Vec<String>,
-    pub versions: Vec<String>,
-    pub icon_url: String,
-    pub issues_url: String,
-    pub source_url: String,
-    pub wiki_url: String,
-    pub discord_url: String,
-    pub donation_urls: Vec<Option<serde_json::Value>>,
-    pub gallery: Vec<Option<serde_json::Value>>,
-    pub color: i64,
-    pub thread_id: String,
-    pub monetization_status: String,
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct ModrinthProjectResponse {
+//     pub client_side: String,
+//     pub server_side: String,
+//     pub game_versions: Vec<String>,
+//     pub id: String,
+//     pub slug: String,
+//     pub project_type: String,
+//     pub team: String,
+//     pub organization: Option<serde_json::Value>,
+//     pub title: String,
+//     pub description: String,
+//     pub body: String,
+//     pub body_url: Option<serde_json::Value>,
+//     pub published: String,
+//     pub updated: String,
+//     pub approved: String,
+//     pub queued: Option<serde_json::Value>,
+//     pub status: String,
+//     pub requested_status: Option<serde_json::Value>,
+//     pub moderator_message: Option<serde_json::Value>,
+//     pub license: License,
+//     pub downloads: i64,
+//     pub followers: i64,
+//     pub categories: Vec<String>,
+//     pub additional_categories: Vec<Option<serde_json::Value>>,
+//     pub loaders: Vec<String>,
+//     pub versions: Vec<String>,
+//     pub icon_url: String,
+//     pub issues_url: String,
+//     pub source_url: String,
+//     pub wiki_url: String,
+//     pub discord_url: String,
+//     pub donation_urls: Vec<Option<serde_json::Value>>,
+//     pub gallery: Vec<Option<serde_json::Value>>,
+//     pub color: i64,
+//     pub thread_id: String,
+//     pub monetization_status: String,
+// }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct License {
-    pub id: String,
-    pub name: String,
-    pub url: Option<serde_json::Value>,
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct License {
+//     pub id: String,
+//     pub name: String,
+//     pub url: Option<serde_json::Value>,
+// }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ListProjectVersionsParams {
