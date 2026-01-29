@@ -49,7 +49,7 @@ impl<RC: RequestClient, PS: ProgressService, FS: FileStore> ClientService<RC, PS
             .map_err(get_network_error)
     }
 
-    async fn download_client(
+    async fn fetch_client(
         &self,
         version_id: &str,
         version_info: &daedalus::minecraft::VersionInfo,
@@ -59,7 +59,7 @@ impl<RC: RequestClient, PS: ProgressService, FS: FileStore> ClientService<RC, PS
         Ok(self.fetch_bytes(&client_download_url.url).await?)
     }
 
-    pub async fn ensure_client_download(
+    pub async fn download_client(
         &self,
         version_info: &daedalus::minecraft::VersionInfo,
         force: bool,
@@ -70,7 +70,7 @@ impl<RC: RequestClient, PS: ProgressService, FS: FileStore> ClientService<RC, PS
         self.cached_resource
             .ensure(
                 || version_jar_key(version_id.to_string()),
-                self.download_client(version_id, version_info),
+                self.fetch_client(version_id, version_info),
                 || format!("Client {version_id}"),
                 force,
             )

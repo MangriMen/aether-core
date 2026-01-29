@@ -139,11 +139,15 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         force: bool,
         minecraft_updated: bool,
     ) -> Result<(), MinecraftDomainError> {
+        trace!(
+            library=%library.name,
+            library_data=?library,
+            "Processing library"
+        );
+
         if !Self::should_download_library(library, java_arch, minecraft_updated) {
             return Ok(());
         }
-
-        trace!("Processing library: {}", library.name);
 
         tokio::try_join! {
             self.download_java_library(library, force),
@@ -209,7 +213,10 @@ impl<RC: RequestClient, PS: ProgressService> LibrariesService<RC, PS> {
         let library_path = self.location_info.libraries_dir().join(&library_path_part);
 
         if library_path.exists() && !force {
-            trace!("Library {} already exists, skipping", library.name);
+            trace!(
+                library = %library.name,
+                "Library already exists, skipping"
+            );
             return Ok(());
         }
 
