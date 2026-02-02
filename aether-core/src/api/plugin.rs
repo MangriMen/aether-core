@@ -2,14 +2,17 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     core::domain::LazyLocator,
-    features::plugins::{
-        app::{
-            DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase,
-            EnablePluginUseCase, GetPluginApiVersionUseCase, GetPluginDtoUseCase,
-            GetPluginSettingsUseCase, ImportPluginsUseCase, ListImportersUseCase,
-            ListPluginsDtoUseCase, PluginDto, RemovePluginUseCase, SyncPluginsUseCase,
+    features::{
+        instance::ImporterCapability,
+        plugins::{
+            app::{
+                DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase,
+                EnablePluginUseCase, GetPluginApiVersionUseCase, GetPluginDtoUseCase,
+                GetPluginSettingsUseCase, ImportPluginsUseCase, ListImportersUseCase,
+                ListPluginsDtoUseCase, PluginDto, RemovePluginUseCase, SyncPluginsUseCase,
+            },
+            CapabilityEntry, PluginSettings,
         },
-        CapabilityEntry, ImporterCapability, PluginSettings,
     },
 };
 

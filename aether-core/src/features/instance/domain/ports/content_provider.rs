@@ -1,11 +1,14 @@
 use async_trait::async_trait;
 
 use crate::features::instance::{
-    ContentFile, ContentInstallParams, ContentSearchParams, ContentSearchResult, InstanceError,
+    ContentFile, ContentInstallParams, ContentProviderCapability, ContentSearchParams,
+    ContentSearchResult, InstanceError,
 };
 
 #[async_trait]
 pub trait ContentProvider: Send + Sync {
+    fn info(&self) -> &ContentProviderCapability;
+
     fn get_name(&self) -> String;
 
     async fn search(

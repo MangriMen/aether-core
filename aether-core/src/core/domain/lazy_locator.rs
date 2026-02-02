@@ -17,7 +17,8 @@ use crate::{
                 EventEmittingInstanceStorage, FsInstanceStorage, FsPackStorage,
                 InstanceEventHandler, ModrinthContentProvider,
             },
-            ContentProviderRegistry, InstanceWatcherServiceImpl,
+            ContentProvider, ContentProviderRegistry, Importer, InstanceWatcherServiceImpl,
+            Updater,
         },
         java::infra::FsJavaStorage,
         minecraft::infra::{
@@ -28,8 +29,7 @@ use crate::{
                 ExtismPluginLoader, FsPluginSettingsStorage, FsPluginStorage,
                 MemoryCapabilityRegistry, PluginInfrastructureListener, ZipPluginExtractor,
             },
-            ImporterCapability, LoadConfigType, PluginLoaderRegistry, PluginRegistry,
-            UpdaterCapability,
+            LoadConfigType, PluginLoaderRegistry, PluginRegistry,
         },
         process::infra::InMemoryProcessStorage,
         settings::infra::{FsDefaultInstanceSettingsStorage, FsSettingsStorage},
@@ -44,8 +44,9 @@ static LAZY_LOCATOR: OnceCell<Arc<LazyLocator>> = OnceCell::const_new();
 
 pub type ProgressServiceType = ProgressServiceImpl<TauriEventEmitter, InMemoryProgressBarStorage>;
 
-pub type ImporterRegistry = MemoryCapabilityRegistry<ImporterCapability>;
-pub type UpdaterRegistry = MemoryCapabilityRegistry<UpdaterCapability>;
+pub type ImporterRegistry = MemoryCapabilityRegistry<Arc<dyn Importer>>;
+pub type UpdaterRegistry = MemoryCapabilityRegistry<Arc<dyn Updater>>;
+pub type ContentProviderRegistry2 = MemoryCapabilityRegistry<Arc<dyn ContentProvider>>;
 
 pub type MinecraftMetadataCache = FileCache<MinecraftMetadataResolver>;
 
@@ -87,8 +88,16 @@ pub struct LazyLocator {
     plugin_extractor: OnceCell<Arc<ZipPluginExtractor>>,
     importers_registry: OnceCell<Arc<ImporterRegistry>>,
     updaters_registry: OnceCell<Arc<UpdaterRegistry>>,
+    content_provider_registry2: OnceCell<Arc<ContentProviderRegistry2>>,
     plugin_infrastructure_listener: OnceCell<
-        Arc<PluginInfrastructureListener<TauriEventEmitter, ImporterRegistry, UpdaterRegistry>>,
+        Arc<
+            PluginInfrastructureListener<
+                TauriEventEmitter,
+                ImporterRegistry,
+                UpdaterRegistry,
+                ContentProviderRegistry2,
+            >,
+        >,
     >,
 }
 
@@ -144,6 +153,7 @@ impl LazyLocator {
                     plugin_extractor: OnceCell::new(),
                     importers_registry: OnceCell::new(),
                     updaters_registry: OnceCell::new(),
+                    content_provider_registry2: OnceCell::new(),
                     plugin_infrastructure_listener: OnceCell::new(),
                 })
             })
@@ -428,28 +438,42 @@ impl LazyLocator {
 
     pub async fn get_importers_registry(&self) -> Arc<ImporterRegistry> {
         self.importers_registry
-            .get_or_init(|| async { Arc::new(MemoryCapabilityRegistry::default()) })
+            .get_or_init(|| async { Arc::new(MemoryCapabilityRegistry::new("importer")) })
             .await
             .clone()
     }
 
     pub async fn get_updaters_registry(&self) -> Arc<UpdaterRegistry> {
         self.updaters_registry
-            .get_or_init(|| async { Arc::new(MemoryCapabilityRegistry::default()) })
+            .get_or_init(|| async { Arc::new(MemoryCapabilityRegistry::new("updater")) })
+            .await
+            .clone()
+    }
+
+    pub async fn get_content_provider_registry2(&self) -> Arc<ContentProviderRegistry2> {
+        self.content_provider_registry2
+            .get_or_init(|| async { Arc::new(MemoryCapabilityRegistry::new("content_provider")) })
             .await
             .clone()
     }
 
     pub async fn get_plugin_infrastructure_listener(
         &self,
-    ) -> Arc<PluginInfrastructureListener<TauriEventEmitter, ImporterRegistry, UpdaterRegistry>>
-    {
+    ) -> Arc<
+        PluginInfrastructureListener<
+            TauriEventEmitter,
+            ImporterRegistry,
+            UpdaterRegistry,
+            ContentProviderRegistry2,
+        >,
+    > {
         self.plugin_infrastructure_listener
             .get_or_init(|| async {
                 Arc::new(PluginInfrastructureListener::new(
                     self.get_plugin_registry().await,
                     self.get_importers_registry().await,
                     self.get_updaters_registry().await,
+                    self.get_content_provider_registry2().await,
                 ))
             })
             .await

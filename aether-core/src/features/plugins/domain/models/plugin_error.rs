@@ -50,8 +50,11 @@ pub enum PluginError {
     #[error("Invalid load configuration: {config:?}")]
     InvalidConfig { config: LoadConfig },
 
-    #[error("Importer \"{importer_id}\" not found")]
-    ImporterNotFound { importer_id: String },
+    #[error("Capability {capability_type} with id \"{capability_id}\" not found")]
+    CapabilityNotFound {
+        capability_type: &'static str,
+        capability_id: String,
+    },
 
     #[error("Failed to extract plugin from: {from}")]
     ExtractionFailed { from: String },

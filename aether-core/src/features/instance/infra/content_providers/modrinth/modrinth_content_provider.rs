@@ -10,8 +10,8 @@ use path_slash::PathBufExt;
 use crate::{
     features::{
         instance::{
-            ContentFile, ContentInstallParams, ContentProvider, ContentSearchParams,
-            ContentSearchResult, InstanceError,
+            BaseCapability, ContentFile, ContentInstallParams, ContentProvider,
+            ContentProviderCapability, ContentSearchParams, ContentSearchResult, InstanceError,
         },
         settings::LocationInfo,
     },
@@ -28,6 +28,7 @@ use super::{
 pub struct ModrinthContentProvider<RC> {
     api: ModrinthApiClient<RC>,
     location_info: Arc<LocationInfo>,
+    capability: ContentProviderCapability,
 }
 
 impl<RC: RequestClient> ModrinthContentProvider<RC> {
@@ -39,6 +40,15 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
         Self {
             api: ModrinthApiClient::new(MODRINTH_API_URL.to_string(), base_headers, request_client),
             location_info,
+            capability: ContentProviderCapability {
+                base: BaseCapability {
+                    id: "core::modrinth".to_string(),
+                    name: "Modrinth".to_string(),
+                    description: None,
+                    icon: None,
+                    handler: "search".to_string(),
+                },
+            },
         }
     }
 
@@ -143,6 +153,10 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
 
 #[async_trait]
 impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
+    fn info(&self) -> &ContentProviderCapability {
+        &self.capability
+    }
+
     fn get_name(&self) -> String {
         "Modrinth".into()
     }
