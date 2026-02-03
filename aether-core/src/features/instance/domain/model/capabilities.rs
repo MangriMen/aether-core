@@ -4,28 +4,22 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BaseCapability {
+pub struct CapabilityMetadata {
     /// Identifier (lowercase, kebab/underscore allowed).
     pub id: String,
-
     /// Display name.
     pub name: String,
-
     /// Optional description.
     pub description: Option<String>,
-
     /// Optional icon file name or URL.
     pub icon: Option<String>,
-
-    /// Plugin function name to handle this capability call.
-    pub handler: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ImporterCapability {
+pub struct ImporterCapabilityMetadata {
     #[serde(flatten)]
-    pub base: BaseCapability,
+    pub base: CapabilityMetadata,
 
     /// Optional field label for the importer.
     pub field_label: Option<String>,
@@ -33,37 +27,35 @@ pub struct ImporterCapability {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdaterCapability {
+pub struct UpdaterCapabilityMetadata {
     #[serde(flatten)]
-    pub base: BaseCapability,
+    pub base: CapabilityMetadata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ContentProviderCapability {
+pub struct ContentProviderCapabilityMetadata {
     #[serde(flatten)]
-    pub base: BaseCapability,
+    pub base: CapabilityMetadata,
+    pub provider_data_content_id_field: String,
 }
 
-impl Deref for ImporterCapability {
-    type Target = BaseCapability;
-
+impl Deref for ImporterCapabilityMetadata {
+    type Target = CapabilityMetadata;
     fn deref(&self) -> &Self::Target {
         &self.base
     }
 }
 
-impl Deref for UpdaterCapability {
-    type Target = BaseCapability;
-
+impl Deref for UpdaterCapabilityMetadata {
+    type Target = CapabilityMetadata;
     fn deref(&self) -> &Self::Target {
         &self.base
     }
 }
 
-impl Deref for ContentProviderCapability {
-    type Target = BaseCapability;
-
+impl Deref for ContentProviderCapabilityMetadata {
+    type Target = CapabilityMetadata;
     fn deref(&self) -> &Self::Target {
         &self.base
     }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use dashmap::DashMap;
 
@@ -6,13 +6,14 @@ use crate::{
     core::{domain::LazyLocator, LauncherState},
     features::instance::{
         app::{
-            ChangeContentState, ChangeContentStateUseCase, ContentStateAction,
-            GetProviderMetadataUseCase, ImportContent, ImportContentUseCase, InstallContentUseCase,
-            ListContentUseCase, ListProvidersUseCase, RemoveContent, RemoveContentUseCase,
-            SearchContentUseCase,
+            ChangeContentState, ChangeContentStateUseCase, ContentStateAction, ImportContent,
+            ImportContentUseCase, InstallContentUseCase, ListContentUseCase, ListProvidersUseCase,
+            RemoveContent, RemoveContentUseCase, SearchContentUseCase,
         },
-        ContentFile, ContentInstallParams, ContentSearchParams, ContentSearchResult, ContentType,
+        ContentFile, ContentInstallParams, ContentProviderCapabilityMetadata, ContentSearchParams,
+        ContentSearchResult, ContentType,
     },
+    shared::CapabilityEntry,
 };
 
 pub async fn list_content(instance_id: String) -> crate::Result<DashMap<String, ContentFile>> {
@@ -96,7 +97,8 @@ pub async fn import_contents(
     .await?)
 }
 
-pub async fn get_content_providers() -> crate::Result<HashMap<String, String>> {
+pub async fn list_content_providers(
+) -> crate::Result<Vec<CapabilityEntry<ContentProviderCapabilityMetadata>>> {
     let lazy_locator = LazyLocator::get().await?;
 
     Ok(
@@ -114,16 +116,6 @@ pub async fn search_content(
     Ok(
         SearchContentUseCase::new(lazy_locator.get_content_provider_registry().await)
             .execute(search_params)
-            .await?,
-    )
-}
-
-pub async fn get_metadata_field_to_check_installed(provider_id: String) -> crate::Result<String> {
-    let lazy_locator = LazyLocator::get().await?;
-
-    Ok(
-        GetProviderMetadataUseCase::new(lazy_locator.get_content_provider_registry().await)
-            .execute(provider_id)
             .await?,
     )
 }

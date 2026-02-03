@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::features::{
-    instance::{Importer, InstanceError},
-    plugins::CapabilityRegistry,
+use crate::{
+    features::instance::{Importer, InstanceError},
+    shared::CapabilityRegistry,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

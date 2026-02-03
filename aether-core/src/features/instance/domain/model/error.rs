@@ -19,6 +19,9 @@ pub enum InstanceError {
     #[error("Content provider \"\" not found")]
     ContentProviderNotFound { provider_id: String },
 
+    #[error("Capability operation error")]
+    CapabilityOperationError,
+
     #[error("Instance \"{instance_id}\" still in installing state")]
     InstanceStillInstalling { instance_id: String },
 

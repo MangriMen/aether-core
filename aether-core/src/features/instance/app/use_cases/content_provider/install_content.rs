@@ -1,17 +1,22 @@
 use std::sync::Arc;
 
-use crate::features::instance::{
-    ContentInstallParams, ContentProvider, ContentProviderRegistry, InstanceError, PackFile,
-    PackStorage,
+use crate::{
+    features::instance::{
+        ContentInstallParams, ContentProvider, InstanceError, PackFile, PackStorage,
+    },
+    shared::CapabilityRegistry,
 };
 
-pub struct InstallContentUseCase<PS: PackStorage, CP: ContentProvider> {
+pub struct InstallContentUseCase<PS: PackStorage, CP: CapabilityRegistry<Arc<dyn ContentProvider>>>
+{
     pack_storage: Arc<PS>,
-    provider_registry: Arc<ContentProviderRegistry<CP>>,
+    provider_registry: Arc<CP>,
 }
 
-impl<PS: PackStorage, CP: ContentProvider> InstallContentUseCase<PS, CP> {
-    pub fn new(pack_storage: Arc<PS>, provider_registry: Arc<ContentProviderRegistry<CP>>) -> Self {
+impl<PS: PackStorage, CP: CapabilityRegistry<Arc<dyn ContentProvider>>>
+    InstallContentUseCase<PS, CP>
+{
+    pub fn new(pack_storage: Arc<PS>, provider_registry: Arc<CP>) -> Self {
         Self {
             pack_storage,
             provider_registry,
@@ -23,11 +28,24 @@ impl<PS: PackStorage, CP: ContentProvider> InstallContentUseCase<PS, CP> {
         instance_id: String,
         install_params: ContentInstallParams,
     ) -> Result<(), InstanceError> {
-        let provider = self
+        let providers = self
             .provider_registry
-            .get(&install_params.provider.to_string())?;
+            .find_by_capability_id(&install_params.provider)
+            .await
+            .map_err(|_| InstanceError::ContentProviderNotFound {
+                provider_id: install_params.provider.to_string(),
+            })?;
 
-        let instance_file = provider.install(&instance_id, &install_params).await?;
+        let provider = providers
+            .first()
+            .ok_or(InstanceError::ContentProviderNotFound {
+                provider_id: install_params.provider.to_string(),
+            })?;
+
+        let instance_file = provider
+            .capability
+            .install(&instance_id, &install_params)
+            .await?;
 
         self.pack_storage
             .update_pack_file(

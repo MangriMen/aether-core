@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use dashmap::DashMap;
 
-use crate::features::plugins::{CapabilityEntry, CapabilityRegistry, PluginError};
+use crate::shared::{CapabilityEntry, CapabilityRegistry, RegistryError};
 
 type CapabilityKey = (String, String); // (plugin_id, capability.id)
 
@@ -42,12 +42,16 @@ impl<C> CapabilityRegistry<C> for MemoryCapabilityRegistry<C>
 where
     C: Send + Sync + Clone,
 {
+    fn get_type(&self) -> &'static str {
+        self.capability_type
+    }
+
     async fn add(
         &self,
         plugin_id: String,
         capability_id: String,
         capability: C,
-    ) -> Result<(), PluginError> {
+    ) -> Result<(), RegistryError> {
         let key = (plugin_id.clone(), capability_id);
         self.capabilities.insert(
             key,
@@ -59,7 +63,7 @@ where
         Ok(())
     }
 
-    async fn list(&self) -> Result<Vec<CapabilityEntry<C>>, PluginError> {
+    async fn list(&self) -> Result<Vec<CapabilityEntry<C>>, RegistryError> {
         Ok(self
             .capabilities
             .iter()
@@ -70,7 +74,7 @@ where
     async fn find_by_capability_id(
         &self,
         capability_id: &str,
-    ) -> Result<Vec<CapabilityEntry<C>>, PluginError> {
+    ) -> Result<Vec<CapabilityEntry<C>>, RegistryError> {
         let capabilities: Vec<CapabilityEntry<C>> = self
             .capabilities
             .iter()
@@ -79,7 +83,7 @@ where
             .collect();
 
         if capabilities.is_empty() {
-            return Err(PluginError::CapabilityNotFound {
+            return Err(RegistryError::CapabilityNotFound {
                 capability_type: self.capability_type,
                 capability_id: capability_id.to_owned(),
             });
@@ -92,13 +96,13 @@ where
         &self,
         plugin_id: &str,
         capability_id: &str,
-    ) -> Result<CapabilityEntry<C>, PluginError> {
+    ) -> Result<CapabilityEntry<C>, RegistryError> {
         let key = (plugin_id.to_owned(), capability_id.to_owned());
 
         let entry = self
             .capabilities
             .get(&key)
-            .ok_or(PluginError::CapabilityNotFound {
+            .ok_or(RegistryError::CapabilityNotFound {
                 capability_type: self.capability_type,
                 capability_id: capability_id.to_owned(),
             })?;
@@ -106,11 +110,7 @@ where
         Ok(entry.clone())
     }
 
-    async fn remove_by_plugin_and_capability(
-        &self,
-        plugin_id: String,
-        capability_id: String,
-    ) -> Result<(), PluginError> {
+    async fn remove(&self, plugin_id: String, capability_id: String) -> Result<(), RegistryError> {
         let key = (plugin_id, capability_id);
         self.capabilities.remove(&key);
         Ok(())

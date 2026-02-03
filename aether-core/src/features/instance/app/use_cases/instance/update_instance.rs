@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::features::{
-    instance::{
+use crate::{
+    features::instance::{
         InstanceError, InstanceInstallStage, InstanceStorage, InstanceStorageExt, PackInfo, Updater,
     },
-    plugins::CapabilityRegistry,
+    shared::CapabilityRegistry,
 };
 
 pub struct UpdateInstanceUseCase<IS: InstanceStorage, UR: CapabilityRegistry<Arc<dyn Updater>>> {

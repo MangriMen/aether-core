@@ -4,17 +4,20 @@ use async_trait::async_trait;
 use tokio::sync::Mutex;
 
 use crate::features::{
-    instance::{InstanceError, Updater, UpdaterCapability},
-    plugins::{PluginInstance, PluginInstanceExt},
+    instance::{InstanceError, Updater, UpdaterCapabilityMetadata},
+    plugins::{PluginInstance, PluginInstanceExt, PluginUpdaterCapability},
 };
 
 pub struct PluginUpdaterProxy {
     instance: Arc<Mutex<dyn PluginInstance>>,
-    capability: UpdaterCapability,
+    capability: PluginUpdaterCapability,
 }
 
 impl PluginUpdaterProxy {
-    pub fn new(instance: Arc<Mutex<dyn PluginInstance>>, capability: UpdaterCapability) -> Self {
+    pub fn new(
+        instance: Arc<Mutex<dyn PluginInstance>>,
+        capability: PluginUpdaterCapability,
+    ) -> Self {
         Self {
             instance,
             capability,
@@ -24,7 +27,7 @@ impl PluginUpdaterProxy {
 
 #[async_trait]
 impl Updater for PluginUpdaterProxy {
-    fn info(&self) -> &UpdaterCapability {
+    fn metadata(&self) -> &UpdaterCapabilityMetadata {
         &self.capability
     }
 

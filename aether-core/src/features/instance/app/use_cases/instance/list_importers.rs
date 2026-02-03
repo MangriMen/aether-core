@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::features::{
-    instance::{Importer, ImporterCapability},
-    plugins::{CapabilityEntry, CapabilityRegistry, PluginError},
+use crate::{
+    features::instance::{Importer, ImporterCapabilityMetadata, InstanceError},
+    shared::{CapabilityEntry, CapabilityRegistry},
 };
 
 pub struct ListImportersUseCase<IR: CapabilityRegistry<Arc<dyn Importer>>> {
@@ -14,15 +14,18 @@ impl<IR: CapabilityRegistry<Arc<dyn Importer>>> ListImportersUseCase<IR> {
         Self { importers_registry }
     }
 
-    pub async fn execute(&self) -> Result<Vec<CapabilityEntry<ImporterCapability>>, PluginError> {
+    pub async fn execute(
+        &self,
+    ) -> Result<Vec<CapabilityEntry<ImporterCapabilityMetadata>>, InstanceError> {
         Ok(self
             .importers_registry
             .list()
-            .await?
+            .await
+            .map_err(|_| InstanceError::CapabilityOperationError)?
             .into_iter()
             .map(|entry| CapabilityEntry {
                 plugin_id: entry.plugin_id,
-                capability: entry.capability.info().clone(),
+                capability: entry.capability.metadata().clone(),
             })
             .collect())
     }

@@ -50,12 +50,6 @@ pub enum PluginError {
     #[error("Invalid load configuration: {config:?}")]
     InvalidConfig { config: LoadConfig },
 
-    #[error("Capability {capability_type} with id \"{capability_id}\" not found")]
-    CapabilityNotFound {
-        capability_type: &'static str,
-        capability_id: String,
-    },
-
     #[error("Failed to extract plugin from: {from}")]
     ExtractionFailed { from: String },
 
@@ -64,6 +58,20 @@ pub enum PluginError {
 
     #[error("Failed to extract plugin files: {from}")]
     FileExtractionFailed { from: String },
+
+    #[error("Failed to register capability {capability_type} with id \"{capability_id}\"")]
+    CapabilityRegistrationFailed {
+        capability_type: &'static str,
+        capability_id: String,
+    },
+
+    #[error(
+        "Failed to cancel capability registration {capability_type} with id \"{capability_id}\""
+    )]
+    CapabilityCancelRegistrationFailed {
+        capability_type: &'static str,
+        capability_id: String,
+    },
 
     // Security & access errors
     #[error("Plugin \"{plugin_id}\" attempted to access restricted path: {path}")]

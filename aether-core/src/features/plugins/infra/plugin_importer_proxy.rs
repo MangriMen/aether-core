@@ -4,17 +4,20 @@ use async_trait::async_trait;
 use tokio::sync::Mutex;
 
 use crate::features::{
-    instance::{Importer, ImporterCapability, InstanceError},
-    plugins::{PluginImportInstance, PluginInstance, PluginInstanceExt},
+    instance::{Importer, ImporterCapabilityMetadata, InstanceError},
+    plugins::{PluginImportInstance, PluginImporterCapability, PluginInstance, PluginInstanceExt},
 };
 
 pub struct PluginImporterProxy {
     instance: Arc<Mutex<dyn PluginInstance>>,
-    capability: ImporterCapability,
+    capability: PluginImporterCapability,
 }
 
 impl PluginImporterProxy {
-    pub fn new(instance: Arc<Mutex<dyn PluginInstance>>, capability: ImporterCapability) -> Self {
+    pub fn new(
+        instance: Arc<Mutex<dyn PluginInstance>>,
+        capability: PluginImporterCapability,
+    ) -> Self {
         Self {
             instance,
             capability,
@@ -24,7 +27,7 @@ impl PluginImporterProxy {
 
 #[async_trait]
 impl Importer for PluginImporterProxy {
-    fn info(&self) -> &ImporterCapability {
+    fn metadata(&self) -> &ImporterCapabilityMetadata {
         &self.capability
     }
 

@@ -10,8 +10,9 @@ use path_slash::PathBufExt;
 use crate::{
     features::{
         instance::{
-            BaseCapability, ContentFile, ContentInstallParams, ContentProvider,
-            ContentProviderCapability, ContentSearchParams, ContentSearchResult, InstanceError,
+            CapabilityMetadata, ContentFile, ContentInstallParams, ContentProvider,
+            ContentProviderCapabilityMetadata, ContentSearchParams, ContentSearchResult,
+            InstanceError,
         },
         settings::LocationInfo,
     },
@@ -28,7 +29,7 @@ use super::{
 pub struct ModrinthContentProvider<RC> {
     api: ModrinthApiClient<RC>,
     location_info: Arc<LocationInfo>,
-    capability: ContentProviderCapability,
+    capability: ContentProviderCapabilityMetadata,
 }
 
 impl<RC: RequestClient> ModrinthContentProvider<RC> {
@@ -40,14 +41,14 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
         Self {
             api: ModrinthApiClient::new(MODRINTH_API_URL.to_string(), base_headers, request_client),
             location_info,
-            capability: ContentProviderCapability {
-                base: BaseCapability {
-                    id: "core::modrinth".to_string(),
+            capability: ContentProviderCapabilityMetadata {
+                base: CapabilityMetadata {
+                    id: "modrinth-content".to_string(),
                     name: "Modrinth".to_string(),
                     description: None,
                     icon: None,
-                    handler: "search".to_string(),
                 },
+                provider_data_content_id_field: "project_id".to_string(),
             },
         }
     }
@@ -153,12 +154,8 @@ impl<RC: RequestClient> ModrinthContentProvider<RC> {
 
 #[async_trait]
 impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
-    fn info(&self) -> &ContentProviderCapability {
+    fn metadata(&self) -> &ContentProviderCapabilityMetadata {
         &self.capability
-    }
-
-    fn get_name(&self) -> String {
-        "Modrinth".into()
     }
 
     async fn search(
@@ -198,9 +195,5 @@ impl<RC: RequestClient> ContentProvider for ModrinthContentProvider<RC> {
             &relative_content_path,
             &provider_data,
         )
-    }
-
-    fn get_update_data_id_field(&self) -> String {
-        "project_id".into()
     }
 }

@@ -4,14 +4,14 @@ use tokio::sync::Mutex;
 use crate::{
     features::{
         events::{EventEmitter, PluginEvent, PluginEventType},
-        instance::{BaseCapability, ContentProvider, Importer, Updater},
+        instance::{ContentProvider, Importer, Updater},
         plugins::{
             infra::{PluginContentProviderProxy, PluginImporterProxy, PluginUpdaterProxy},
-            CapabilityRegistry, PluginCapabilities, PluginError, PluginInstance, PluginRegistry,
+            AsCapabilityMetadata, PluginCapabilities, PluginError, PluginInstance, PluginRegistry,
             PluginState,
         },
     },
-    shared::IoError,
+    shared::{CapabilityRegistry, IoError},
 };
 
 pub struct PluginInfrastructureListener<
@@ -143,21 +143,39 @@ where
     where
         T: Send + Sync + ?Sized + 'static,
         R: CapabilityRegistry<Arc<T>> + ?Sized,
-        C: Clone + std::ops::Deref<Target = BaseCapability>,
+        C: Clone + AsCapabilityMetadata,
         F: Fn(Arc<Mutex<dyn PluginInstance>>, C) -> Arc<T>,
     {
-        for cap in items {
+        for capability in items {
+            let meta = capability.as_metadata();
+
             match instance {
-                Some(inst) => {
-                    let proxy = proxy_factory(inst.clone(), cap.clone());
-                    registry
-                        .add(plugin_id.to_string(), cap.id.clone(), proxy)
-                        .await?;
+                Some(instance) => {
+                    let proxy = proxy_factory(instance.clone(), capability.clone());
+                    if let Err(err) = registry
+                        .add(plugin_id.to_string(), meta.id.clone(), proxy)
+                        .await
+                    {
+                        let error = PluginError::CapabilityRegistrationFailed {
+                            capability_type: registry.get_type(),
+                            capability_id: meta.id.clone(),
+                        };
+                        tracing::error!("{}: {}", error, err);
+                    }
                 }
                 None => {
-                    registry
-                        .remove_by_plugin_and_capability(plugin_id.to_string(), cap.id.clone())
-                        .await?;
+                    if let Err(err) = registry
+                        .remove(plugin_id.to_string(), meta.id.clone())
+                        .await
+                    {
+                        {
+                            let error = PluginError::CapabilityCancelRegistrationFailed {
+                                capability_type: registry.get_type(),
+                                capability_id: meta.id.clone(),
+                            };
+                            tracing::error!("{}: {}", error, err);
+                        }
+                    }
                 }
             }
         }

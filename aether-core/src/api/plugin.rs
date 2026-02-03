@@ -2,17 +2,14 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     core::domain::LazyLocator,
-    features::{
-        instance::ImporterCapability,
-        plugins::{
-            app::{
-                DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase,
-                EnablePluginUseCase, GetPluginApiVersionUseCase, GetPluginDtoUseCase,
-                GetPluginSettingsUseCase, ImportPluginsUseCase, ListImportersUseCase,
-                ListPluginsDtoUseCase, PluginDto, RemovePluginUseCase, SyncPluginsUseCase,
-            },
-            CapabilityEntry, PluginSettings,
+    features::plugins::{
+        app::{
+            DisablePluginUseCase, EditPluginSettings, EditPluginSettingsUseCase,
+            EnablePluginUseCase, GetPluginApiVersionUseCase, GetPluginDtoUseCase,
+            GetPluginSettingsUseCase, ImportPluginsUseCase, ListPluginsDtoUseCase, PluginDto,
+            RemovePluginUseCase, SyncPluginsUseCase,
         },
+        PluginSettings,
     },
 };
 
@@ -166,16 +163,6 @@ pub async fn edit_settings(
     Ok(
         EditPluginSettingsUseCase::new(lazy_locator.get_plugin_settings_storage().await)
             .execute(plugin_id, edit_settings)
-            .await?,
-    )
-}
-
-pub async fn list_importers() -> crate::Result<Vec<CapabilityEntry<ImporterCapability>>> {
-    let lazy_locator = LazyLocator::get().await?;
-
-    Ok(
-        ListImportersUseCase::new(lazy_locator.get_importers_registry().await)
-            .execute()
             .await?,
     )
 }

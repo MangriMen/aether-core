@@ -6,21 +6,23 @@ use tokio::sync::Mutex;
 
 use crate::features::{
     instance::{
-        ContentFile, ContentInstallParams, ContentProvider, ContentProviderCapability,
+        ContentFile, ContentInstallParams, ContentProvider, ContentProviderCapabilityMetadata,
         ContentSearchParams, ContentSearchResult, InstanceError,
     },
-    plugins::{PluginInstance, PluginInstanceExt},
+    plugins::{
+        PluginContentProviderCapability, PluginInstallContent, PluginInstance, PluginInstanceExt,
+    },
 };
 
 pub struct PluginContentProviderProxy {
     instance: Arc<Mutex<dyn PluginInstance>>,
-    capability: ContentProviderCapability,
+    capability: PluginContentProviderCapability,
 }
 
 impl PluginContentProviderProxy {
     pub fn new(
         instance: Arc<Mutex<dyn PluginInstance>>,
-        capability: ContentProviderCapability,
+        capability: PluginContentProviderCapability,
     ) -> Self {
         Self {
             instance,
@@ -31,12 +33,8 @@ impl PluginContentProviderProxy {
 
 #[async_trait]
 impl ContentProvider for PluginContentProviderProxy {
-    fn info(&self) -> &ContentProviderCapability {
+    fn metadata(&self) -> &ContentProviderCapabilityMetadata {
         &self.capability
-    }
-
-    fn get_name(&self) -> String {
-        self.capability.name.to_owned()
     }
 
     async fn search(
@@ -46,11 +44,11 @@ impl ContentProvider for PluginContentProviderProxy {
         let mut plugin = self.instance.lock().await;
         let plugin_id = plugin.get_id();
 
-        if !plugin.supports(&self.capability.handler) {
+        if !plugin.supports(&self.capability.search_handler) {
             tracing::error!(
                 "Plugin '{}' promised handler '{}' for capability '{}', but function not found",
                 plugin_id.clone(),
-                self.capability.handler,
+                self.capability.search_handler,
                 self.capability.id
             );
 
@@ -61,7 +59,7 @@ impl ContentProvider for PluginContentProviderProxy {
 
         Ok(plugin
             .call::<Msgpack<ContentSearchParams>, Msgpack<ContentSearchResult>>(
-                &self.capability.handler,
+                &self.capability.search_handler,
                 Msgpack(search_content.clone()),
             )
             .map_err(|err| {
@@ -83,10 +81,41 @@ impl ContentProvider for PluginContentProviderProxy {
         instance_id: &str,
         install_params: &ContentInstallParams,
     ) -> Result<ContentFile, InstanceError> {
-        todo!("Make install work in plugin")
-    }
+        let mut plugin = self.instance.lock().await;
+        let plugin_id = plugin.get_id();
 
-    fn get_update_data_id_field(&self) -> String {
-        todo!("Make update data id field work in plugin")
+        if !plugin.supports(&self.capability.install_handler) {
+            tracing::error!(
+                "Plugin '{}' promised handler '{}' for capability '{}', but function not found",
+                plugin_id.clone(),
+                self.capability.install_handler,
+                self.capability.id
+            );
+
+            return Err(InstanceError::ContentProviderNotFound {
+                provider_id: self.capability.id.clone(),
+            });
+        }
+
+        Ok(plugin
+            .call::<PluginInstallContent, Msgpack<ContentFile>>(
+                &self.capability.install_handler,
+                PluginInstallContent {
+                    instance_id: instance_id.to_string(),
+                    install_params: install_params.clone(),
+                },
+            )
+            .map_err(|err| {
+                tracing::error!(
+                    "Error importing instance by plugin '{}': {:?}",
+                    plugin_id,
+                    err
+                );
+
+                InstanceError::ContentProviderNotFound {
+                    provider_id: self.capability.id.clone(),
+                }
+            })?
+            .0)
     }
 }
